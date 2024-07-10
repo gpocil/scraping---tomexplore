@@ -66,6 +66,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<[s
 
 
 
+
 export async function scrapeImages(page: Page): Promise<[string, string][]> {
     console.log('Collecting image links...');
 
@@ -78,11 +79,11 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
         }));
     });
 
-    console.log(`Found ${imageLinks.length} image links. Processing the first 10 links...`);
+    console.log(`Found ${imageLinks.length} image links. Processing the first 50 links...`);
     const results: [string, string][] = [];
 
-    // Boucler sur les 10 premières images
-    for (const { index, href } of imageLinks.slice(0, 25)) {
+    // Boucler sur les 50 premières images
+    for (const { index, href } of imageLinks.slice(0, 50)) {
         console.log(`Processing image ${index + 1}: ${href}`);
 
         // Cliquer sur l'image pour ouvrir les détails
@@ -104,7 +105,10 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
         if (licenseText &&
             (licenseText.includes('Creative Commons Attribution-Share Alike 3.0') ||
                 licenseText.includes('Creative Commons Attribution-Share Alike 4.0') ||
-                licenseText.includes('Creative Commons Attribution-Share Alike 2.0'))
+                licenseText.includes('Creative Commons Attribution-Share Alike 2.0') ||
+                licenseText.includes('Creative Commons Attribution 2.0') ||
+                licenseText.includes('Creative Commons Attribution 3.0') ||
+                licenseText.includes('Creative Commons Attribution 4.0'))
         ) {
             const authorAndLicense = await page.evaluate(() => {
                 const licenseElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__license a span');
@@ -125,6 +129,12 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
                         licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank">Creative Commons Attribution-Share Alike 2.0</a>';
                     } else if (licenseText.includes('Creative Commons Attribution-Share Alike 4.0')) {
                         licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-Share Alike 4.0</a>';
+                    } else if (licenseText.includes('Creative Commons Attribution 2.0')) {
+                        licenseLink = '<a href="https://creativecommons.org/licenses/by/2.0/" target="_blank">Creative Commons Attribution 2.0</a>';
+                    } else if (licenseText.includes('Creative Commons Attribution 3.0')) {
+                        licenseLink = '<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank">Creative Commons Attribution 3.0</a>';
+                    } else if (licenseText.includes('Creative Commons Attribution 4.0')) {
+                        licenseLink = '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution 4.0</a>';
                     }
                 }
 
@@ -167,7 +177,7 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
         });
 
         // Attendre que la liste d'images soit à nouveau visible
-        await page.waitForTimeout(200); // Attendre un peu avant de vérifier la présence de l'élément pour éviter des erreurs potentielles
+        await page.waitForTimeout(300); // Attendre un peu avant de vérifier la présence de l'élément pour éviter des erreurs potentielles
         await page.waitForSelector('a.sdms-image-result');
     }
 
