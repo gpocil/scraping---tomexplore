@@ -3,7 +3,7 @@ import puppeteer, { Page } from 'puppeteer';
 
 
 
-export async function wikiMediaSearch(req?: Request, res?: Response): Promise<void> {
+export async function wikiMediaSearch(req?: Request, res?: Response): Promise<[string, string][]> {
     const name = req ? req.body.name as string : '';
 
     if (!name) {
@@ -11,7 +11,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<vo
             console.log('Error: name is required');
             res.status(400).json({ error: 'name is required' });
         }
-        return;
+        return [];
     }
 
     try {
@@ -43,7 +43,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<vo
             await page.evaluate(() => {
                 window.scrollBy(0, window.innerHeight);
             });
-            await page.waitForTimeout(2000); // Attendre 2 secondes pour que le contenu se charge
+            await page.waitForTimeout(500); // Attendre 2 secondes pour que le contenu se charge
         }
         const urls = await scrapeImages(page);
         console.log(urls);
@@ -52,12 +52,14 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<vo
         if (res) {
             res.status(200).json(urls);
         }
+
+        return urls;
     } catch (error: any) {
         console.error(`Error during search process: ${error.message}`);
         if (res) {
             res.status(500).json({ error: error.message });
         }
-        return;
+        return [];
     }
 }
 
@@ -80,7 +82,7 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
     const results: [string, string][] = [];
 
     // Boucler sur les 10 premières images
-    for (const { index, href } of imageLinks.slice(0, 30)) {
+    for (const { index, href } of imageLinks.slice(0, 25)) {
         console.log(`Processing image ${index + 1}: ${href}`);
 
         // Cliquer sur l'image pour ouvrir les détails
@@ -109,9 +111,24 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
                 const authorElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__artist bdi span a');
 
                 const licenseText = licenseElement ? licenseElement.textContent : '';
-                const authorText = authorElement ? authorElement.textContent : '';
+                let authorText = authorElement ? authorElement.textContent : 'Anonyme';
 
-                return `${authorText} - ${licenseText}`;
+                if (!authorText) {
+                    authorText = 'Anonyme';
+                }
+
+                let licenseLink = '';
+                if (licenseText) {
+                    if (licenseText.includes('Creative Commons Attribution-Share Alike 3.0')) {
+                        licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank">Creative Commons Attribution-Share Alike 3.0</a>';
+                    } else if (licenseText.includes('Creative Commons Attribution-Share Alike 2.0')) {
+                        licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank">Creative Commons Attribution-Share Alike 2.0</a>';
+                    } else if (licenseText.includes('Creative Commons Attribution-Share Alike 4.0')) {
+                        licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-Share Alike 4.0</a>';
+                    }
+                }
+
+                return `${authorText} - ${licenseLink}`;
             });
 
             console.log(`Author and License for image ${index + 1}: ${authorAndLicense}`);
@@ -150,7 +167,7 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
         });
 
         // Attendre que la liste d'images soit à nouveau visible
-        await page.waitForTimeout(1000); // Attendre un peu avant de vérifier la présence de l'élément pour éviter des erreurs potentielles
+        await page.waitForTimeout(200); // Attendre un peu avant de vérifier la présence de l'élément pour éviter des erreurs potentielles
         await page.waitForSelector('a.sdms-image-result');
     }
 

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import puppeteer, { Page } from 'puppeteer';
 
-export async function googleSearch(req?: Request, res?: Response): Promise<[string, string][]> {
+export async function wikipediaSearch(req?: Request, res?: Response): Promise<[string, string][]> {
     const name = req ? req.body.name as string : '';
 
     if (!name) {

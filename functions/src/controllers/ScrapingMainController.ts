@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import * as InstagramController from './scraping/InstagramController';
 import * as GoogleController from './scraping/GoogleController';
 import * as FileController from './FileController';
-import * as WikipediaController from './scraping/WikipediaController';
+// import * as WikipediaController from './scraping/WikipediaController';
 import * as UnsplashController from './scraping/UnsplashController';
-
+import * as WikimediaController from './scraping/WikimediaController'
 
 export async function getPhotosBusiness(req: Request, res: Response): Promise<void> {
     const { username, location_full_address } = req.body;
@@ -32,14 +32,14 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
         return;
     }
     try {
-        const wikipediaUrls = await WikipediaController.googleSearch({ body: { name } } as Request);
+        const wikiMediaUrls = await WikimediaController.wikiMediaSearch({ body: { name } } as Request);
         if (famous === "true") {
             const unsplashUrls = await UnsplashController.unsplashSearch({ body: { name } } as Request);
-            const downloadDir = await FileController.downloadPhotosTouristAttraction(name, wikipediaUrls, unsplashUrls);
+            const downloadDir = await FileController.downloadPhotosTouristAttraction(name, wikiMediaUrls, unsplashUrls);
             res.json({ downloadDir: downloadDir.replace(/\\/g, '/') });
         }
         else if (famous === "false") {
-            const downloadDir = await FileController.downloadPhotosTouristAttraction(name, wikipediaUrls);
+            const downloadDir = await FileController.downloadPhotosTouristAttraction(name, wikiMediaUrls);
             res.json({ downloadDir: downloadDir.replace(/\\/g, '/') });
         }
         else {
