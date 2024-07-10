@@ -8,6 +8,7 @@ import scrapingMainRoutes from './routes/ScrapingMainRoutes';
 import fileRoutes from './routes/FileRoutes';
 import wikiRoutes from './routes/WikipediaRoutes'
 import unsplahRoutes from './routes/UnsplashRoutes'
+import wikimediaRoutes from './routes/WikimediaRoutes'
 
 
 const app = express();
@@ -22,7 +23,7 @@ app.use('', scrapingMainRoutes);
 app.use('', fileRoutes);
 app.use('', wikiRoutes);
 app.use('', unsplahRoutes);
-
+app.use('', wikimediaRoutes)
 
 
 app.listen(port, () => {

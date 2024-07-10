@@ -91,19 +91,34 @@ async function scrapeImages(page: Page): Promise<[string, string][]> {
     const imageTuples: [string, string][] = [];
 
     const imgs = await page.evaluate(() => {
+        // Function to check if an element is a descendant of a given selector
+        function isDescendant(parentSelector: string, child: HTMLElement): boolean {
+            const parent = document.querySelector(parentSelector);
+            return parent ? parent.contains(child) : false;
+        }
+
         const galerieHeader = document.querySelector('h2 span#Galerie');
+        let images: HTMLImageElement[] = [];
+
         if (galerieHeader) {
             const galleryList = galerieHeader.parentElement!.nextElementSibling;
             if (galleryList && galleryList.tagName.toLowerCase() === 'ul' && galleryList.classList.contains('gallery')) {
-                return Array.from(galleryList.querySelectorAll('img'))
-                    .map(img => (img as HTMLImageElement).src)
-                    .filter(src => src.includes('upload.wikimedia.org') && !src.includes('.svg'));
+                images = Array.from(galleryList.querySelectorAll('img'))
+                    .filter(img => img.src.includes('upload.wikimedia.org') && !img.src.includes('.svg'));
             }
         }
-        return Array.from(document.querySelectorAll('img'))
-            .map(img => (img as HTMLImageElement).src)
-            .filter(src => src.includes('upload.wikimedia.org') && !src.includes('.svg'))
-            .slice(0, 10); // Take only the first 10 images
+
+        if (images.length === 0) {
+            images = Array.from(document.querySelectorAll('img'))
+                .filter(img =>
+                    img.src.includes('upload.wikimedia.org') &&
+                    !img.src.includes('.svg') &&
+                    !isDescendant('.DebutCarte', img) &&
+                    !isDescendant('#bandeau-portail', img)
+                );
+        }
+
+        return images.map(img => img.src);
     });
 
     console.log(`Found ${imgs.length} images matching the criteria.`);
@@ -167,5 +182,3 @@ async function scrapeImages(page: Page): Promise<[string, string][]> {
     console.log('Image URLs and license information found:', imageTuples);
     return imageTuples;
 }
-
-export { scrapeImages };
