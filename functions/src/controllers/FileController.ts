@@ -93,7 +93,7 @@ interface ImageUrl {
 }
 
 
-export async function downloadPhotosTouristAttraction(name: string, wikipediaUrls: [string, string][], unsplashUrls: [string, string][]): Promise<string> {
+export async function downloadPhotosTouristAttraction(name: string, wikipediaUrls: [string, string][], unsplashUrls: [string, string][] = []): Promise<string> {
     const imageUrls: ImageUrl[] = [
         ...wikipediaUrls.map(([url, license]) => ({ url, license, prefix: 'w_' })),
         ...unsplashUrls.map(([url, license]) => ({ url, license, prefix: 'u_' }))
@@ -133,5 +133,4 @@ export async function downloadPhotosTouristAttraction(name: string, wikipediaUrl
         console.log('download dir : ' + downloadDir);
     }
     return downloadDir;
-
 }
