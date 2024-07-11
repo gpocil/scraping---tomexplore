@@ -1,14 +1,14 @@
 import { Request, Response } from 'express';
 import puppeteer from 'puppeteer';
 
-export async function fetchInstagramImages(req?: Request, res?: Response): Promise<string[]> {
+export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number }> {
   const username = req ? req.body.username as string : '';
 
   if (!username) {
     if (res) {
       res.status(400).json({ error: 'Username is required' });
     }
-    return [];
+    return { urls: [], count: 0 };
   }
 
   try {
@@ -20,6 +20,19 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     await page.goto(`https://www.instagram.com/${username}/`, {
       waitUntil: 'networkidle2',
     });
+
+    // Check if the page contains "Sorry, this page isn't available."
+    const pageNotFound = await page.evaluate(() => {
+      return document.body.textContent?.includes("Sorry, this page isn't available.") || false;
+    });
+
+    if (pageNotFound) {
+      await browser.close();
+      if (res) {
+        res.status(404).json({ error: "Sorry, this page isn't available." });
+      }
+      return { urls: [], count: 0 };
+    }
 
     await page.waitForSelector('div._aagv');
     const targetDivSelector = '._aagu';
@@ -47,20 +60,22 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
       await browser.close();
 
+      const result = { urls: imageUrls, count: imageUrls.length };
       if (res) {
-        res.json({ imageUrls });
+        res.json(result);
       }
-      return imageUrls;
+      return result;
     } else {
+      await browser.close();
       if (res) {
         res.status(404).json({ error: 'Target div not found' });
       }
-      return [];
+      return { urls: [], count: 0 };
     }
   } catch (error: any) {
     if (res) {
       res.status(500).json({ error: error.message });
     }
-    return [];
+    return { urls: [], count: 0 };
   }
 }

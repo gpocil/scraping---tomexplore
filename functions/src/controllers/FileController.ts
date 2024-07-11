@@ -58,10 +58,15 @@ export function deleteFolderRecursiveHelper(folderPath: string): void {
     // Delete the now-empty folder
     fs.rmdirSync(folderPath);
 }
-
-export async function downloadPhotosBusiness(username: string, instagramImages: string[], googleImages: string[]) {
-
-    const imageUrls = [...instagramImages.map(url => ({ url, prefix: 'i_' })), ...googleImages.map(url => ({ url, prefix: 'g_' }))];
+interface Url {
+    url: string;
+    prefix: string;
+}
+export async function downloadPhotosBusiness(username: string, instagramImages: { urls: string[], count: number }, googleImages: { urls: string[], count: number }): Promise<{ downloadDir: string, imageCount: number }> {
+    const imageUrls: Url[] = [
+        ...instagramImages.urls.map(url => ({ url, prefix: 'i_' })),
+        ...googleImages.urls.map(url => ({ url, prefix: 'g_' }))
+    ];
     if (imageUrls.length > 0) {
         const downloadDir = path.join(__dirname, '..', 'temp', username);
         fs.mkdirSync(downloadDir, { recursive: true });
@@ -81,9 +86,10 @@ export async function downloadPhotosBusiness(username: string, instagramImages: 
             }
         }));
 
-        console.log('download dir : ' + downloadDir)
-        return downloadDir;
+        console.log('download dir : ' + downloadDir);
+        return { downloadDir, imageCount: imageUrls.length };
     }
+    return { downloadDir: '', imageCount: 0 };
 }
 
 interface ImageUrl {
@@ -93,10 +99,10 @@ interface ImageUrl {
 }
 
 
-export async function downloadPhotosTouristAttraction(name: string, wikiMediaUrls: [string, string][], unsplashUrls: [string, string][] = []): Promise<string> {
+export async function downloadPhotosTouristAttraction(name: string, wikiMediaUrls: { urls: [string, string][]; count: number }, unsplashUrls: { urls: [string, string][]; count: number } = { urls: [], count: 0 }): Promise<{ downloadDir: string, imageCount: number }> {
     const imageUrls: ImageUrl[] = [
-        ...wikiMediaUrls.map(([url, license]) => ({ url, license, prefix: 'w_' })),
-        ...unsplashUrls.map(([url, license]) => ({ url, license, prefix: 'u_' }))
+        ...wikiMediaUrls.urls.map(([url, license]) => ({ url, license, prefix: 'w_' })),
+        ...unsplashUrls.urls.map(([url, license]) => ({ url, license, prefix: 'u_' }))
     ];
     const downloadDir = path.join(__dirname, '..', 'temp', name);
 
@@ -132,5 +138,5 @@ export async function downloadPhotosTouristAttraction(name: string, wikiMediaUrl
 
         console.log('download dir : ' + downloadDir);
     }
-    return downloadDir;
+    return { downloadDir, imageCount: imageUrls.length };
 }

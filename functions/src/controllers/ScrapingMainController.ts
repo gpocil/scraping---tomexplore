@@ -15,12 +15,13 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
     try {
         const instagramImages = await InstagramController.fetchInstagramImages({ body: { username } } as Request);
         const googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address: location_full_address } } as Request);
-        const downloadDir = await FileController.downloadPhotosBusiness(username, instagramImages, googleImages);
-        res.json({ downloadDir });
+        const result = await FileController.downloadPhotosBusiness(username, instagramImages, googleImages);
+        res.json({ downloadDir: result.downloadDir, imageCount: result.imageCount });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
 }
+
 export async function getPhotosTouristAttraction(req: Request, res: Response): Promise<void> {
     const { name, famous } = req.body;
     if (!name) {
@@ -32,20 +33,23 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
         return;
     }
     try {
-        const wikiMediaUrls = await WikimediaController.wikiMediaSearch({ body: { name } } as Request);
+        const wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name } } as Request);
+        let result, downloadDir, imageCount;
+
         if (famous === "true") {
-            const unsplashUrls = await UnsplashController.unsplashSearch({ body: { name } } as Request);
-            const downloadDir = await FileController.downloadPhotosTouristAttraction(name, wikiMediaUrls, unsplashUrls);
-            res.json({ downloadDir: downloadDir.replace(/\\/g, '/') });
-        }
-        else if (famous === "false") {
-            const downloadDir = await FileController.downloadPhotosTouristAttraction(name, wikiMediaUrls);
-            res.json({ downloadDir: downloadDir.replace(/\\/g, '/') });
-        }
-        else {
+            const unsplashResult = await UnsplashController.unsplashSearch({ body: { name } } as Request);
+            result = await FileController.downloadPhotosTouristAttraction(name, wikiMediaResult, unsplashResult);
+        } else if (famous === "false") {
+            result = await FileController.downloadPhotosTouristAttraction(name, wikiMediaResult);
+        } else {
             res.status(400).json({ error: 'Field "famous" must be "true" or "false' });
             return;
         }
+
+        downloadDir = result.downloadDir;
+        imageCount = result.imageCount;
+
+        res.json({ downloadDir: downloadDir.replace(/\\/g, '/'), imageCount });
 
     } catch (error: any) {
         res.status(500).json({ error: error.message });

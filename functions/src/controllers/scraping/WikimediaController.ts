@@ -3,7 +3,7 @@ import puppeteer, { Page } from 'puppeteer';
 
 
 
-export async function wikiMediaSearch(req?: Request, res?: Response): Promise<[string, string][]> {
+export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ urls: [string, string][], count: number }> {
     const name = req ? req.body.name as string : '';
 
     if (!name) {
@@ -11,7 +11,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<[s
             console.log('Error: name is required');
             res.status(400).json({ error: 'name is required' });
         }
-        return [];
+        return { urls: [], count: 0 };
     }
 
     try {
@@ -59,7 +59,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<[s
         if (res) {
             res.status(500).json({ error: error.message });
         }
-        return [];
+        return { urls: [], count: 0 };
     }
 }
 
@@ -67,7 +67,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<[s
 
 
 
-export async function scrapeImages(page: Page): Promise<[string, string][]> {
+export async function scrapeImages(page: Page): Promise<{ urls: [string, string][], count: number }> {
     console.log('Collecting image links...');
 
     // Récupérer tous les liens des images
@@ -79,7 +79,7 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
         }));
     });
 
-    console.log(`Found ${imageLinks.length} image links. Processing the first 50 links...`);
+    console.log(`Found ${imageLinks.length} image links. Processing `);
     const results: [string, string][] = [];
 
     // Boucler sur les 50 premières images
@@ -182,5 +182,5 @@ export async function scrapeImages(page: Page): Promise<[string, string][]> {
     }
 
     console.log('Image processing complete.');
-    return results;
+    return { urls: results, count: results.length };
 }

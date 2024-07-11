@@ -5,7 +5,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
-export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<string[]> {
+export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number }> {
   const { location_full_address: location_full_address } = req ? req.body : { location_full_address: '' };
   const formattedAddress = formatAddressForURL(location_full_address);
   const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
@@ -16,7 +16,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     if (res) {
       res.status(400).json({ error: 'URL is required' });
     }
-    return [];
+    return { urls: [], count: 0 };
   }
 
   console.log(`Fetching image URLs from: ${url}`);
@@ -44,16 +44,17 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
 
     await browser.close();
 
+    const result = { urls: imageUrls, count: imageUrls.length };
     if (res) {
-      res.json({ imageUrls });
+      res.json(result);
     }
-    return imageUrls;
+    return result;
   } catch (error: any) {
     console.error(`Error fetching image URLs: ${error.message}`);
     if (res) {
       res.status(500).json({ error: `Error fetching image URLs: ${error.message}` });
     }
-    return [];
+    return { urls: [], count: 0 };
   }
 }
 
@@ -141,11 +142,11 @@ async function scrapeImageUrls(page: Page): Promise<string[]> {
     throw new Error(`Error hovering over target div: ${hoverError.message}`);
   }
 }
-function formatAddressForURL(address: String) {
 
-
+function formatAddressForURL(address: string): string {
   return address.replace(/[^a-zA-Z0-9\s]/g, '');
 }
+
 function randomTimeout(): number {
   return Math.floor(500 + Math.random() * 1500);
 }

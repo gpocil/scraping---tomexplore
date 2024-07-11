@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import puppeteer, { Page } from 'puppeteer';
 
-export async function unsplashSearch(req?: Request, res?: Response): Promise<[string, string][]> {
+export async function unsplashSearch(req?: Request, res?: Response): Promise<{ urls: [string, string][], count: number }> {
     const name = req ? (req.body.name as string).replace(/\s+/g, '-') : '';
 
     if (!name) {
@@ -9,7 +9,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<[st
             console.log('Error: name is required');
             res.status(400).json({ error: 'name is required' });
         }
-        return [];
+        return { urls: [], count: 0 };
     }
 
     try {
@@ -28,25 +28,25 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<[st
         await page.waitForSelector('div.fWieE', { timeout: 5000 });
 
         console.log('Scraping images from Unsplash');
-        const images = await scrapeImages(page);
+        const result = await scrapeImages(page);
 
         await browser.close();
         if (res) {
-            res.json({ images });
+            res.json(result);
         }
-        console.log(images);
-        return images;
+        console.log(result);
+        return result;
 
     } catch (error: any) {
         console.error(`Error during search process: ${error.message}`);
         if (res) {
             res.status(500).json({ error: error.message });
         }
-        return [];
+        return { urls: [], count: 0 };
     }
 }
 
-async function scrapeImages(page: Page): Promise<[string, string][]> {
+async function scrapeImages(page: Page): Promise<{ urls: [string, string][], count: number }> {
     return await page.evaluate(() => {
         const imageElements = Array.from(document.querySelectorAll('div.fWieE img[srcset]'));
         const images: [string, string][] = [];
@@ -73,6 +73,6 @@ async function scrapeImages(page: Page): Promise<[string, string][]> {
             }
         });
 
-        return images;
+        return { urls: images, count: images.length };
     });
 }
