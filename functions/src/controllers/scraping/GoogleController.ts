@@ -5,24 +5,26 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
-export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number }> {
-  const { location_full_address: location_full_address } = req ? req.body : { location_full_address: '' };
+export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
+  const { location_full_address } = req ? req.body : { location_full_address: '' };
   const formattedAddress = formatAddressForURL(location_full_address);
   const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
   console.log("url : " + url);
 
   if (!url) {
-    console.error('URL is required');
+    const error = 'URL is required';
+    console.error(error);
     if (res) {
-      res.status(400).json({ error: 'URL is required' });
+      res.status(400).json({ error });
     }
-    return { urls: [], count: 0 };
+    return { urls: [], count: 0, error };
   }
 
   console.log(`Fetching image URLs from: ${url}`);
 
+  let browser;
   try {
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       headless: false,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
@@ -51,10 +53,14 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     return result;
   } catch (error: any) {
     console.error(`Error fetching image URLs: ${error.message}`);
-    if (res) {
-      res.status(500).json({ error: `Error fetching image URLs: ${error.message}` });
+    if (browser) {
+      await browser.close();
     }
-    return { urls: [], count: 0 };
+    const errorMessage = `Error fetching image URLs: ${error.message}, check spelling or no owner photos available`;
+    if (res) {
+      res.status(500).json({ error: errorMessage });
+    }
+    return { urls: [], count: 0, error: errorMessage };
   }
 }
 
@@ -71,7 +77,9 @@ async function handleConsentPage(page: Page): Promise<string> {
         currentUrl = page.url();
         console.log(`URL after accepting consent: ${currentUrl}`);
       } else {
-        console.log('Consent accept button not found');
+        const error = 'Consent accept button not found';
+        console.log(error);
+        throw new Error(error);
       }
     } catch (consentError: any) {
       console.error(`Error handling consent page: ${consentError.message}`);
@@ -84,24 +92,27 @@ async function handleConsentPage(page: Page): Promise<string> {
 async function clickPhotosDuProprietaireButton(page: Page): Promise<void> {
   try {
     const photosButtonSelector = 'button[aria-label="Photos du propriétaire"]';
-    await page.waitForSelector(photosButtonSelector, { visible: true });
+    await page.waitForSelector(photosButtonSelector, { visible: true, timeout: 5000 });
     const photosButton = await page.$(photosButtonSelector);
     if (photosButton) {
       await photosButton.click();
       console.log('Clicked on the "Photos du propriétaire" button');
       await page.waitForTimeout(randomTimeout()); // Wait for photos to load
     } else {
-      console.log('"Photos du propriétaire" button not found');
+      const error = '"Photos du propriétaire" button not found';
+      console.log(error);
+      throw new Error(error);
     }
   } catch (clickError: any) {
     console.error(`Error clicking on "Photos du propriétaire" button: ${clickError.message}`);
+    throw new Error(`Error clicking on "Photos du propriétaire" button: ${clickError.message}`);
   }
 }
 
 async function scrapeImageUrls(page: Page): Promise<string[]> {
   try {
     const targetDivSelector = '.U39Pmb';
-    await page.waitForSelector(targetDivSelector);
+    await page.waitForSelector(targetDivSelector, { timeout: 5000 });
     const targetDiv = await page.$(targetDivSelector);
     if (targetDiv) {
       await targetDiv.hover();
@@ -134,8 +145,9 @@ async function scrapeImageUrls(page: Page): Promise<string[]> {
 
       return imageUrls;
     } else {
-      console.log('Target div not found');
-      throw new Error('Target div not found');
+      const error = 'Target div not found';
+      console.log(error);
+      throw new Error(error);
     }
   } catch (hoverError: any) {
     console.error(`Error hovering over target div: ${hoverError.message}`);
