@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@types/express-jwt": "^7.4.2",
+    "@types/swagger-ui-express": "^4.1.6",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
     "express": "^4.19.2",
@@ -22,7 +23,9 @@
     "puppeteer": "^19.5.2",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "sharp": "^0.33.4"
+    "sharp": "^0.33.4",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
@@ -30,6 +33,7 @@
     "@types/node": "^20.14.9",
     "@types/puppeteer": "^7.0.4",
     "@types/selenium-webdriver": "^4.1.24",
+    "@types/swagger-jsdoc": "^6.0.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.3"
   }

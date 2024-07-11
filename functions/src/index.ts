@@ -10,14 +10,18 @@ import wikiRoutes from './routes/WikipediaRoutes';
 import unsplashRoutes from './routes/UnsplashRoutes';
 import wikimediaRoutes from './routes/WikimediaRoutes';
 import authRoutes from './routes/LoginRoutes';
-
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
+import swaggerOptions from './swagger';
 
 const app = express();
 const port = 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
+const specs = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use('', authRoutes);
 
