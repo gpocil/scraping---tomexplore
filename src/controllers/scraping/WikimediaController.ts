@@ -5,7 +5,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
-export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ urls: [string, string][], count: number, error?: string }> {
+export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ urls: [string, string, string][], count: number, error?: string }> {
     const name = req ? req.body.name as string : '';
 
     if (!name) {
@@ -22,11 +22,11 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         console.log(`Launching browser for search: ${name}`);
         browser = await puppeteer.launch({
             headless: false,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,800'],
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-fullscreen'],
             defaultViewport: null // Use the full window size
         });
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 800 });
+        await page.setViewport({ width: 0, height: 0 });
 
         console.log('Navigating to Wikimedia Commons');
         await page.goto('https://commons.wikimedia.org/', {
@@ -45,7 +45,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
             await page.evaluate(() => {
                 window.scrollBy(0, window.innerHeight);
             });
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(1000);
         }
 
         const urls = await scrapeImages(page);
@@ -71,7 +71,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
     }
 }
 
-export async function scrapeImages(page: Page): Promise<{ urls: [string, string][], count: number }> {
+export async function scrapeImages(page: Page): Promise<{ urls: [string, string, string][], count: number }> {
     console.log('Collecting image links...');
 
     try {
@@ -84,7 +84,8 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string]
         });
 
         console.log(`Found ${imageLinks.length} image links. Processing `);
-        const results: [string, string][] = [];
+        const results: [string, string, string][] = [];
+        const originalUrl = page.url();
 
         for (const { index, href } of imageLinks.slice(0, 50)) {
             console.log(`Processing image ${index + 1}: ${href}`);
@@ -94,7 +95,17 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string]
                 imageLink.click();
             }, index);
 
-            await page.waitForSelector('p.sdms-quick-view__list-item.sdms-quick-view__license');
+            // Wait for either the dynamic panel or a new page to load
+            try {
+                await page.waitForSelector('p.sdms-quick-view__list-item.sdms-quick-view__license', { timeout: 5000 });
+            } catch (error) {
+                if (page.url() !== originalUrl) {
+                    console.log('New page opened, navigating back.');
+                    await page.goBack({ waitUntil: 'networkidle2' });
+                    await page.waitForTimeout(1000);
+                    continue;
+                }
+            }
 
             const licenseText = await page.evaluate(() => {
                 const licenseElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__license a span');
@@ -110,7 +121,7 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string]
                     licenseText.includes('Creative Commons Attribution 3.0') ||
                     licenseText.includes('Creative Commons Attribution 4.0'))
             ) {
-                const authorAndLicense = await page.evaluate(() => {
+                const { authorText, licenseLink } = await page.evaluate(() => {
                     const licenseElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__license a span');
                     const authorElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__artist bdi span a');
 
@@ -124,24 +135,24 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string]
                     let licenseLink = '';
                     if (licenseText) {
                         if (licenseText.includes('Creative Commons Attribution-Share Alike 3.0')) {
-                            licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank">Creative Commons Attribution-Share Alike 3.0</a>';
+                            licenseLink = 'Creative Commons Attribution-Share Alike 3.0';
                         } else if (licenseText.includes('Creative Commons Attribution-Share Alike 2.0')) {
-                            licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank">Creative Commons Attribution-Share Alike 2.0</a>';
+                            licenseLink = 'Creative Commons Attribution-Share Alike 2.0';
                         } else if (licenseText.includes('Creative Commons Attribution-Share Alike 4.0')) {
-                            licenseLink = '<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative Commons Attribution-Share Alike 4.0</a>';
+                            licenseLink = 'Creative Commons Attribution-Share Alike 4.0';
                         } else if (licenseText.includes('Creative Commons Attribution 2.0')) {
-                            licenseLink = '<a href="https://creativecommons.org/licenses/by/2.0/" target="_blank">Creative Commons Attribution 2.0</a>';
+                            licenseLink = 'Creative Commons Attribution 2.0';
                         } else if (licenseText.includes('Creative Commons Attribution 3.0')) {
-                            licenseLink = '<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank">Creative Commons Attribution 3.0</a>';
+                            licenseLink = 'Creative Commons Attribution 3.0';
                         } else if (licenseText.includes('Creative Commons Attribution 4.0')) {
-                            licenseLink = '<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank">Creative Commons Attribution 4.0</a>';
+                            licenseLink = 'Creative Commons Attribution 4.0';
                         }
                     }
 
-                    return `${authorText} - ${licenseLink}`;
+                    return { authorText, licenseLink };
                 });
 
-                console.log(`Author and License for image ${index + 1}: ${authorAndLicense}`);
+                console.log(`Author and License for image ${index + 1}: ${authorText}, ${licenseLink}`);
 
                 const imageUrl = await page.evaluate(() => {
                     const imageElement = document.querySelector('div.sdms-quick-view__thumbnail-wrapper img.sdms-quick-view__thumbnail') as HTMLImageElement;
@@ -162,20 +173,25 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string]
 
                 console.log(`Image URL for image ${index + 1}: ${imageUrl}`);
 
-                results.push([imageUrl, authorAndLicense]);
+                results.push([imageUrl, authorText, licenseLink]);
             } else {
                 console.log(`Skipping image ${index + 1} due to incompatible license.`);
             }
 
-            await page.evaluate(() => {
-                const closeButton = document.querySelector('button.sdms-quick-view__close') as HTMLButtonElement;
-                if (closeButton) {
-                    closeButton.click();
-                }
-            });
-
-            await page.waitForTimeout(300);
-            await page.waitForSelector('a.sdms-image-result');
+            // Check if the URL has changed and navigate back if needed
+            if (page.url() !== originalUrl) {
+                await page.goBack({ waitUntil: 'networkidle2' });
+                await page.waitForTimeout(1000);
+            } else {
+                await page.evaluate(() => {
+                    const closeButton = document.querySelector('button.sdms-quick-view__close') as HTMLButtonElement;
+                    if (closeButton) {
+                        closeButton.click();
+                    }
+                });
+                await page.waitForTimeout(300);
+                await page.waitForSelector('a.sdms-image-result');
+            }
         }
 
         console.log('Image processing complete.');

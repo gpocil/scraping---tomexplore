@@ -5,8 +5,16 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
 puppeteer.use(StealthPlugin());
 
-export async function unsplashSearch(req?: Request, res?: Response): Promise<{ urls: [string, string][], count: number, error?: string }> {
+interface ImageResultTourist {
+    urls: [string, string, string][];
+    count: number;
+    error?: string;
+    link: string;
+}
+
+export async function unsplashSearch(req?: Request, res?: Response): Promise<ImageResultTourist> {
     const name = req ? (req.body.name as string).replace(/\s+/g, '-') : '';
+    const searchUrl = `https://unsplash.com/s/photos/${name}`;
 
     if (!name) {
         const error = 'Name is required';
@@ -14,7 +22,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<{ u
             console.log(error);
             res.status(400).json({ error });
         }
-        return { urls: [], count: 0, error };
+        return { urls: [], count: 0, error, link: "" };
     }
 
     let browser;
@@ -28,7 +36,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<{ u
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
 
-        await page.goto(`https://unsplash.com/s/photos/${name}`, {
+        await page.goto(searchUrl, {
             waitUntil: 'networkidle2',
         });
         await page.waitForSelector('div.fWieE', { timeout: 5000 });
@@ -37,11 +45,12 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<{ u
         const result = await scrapeUnsplashImages(page);
 
         await browser.close();
+        const finalResult = { ...result, link: searchUrl };
         if (res) {
-            res.json(result);
+            res.json(finalResult);
         }
-        console.log(result);
-        return result;
+        console.log(finalResult);
+        return finalResult;
 
     } catch (error: any) {
         console.error(`Error during search process: ${error.message}`);
@@ -52,15 +61,15 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<{ u
         if (res) {
             res.status(500).json({ error: errorMessage });
         }
-        return { urls: [], count: 0, error: errorMessage };
+        return { urls: [], count: 0, error: errorMessage, link: "" };
     }
 }
 
-async function scrapeUnsplashImages(page: Page): Promise<{ urls: [string, string][], count: number }> {
+async function scrapeUnsplashImages(page: Page): Promise<{ urls: [string, string, string][], count: number }> {
     try {
         return await page.evaluate(() => {
             const imageElements = Array.from(document.querySelectorAll('div.fWieE img[srcset]'));
-            const images: [string, string][] = [];
+            const images: [string, string, string][] = [];
 
             console.log(`Found ${imageElements.length} image elements`);
 
@@ -77,7 +86,7 @@ async function scrapeUnsplashImages(page: Page): Promise<{ urls: [string, string
                             if (authorElement) {
                                 const authorName = authorElement.textContent?.trim() || 'Unknown';
                                 console.log(`Found image by ${authorName}`);
-                                images.push([imageUrl, `Photo by ${authorName} on <a href="https://unsplash.com/" target="_blank">Unsplash</a>`]);
+                                images.push([imageUrl, authorName, `Photo by ${authorName} on <a href="https://unsplash.com/" target="_blank">Unsplash</a>`]);
                             }
                         }
                     }

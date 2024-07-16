@@ -162,3 +162,118 @@ function formatAddressForURL(address: string): string {
 function randomTimeout(): number {
   return Math.floor(500 + Math.random() * 1500);
 }
+
+
+
+
+
+
+
+
+
+
+export async function fetchGoogleBusinessAttributes(req?: Request, res?: Response): Promise<{ attributes: { [key: string]: number }, count: number, error?: string }> {
+  const { location_full_address } = req ? req.body : { location_full_address: '' };
+  const formattedAddress = formatAddressForURL(location_full_address);
+  const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
+  console.log("url : " + url);
+
+  if (!url) {
+    const error = 'URL is required';
+    console.error(error);
+    if (res) {
+      res.status(400).json({ error });
+    }
+    return { attributes: {}, count: 0, error };
+  }
+
+  console.log(`Fetching attributes from: ${url}`);
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: false,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    console.log('Browser launched');
+
+    const page = await browser.newPage();
+    console.log('New page opened');
+
+    await page.goto(url, {
+      waitUntil: 'networkidle2',
+    });
+
+    await handleConsentPage(page);
+    await page.waitForTimeout(randomTimeout());
+    await clickReviewsTab(page);
+    await page.waitForTimeout(randomTimeout());
+
+    const attributes = await scrapeAttributes(page);
+
+    await browser.close();
+
+    const result = { attributes, count: Object.keys(attributes).length };
+    if (res) {
+      res.json(result);
+    }
+    return result;
+  } catch (error: any) {
+    console.error(`Error fetching attributes: ${error.message}`);
+    if (browser) {
+      await browser.close();
+    }
+    const errorMessage = `Error fetching attributes: ${error.message}`;
+    if (res) {
+      res.status(500).json({ error: errorMessage });
+    }
+    return { attributes: {}, count: 0, error: errorMessage };
+  }
+}
+async function clickReviewsTab(page: Page): Promise<void> {
+  try {
+    const reviewsTabSelector = 'button[aria-label*="Avis"]';
+    await page.waitForSelector(reviewsTabSelector, { visible: true, timeout: 5000 });
+    const reviewsTab = await page.$(reviewsTabSelector);
+    if (reviewsTab) {
+      await reviewsTab.click();
+      console.log('Clicked on the "Avis" tab');
+      await page.waitForTimeout(randomTimeout()); // Wait for reviews to load
+    } else {
+      const error = '"Avis" tab not found';
+      console.log(error);
+      throw new Error(error);
+    }
+  } catch (clickError: any) {
+    console.error(`Error clicking on "Avis" tab: ${clickError.message}`);
+    throw new Error(`Error clicking on "Avis" tab: ${clickError.message}`);
+  }
+}
+
+async function scrapeAttributes(page: Page): Promise<{ [key: string]: number }> {
+  try {
+    const attributeSelector = 'div.tXNTee.L6Bbsd';
+    await page.waitForSelector(attributeSelector, { visible: true, timeout: 5000 });
+
+    const attributes = await page.$$eval(attributeSelector, elements => {
+      const result: { [key: string]: number } = {};
+      elements.forEach(element => {
+        const keyElement = element.querySelector('span.uEubGf.fontBodyMedium');
+        const valueElement = element.querySelector('span.bC3Nkc.fontBodySmall');
+        if (keyElement && valueElement) {
+          const key = keyElement?.textContent?.trim() ?? '';
+          const value = parseInt(valueElement?.textContent?.trim() ?? '0', 10);
+          if (key && !isNaN(value)) {
+            result[key] = value;
+          }
+        }
+      });
+      return result;
+    });
+
+    return attributes;
+  } catch (scrapeError: any) {
+    console.error(`Error scraping attributes: ${scrapeError.message}`);
+    throw new Error(`Error scraping attributes: ${scrapeError.message}`);
+  }
+}

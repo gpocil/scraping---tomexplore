@@ -1,7 +1,7 @@
 {
   "name": "scraping",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
     "start": "ts-node src/index.ts",
     "build": "tsc",
@@ -13,6 +13,7 @@
   "description": "",
   "dependencies": {
     "@types/express-jwt": "^7.4.2",
+    "@types/sequelize": "^4.28.20",
     "@types/swagger-ui-express": "^4.1.6",
     "axios": "^1.7.2",
     "cors": "^2.8.5",
@@ -20,9 +21,11 @@
     "express-jwt": "^8.4.1",
     "geckodriver": "^4.4.1",
     "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.10.2",
     "puppeteer": "^19.5.2",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sequelize": "^6.37.3",
     "sharp": "^0.33.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"

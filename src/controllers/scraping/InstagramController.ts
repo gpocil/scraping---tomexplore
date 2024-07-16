@@ -19,21 +19,21 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
   let browser;
   try {
-    console.log(`Launching browser for Instagram user: ${username}`);
+    console.log(`Launching browser for search: ${username}`);
     browser = await puppeteer.launch({
       headless: false,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-fullscreen'],
+      defaultViewport: null // Use the full window size
     });
-    console.log('Browser launched');
-
     const page = await browser.newPage();
+    await page.setViewport({ width: 0, height: 0 });
+
     console.log('New page opened');
 
     await page.goto(`https://www.instagram.com/${username}/`, {
       waitUntil: 'networkidle2',
     });
     console.log(`Navigated to Instagram page of ${username}`);
-
 
     const pageNotFound = await page.evaluate(() => {
       return document.body.textContent?.includes("Sorry, this page isn't available.") || false;
@@ -52,6 +52,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
     await page.waitForSelector('div._aagv');
     await handleCookiesConsent(page);
+    await checkShowMorePosts(page);
 
     console.log('Image container detected');
 
@@ -116,7 +117,7 @@ async function handleCookiesConsent(page: Page): Promise<void> {
     if (cookiesButton) {
       console.log('Cookies consent button detected, clicking it...');
       await cookiesButton.click();
-      await page.waitForTimeout(2000); // Wait for the page to update after clicking
+      await page.waitForTimeout(1000); // Wait for the page to update after clicking
       console.log('Cookies consent button clicked');
     } else {
       console.log('Cookies consent button not found');
@@ -124,5 +125,35 @@ async function handleCookiesConsent(page: Page): Promise<void> {
   } catch (error: any) {
     console.error(`Error handling cookies consent: ${error.message}`);
     throw new Error(`Error handling cookies consent: ${error.message}`);
+  }
+}
+
+async function checkShowMorePosts(page: Page): Promise<void> {
+  try {
+    const showMorePostsButtonSelector = 'button.x1lugfcp';
+    let retries = 3;  // Nombre de tentatives avant d'abandonner
+    let clicked = false;
+
+    while (retries > 0 && !clicked) {
+      const showMorePostsButton = await page.$(showMorePostsButtonSelector);
+      if (showMorePostsButton) {
+        console.log('Show more posts button detected, clicking it...');
+        await showMorePostsButton.click();
+        await page.waitForTimeout(1000);
+        console.log('Show more posts button clicked');
+        clicked = true;
+      } else {
+        console.log('Show more posts button not found, retrying...');
+        await page.waitForTimeout(2000);
+        retries--;
+      }
+    }
+
+    if (!clicked) {
+      console.log('Failed to click Show more posts button after multiple attempts');
+    }
+  } catch (error: any) {
+    console.error(`Error checking show more posts button: ${error.message}`);
+    throw new Error(`Error checking show more posts button: ${error.message}`);
   }
 }
