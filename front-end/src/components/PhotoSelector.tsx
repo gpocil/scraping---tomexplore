@@ -4,6 +4,7 @@ import { usePlaces } from '../context/PlacesContext';
 import './styles/PhotoSelector.css';
 import apiClient from '../util/apiClient';
 import { Link } from 'react-router-dom'
+
 interface Image {
     image_name: string;
     url: string;
@@ -124,6 +125,8 @@ const PhotoSelector: React.FC = () => {
     console.log('Selected Images:', selectedImages);
     console.log('Top Images:', topImages);
 
+    const maxTopImages = Math.min(currentPlace?.images.length || 0, 3);
+
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -147,19 +150,27 @@ const PhotoSelector: React.FC = () => {
                 </div>
                 <div className="mt-4">
                     {isStepOne ? (
-                        <button
-                            className="btn btn-danger mt-3"
-                            onClick={handleDeleteImages}
-                            disabled={selectedImages.length === 0}
-                        >
-                            Supprimer les images
-                        </button>
+                        selectedImages.length === 0 ? (
+                            <button
+                                className="btn btn-primary mt-3"
+                                onClick={() => setIsStepOne(false)}
+                            >
+                                Aucune image à supprimer
+                            </button>
+                        ) : (
+                            <button
+                                className="btn btn-danger mt-3"
+                                onClick={handleDeleteImages}
+                            >
+                                Supprimer les images
+                            </button>
+                        )
                     ) : (
                         <div>
-                            <h4>Choisir le top 3 des images</h4>
                             <button
                                 className="btn btn-primary mt-3"
                                 onClick={handleSelectTop}
+                                //TODO
                                 disabled={topImages.length !== 3}
                             >
                                 Confirmer le Top 3 & Lieu suivant
@@ -234,7 +245,6 @@ const PhotoSelector: React.FC = () => {
                 </div>
             </div>
         </div>
-
     );
 };
 
