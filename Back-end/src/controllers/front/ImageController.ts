@@ -4,10 +4,11 @@ import Country from '../../models/Country';
 import City from '../../models/City';
 import Place from '../../models/Place';
 import Image from '../../models/Image';
+import { deleteImages } from '../scraping/FileController';
 
 interface ImageResponse {
     image_name: string;
-    original_url: string;
+    id: number;
     url: string;
 }
 
@@ -39,7 +40,7 @@ export const getUncheckedPlacesWithImages = async (req: Request, res: Response) 
                 {
                     model: Image,
                     as: 'images',
-                    attributes: ['image_name', 'original_url']
+                    attributes: ['image_name', 'id']
                 },
                 {
                     model: City,
@@ -82,9 +83,9 @@ export const getUncheckedPlacesWithImages = async (req: Request, res: Response) 
                         place_name: place.name_eng,
                         wikipedia_link: place.wikipedia_link || '',
                         google_maps_link: place.google_maps_link || '',
-                        images: images.map((image: { image_name: string; original_url: string; }) => ({
+                        images: images.map((image: { image_name: string; id: number }) => ({
+                            id: image.id,
                             image_name: image.image_name,
-                            original_url: image.original_url,
                             url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${image.image_name}`
                         }))
                     };
@@ -104,7 +105,6 @@ export const getUncheckedPlacesWithImages = async (req: Request, res: Response) 
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 
 export const getImagesByPlaceId = async (req: Request, res: Response) => {
@@ -141,3 +141,61 @@ export const getImagesByPlaceId = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+export const deleteImagesUser = async (req: Request, res: Response) => {
+    const { imageIds } = req.body;
+
+    if (!Array.isArray(imageIds) || imageIds.length === 0) {
+        return res.status(400).json({ error: 'A list of image IDs is required' });
+    }
+
+    try {
+        await deleteImages(imageIds);
+        res.status(200).json({ message: 'Images deleted successfully and place set to checked' });
+    } catch (error) {
+        console.error('Error deleting images or updating place:', error);
+        res.status(500).json({ error: 'An error occurred while deleting images or updating place' });
+    }
+};
+
+const updateTopAttributes = async (imageIds: number[]) => {
+    for (let i = 0; i < imageIds.length; i++) {
+        const image = await Image.findByPk(imageIds[i]);
+        if (image) {
+            image.top = i + 1;
+            await image.save();
+        }
+    }
+};
+
+export const setTopAndSetChecked = async (req: Request, res: Response) => {
+    const { imageIds, place_id } = req.body;
+
+    if (!Array.isArray(imageIds) || imageIds.length !== 3) {
+        return res.status(400).json({ error: 'A list of exactly 3 image IDs is required' });
+    }
+
+    if (!place_id) {
+        return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    try {
+        // Update the top attributes for the given images
+        await updateTopAttributes(imageIds);
+
+        // Update the place to set checked to true
+        const place = await Place.findByPk(place_id);
+        if (place) {
+            place.checked = true;
+            await place.save();
+            console.log(`Place with ID ${place_id} set to checked.`);
+        } else {
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        res.status(200).json({ message: 'Images updated successfully and place set to checked' });
+    } catch (error) {
+        console.error('Error updating images or place:', error);
+        res.status(500).json({ error: 'An error occurred while updating images or place' });
+    }
+};
+

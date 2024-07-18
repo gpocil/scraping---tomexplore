@@ -3,7 +3,8 @@ import path from 'path';
 import { Request, Response } from 'express';
 import axios from 'axios';
 import sharp from 'sharp';
-
+import { Image } from '../../models';
+import { Place } from '../../models';
 
 export function deleteFolderRecursive(req: Request, res: Response): void {
     const name = req.params.name;
@@ -148,3 +149,29 @@ export async function downloadPhotosTouristAttraction(name_en: string, id_tomexp
     }
     return { downloadDir: '', imageCount: 0, imageNames: [] };
 }
+
+
+export async function deleteImages(imageIds: number[]): Promise<void> {
+    // Include Place model to access the folder property
+    const images = await Image.findAll({
+        where: { id: imageIds },
+        include: [{ model: Place, as: 'associatedPlace', attributes: ['folder'] }]
+    });
+
+    if (images.length === 0) {
+        throw new Error('No images found for the provided IDs');
+    }
+
+    // Delete images from database
+    await Image.destroy({ where: { id: imageIds } });
+
+    // Delete image files from server
+    images.forEach(image => {
+        const folder = image.getDataValue('associatedPlace').folder;
+        const imagePath = path.join(__dirname, '../..', 'temp', folder, image.image_name);
+        if (fs.existsSync(imagePath)) {
+            fs.unlinkSync(imagePath);
+        }
+    });
+}
+

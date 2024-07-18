@@ -4,7 +4,7 @@ import apiClient from '../util/apiClient';
 // Typescript types
 interface ImageResponse {
     image_name: string;
-    original_url: string;
+    id: number;
     url: string;
 }
 
@@ -37,11 +37,11 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         // Fetch data from the API using apiClient
         apiClient.get<ResponseStructure>('/getAllImages')
-            .then((response: { data: React.SetStateAction<ResponseStructure>; }) => {
+            .then((response) => {
                 setData(response.data);
                 console.log('Fetched places data:', response.data);  // Add this line to log the data
             })
-            .catch((error: any) => console.error('Error fetching places:', error));
+            .catch((error) => console.error('Error fetching places:', error));
     }, []);
 
     return (

@@ -7,6 +7,7 @@ class Image extends Model {
     public image_name!: string;
     public original_url?: string;
     public place_id!: number;
+    public top?: number;  // Ajouter cette ligne
 }
 
 Image.init({
@@ -31,6 +32,14 @@ Image.init({
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE'
+    },
+    top: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        validate: {
+            min: 1,
+            max: 3
+        }
     }
 }, {
     sequelize,
