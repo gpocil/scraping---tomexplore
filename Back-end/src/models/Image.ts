@@ -7,7 +7,9 @@ class Image extends Model {
     public image_name!: string;
     public original_url?: string;
     public place_id!: number;
-    public top?: number;  // Ajouter cette ligne
+    public top?: number;
+    public author?: string;
+    public license?: string;
 }
 
 Image.init({
@@ -40,7 +42,16 @@ Image.init({
             min: 0,
             max: 3
         }
-    }
+    },
+    author: {
+        type: DataTypes.STRING,
+        allowNull: true
+
+    },
+    license: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
 }, {
     sequelize,
     modelName: 'Image',

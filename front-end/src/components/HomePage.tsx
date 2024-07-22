@@ -45,6 +45,7 @@ const HomePage: React.FC = () => {
 
     const handlePlaceClick = (place: IPlace) => {
         setSelectedPlace(place);
+        setSearchQuery('');
         navigate(`/place/${place.place_id}`);
     };
 
@@ -98,16 +99,16 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="container mt-5">
-            <h1 className="mb-4">Overview</h1>
+            <h1 className="mb-4">Sélection de photos</h1>
             <ul className="list-group mb-4">
                 <li className="list-group-item">
-                    <strong>Pays:</strong> {totalCountries}
+                    <strong>🌍 Pays:</strong> {totalCountries}
                 </li>
                 <li className="list-group-item">
-                    <strong>Villes:</strong> {totalCities}
+                    <strong>🏙️ Villes:</strong> {totalCities}
                 </li>
                 <li className="list-group-item">
-                    <strong>Lieux à valider :</strong> {totalPlaces}
+                    <strong>🍻 Lieux à valider :</strong> {totalPlaces}
                 </li>
             </ul>
 
@@ -128,7 +129,7 @@ const HomePage: React.FC = () => {
                                     className="text-decoration-none text-dark"
                                     style={{ cursor: 'pointer' }}
                                 >
-                                    {country} - {city} - {place.place_name} - {place.place_id}
+                                    {place.place_name} - {place.place_id} - {country} - {city}
                                 </div>
                             </li>
                         ))}
@@ -143,14 +144,14 @@ const HomePage: React.FC = () => {
                         <div key={countryName} className="col-md-4 mb-4">
                             <div className="card shadow-sm">
                                 <div className="card-header bg-dark text-white">
-                                    <h5 className="card-title m-0">{countryName} ({cityCount} villes, {placeCount} lieux)</h5>
+                                    <h5 className="card-title m-0">🌍 {countryName} ({cityCount} 🏙️, {placeCount} 🍻)</h5>
                                 </div>
                                 <div className="card-body">
                                     {Object.keys(places[countryName]).map(cityName => (
                                         <div key={cityName} className="mb-2">
                                             <h6 className="text-secondary">
                                                 <Link to={`/city/${countryName}/${cityName}`} className="text-decoration-none text-dark">
-                                                    {cityName} ({getCountsForCity(countryName, cityName)} lieux)
+                                                    {cityName} ({getCountsForCity(countryName, cityName)} 🍻)
                                                 </Link>
                                             </h6>
                                         </div>
