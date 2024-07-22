@@ -1,51 +1,37 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import apiClient from '../util/apiClient';
+import { IResponseStructure } from '../model/Interfaces';
 
-// Typescript types
-interface ImageResponse {
-    image_name: string;
-    id: number;
-    url: string;
-}
-
-interface PlaceResponse {
-    place_id: number;
-    place_name: string;
-    wikipedia_link: string;
-    google_maps_link: string;
-    images: ImageResponse[];
-}
-
-interface CityResponse {
-    [placeName: string]: PlaceResponse[];
-}
-
-interface CountryResponse {
-    [cityName: string]: CityResponse;
-}
-
-interface ResponseStructure {
-    [countryName: string]: CountryResponse;
+interface PlaceContextType {
+    data: IResponseStructure;
+    updatePlaces: () => void;
 }
 
 // Create context
-const PlaceContext = createContext<ResponseStructure | undefined>(undefined);
+const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
-    const [data, setData] = useState<ResponseStructure>({});
+    const [data, setData] = useState<IResponseStructure>({});
 
-    useEffect(() => {
-        // Fetch data from the API using apiClient
-        apiClient.get<ResponseStructure>('/getAllImages')
+    const fetchData = () => {
+        apiClient.get<IResponseStructure>('/getAllImages')
             .then((response) => {
                 setData(response.data);
                 console.log('Fetched places data:', response.data);  // Add this line to log the data
             })
             .catch((error) => console.error('Error fetching places:', error));
+    };
+
+    useEffect(() => {
+        fetchData();
     }, []);
 
+    const updatePlaces = () => {
+        fetchData();
+    };
+
     return (
-        <PlaceContext.Provider value={data}>
+        <PlaceContext.Provider value={{ data, updatePlaces }}>
             {children}
         </PlaceContext.Provider>
     );

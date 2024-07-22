@@ -1,44 +1,47 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { usePlaces } from '../context/PlacesContext';
-import './styles/PhotoSelector.css';
+import { IPlace, IImage } from '../model/Interfaces';
+import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { usePlaces } from '../context/PlacesContext';
 
-interface Image {
-    image_name: string;
-    url: string;
-    id: number;
+interface PhotoSelectorCityProps {
+    places: IPlace[];
+    cityName: string;
 }
 
-const PhotoSelector: React.FC = () => {
-    const { countryName, cityName } = useParams<{ countryName: string; cityName: string }>();
-    const places = usePlaces();
+const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
+    const navigate = useNavigate();
+    const { updatePlaces } = usePlaces();
     const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
-    const [selectedImages, setSelectedImages] = useState<Image[]>([]);
-    const [topImages, setTopImages] = useState<Image[]>([]);
+    const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
+    const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
+    const [isCityComplete, setIsCityComplete] = useState(false);
 
-    if (!countryName || !cityName) {
-        return <div>Error: Invalid country or city name.</div>;
+    if (!cityName) {
+        return <div>Error: Invalid city name.</div>;
     }
 
-    const cityPlaces = places[countryName]?.[cityName];
-    const placeNames = cityPlaces ? Object.keys(cityPlaces) : [];
-    const currentPlaceName = placeNames.length > 0 ? placeNames[currentPlaceIndex] : '';
-    const currentPlace = cityPlaces ? cityPlaces[currentPlaceName]?.[0] : null;
+    const currentPlace = places[currentPlaceIndex];
 
     const handleNext = () => {
-        setCurrentPlaceIndex((prevIndex) => (prevIndex + 1) % placeNames.length);
-        resetSelection();
+        if (currentPlaceIndex < places.length - 1) {
+            setCurrentPlaceIndex((prevIndex) => prevIndex + 1);
+            resetSelection();
+        } else {
+            setIsCityComplete(true);
+        }
     };
 
     const handlePrev = () => {
-        setCurrentPlaceIndex((prevIndex) => (prevIndex - 1 + placeNames.length) % placeNames.length);
-        resetSelection();
+        if (currentPlaceIndex > 0) {
+            setCurrentPlaceIndex((prevIndex) => prevIndex - 1);
+            resetSelection();
+        }
     };
 
-    const handleImageClick = (image: Image) => {
+    const handleImageClick = (image: IImage) => {
         if (isStepOne) {
             setSelectedImages((prevSelectedImages) => {
                 const isSelected = prevSelectedImages.some((img) => img.id === image.id);
@@ -62,31 +65,18 @@ const PhotoSelector: React.FC = () => {
 
     const handleDeleteImages = async () => {
         try {
-            console.log('Deleting images with IDs:', selectedImages.map((image) => image.id));
-
             const response = await apiClient.post('/deleteImages', {
                 imageIds: selectedImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
 
-            console.log('Response from server:', response);
-
             if (response.status === 200) {
-                console.log('Images deleted successfully');
-
-                // Remove deleted images from the state
                 setSelectedImages([]);
-
-                // Update the images in the current place
                 if (currentPlace) {
-                    const updatedImages = currentPlace.images.filter(
+                    currentPlace.images = currentPlace.images.filter(
                         (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                     );
-                    console.log('Updated images:', updatedImages);
-
-                    currentPlace.images = updatedImages;
                 }
-
                 setIsStepOne(false);
             }
         } catch (error) {
@@ -118,31 +108,40 @@ const PhotoSelector: React.FC = () => {
         setIsStepOne(true);
     };
 
-    if (!cityPlaces || placeNames.length === 0) {
-        return <div>Error: No places found for the given city.</div>;
+    if (isCityComplete) {
+        updatePlaces();
+        return (
+            <div className="container mt-5 text-center">
+                <h1>Ville terminée</h1>
+                <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
+                    Accueil
+                </button>
+            </div>
+        );
     }
 
-    console.log('Selected Images:', selectedImages);
-    console.log('Top Images:', topImages);
+    if (places.length === 0) {
+        return <div>Error: No places found for the given city.</div>;
+    }
 
     const totalImages = currentPlace?.images?.length || 0;
 
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <Link to="/" className="btn btn-primary">
+                <button className="btn btn-primary" onClick={() => navigate('/')}>
                     Home
-                </Link>
+                </button>
                 <h2>{cityName}</h2>
             </div>
-            <h4 className="mb-4">{currentPlaceName}</h4>
+            <h4 className="mb-4">{currentPlace?.place_name}</h4>
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <button className="btn btn-secondary" onClick={handlePrev}>
+                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentPlaceIndex === 0}>
                     Previous
                 </button>
                 <div className="text-center">
                     <h4>
-                        {currentPlaceIndex + 1} / {placeNames.length}
+                        {currentPlaceIndex + 1} / {places.length}
                     </h4>
                     <h3 className={`mb-4 ${isStepOne ? 'text-danger' : 'text-primary'}`}>
                         {isStepOne ? 'Supprimer les images' : 'Sélectionner le top 3'}
@@ -151,30 +150,22 @@ const PhotoSelector: React.FC = () => {
                 <div className="mt-4">
                     {isStepOne ? (
                         selectedImages.length === 0 ? (
-                            <button
-                                className="btn btn-primary mt-3"
-                                onClick={() => setIsStepOne(false)}
-                            >
+                            <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)}>
                                 Aucune image à supprimer
                             </button>
                         ) : (
-                            <button
-                                className="btn btn-danger mt-3"
-                                onClick={handleDeleteImages}
-                            >
+                            <button className="btn btn-danger mt-3" onClick={handleDeleteImages}>
                                 Supprimer les images
                             </button>
                         )
                     ) : (
-                        <div>
-                            <button
-                                className="btn btn-primary mt-3"
-                                onClick={handleSelectTop}
-                                disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3}
-                            >
-                                Confirmer le Top 3 & Lieu suivant
-                            </button>
-                        </div>
+                        <button
+                            className="btn btn-primary mt-3"
+                            onClick={handleSelectTop}
+                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3}
+                        >
+                            Confirmer le Top 3 & Lieu suivant
+                        </button>
                     )}
                 </div>
             </div>
@@ -199,12 +190,8 @@ const PhotoSelector: React.FC = () => {
                                             onClick={() => handleImageClick(image)}
                                         >
                                             <img src={image.url} alt={image.image_name ?? 'Image'} className="img-fluid" />
-                                            {isSelectedDelete && (
-                                                <div className="selected-overlay">✓</div>
-                                            )}
-                                            {topIndex !== -1 && (
-                                                <div className="selected-overlay">{topIndex + 1}</div>
-                                            )}
+                                            {isSelectedDelete && <div className="selected-overlay">✓</div>}
+                                            {topIndex !== -1 && <div className="selected-overlay">{topIndex + 1}</div>}
                                         </div>
                                     );
                                 })}
@@ -247,4 +234,4 @@ const PhotoSelector: React.FC = () => {
     );
 };
 
-export default PhotoSelector;
+export default PhotoSelectorCity;

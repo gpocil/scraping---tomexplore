@@ -157,13 +157,22 @@ export const deleteImagesUser = async (req: Request, res: Response) => {
     }
 };
 
-const updateTopAttributes = async (imageIds: number[]) => {
-    for (let i = 0; i < imageIds.length; i++) {
-        const image = await Image.findByPk(imageIds[i]);
-        if (image) {
-            image.top = i + 1;
-            await image.save();
+const updateTopAttributes = async (imageIds: number[], placeId: number) => {
+    try {
+        // Set top = 0 for all images with the given place_id
+        await Image.update({ top: 0 }, { where: { place_id: placeId } });
+
+        // Update top attribute for the selected images
+        for (let i = 0; i < imageIds.length; i++) {
+            const image = await Image.findByPk(imageIds[i]);
+            if (image) {
+                image.top = i + 1;
+                await image.save();
+            }
         }
+    } catch (error) {
+        console.error('Error updating top attributes:', error);
+        throw new Error('Failed to update top attributes');
     }
 };
 
@@ -180,7 +189,7 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
 
     try {
         // Update the top attributes for the given images
-        await updateTopAttributes(imageIds);
+        await updateTopAttributes(imageIds, place_id);
 
         // Update the place to set checked to true
         const place = await Place.findByPk(place_id);

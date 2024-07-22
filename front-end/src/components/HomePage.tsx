@@ -1,9 +1,57 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
+import { IResponseStructure, IPlace } from '../model/Interfaces';
+import PhotoSelectorCity from './PhotoSelectorCity';
+import PhotoSelectorPlace from './PhotoSelectorPlace';
 
-const HomePage = () => {
-    const places = usePlaces();
+const HomePage: React.FC = () => {
+    const { data: places } = usePlaces() as { data: IResponseStructure };
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace }[]>([]);
+    const { countryName, cityName } = useParams<{ countryName: string; cityName: string; }>();
+    const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
+    const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (searchQuery) {
+            const newFilteredPlaces: { country: string; city: string; place: IPlace }[] = [];
+
+            for (const country of Object.keys(places)) {
+                for (const city of Object.keys(places[country])) {
+                    for (const place of Object.values(places[country][city]).flat()) {
+                        if (place.place_name.toLowerCase().includes(searchQuery.toLowerCase())) {
+                            newFilteredPlaces.push({ country, city, place });
+                        }
+                    }
+                }
+            }
+
+            setFilteredPlaces(newFilteredPlaces);
+        } else {
+            setFilteredPlaces([]);
+        }
+    }, [searchQuery, places]);
+
+    useEffect(() => {
+        if (countryName && cityName) {
+            const cityPlaces = places[countryName]?.[cityName];
+            if (cityPlaces) {
+                setSelectedCityPlaces(Object.values(cityPlaces).flat());
+            }
+        }
+    }, [countryName, cityName, places]);
+
+    const handlePlaceClick = (place: IPlace) => {
+        setSelectedPlace(place);
+        navigate(`/place/${place.place_id}`);
+    };
+
+    const handlePlaceComplete = () => {
+        setSelectedPlace(null);
+        navigate('/');
+    };
 
     const getTotalCounts = () => {
         let totalCountries = 0;
@@ -40,41 +88,79 @@ const HomePage = () => {
 
     const { totalCountries, totalCities, totalPlaces } = getTotalCounts();
 
+    if (selectedPlace) {
+        return <PhotoSelectorPlace place={selectedPlace} onComplete={handlePlaceComplete} />;
+    }
+
+    if (countryName && cityName && selectedCityPlaces.length > 0) {
+        return <PhotoSelectorCity places={selectedCityPlaces} cityName={cityName} />;
+    }
+
     return (
         <div className="container mt-5">
             <h1 className="mb-4">Overview</h1>
             <ul className="list-group mb-4">
                 <li className="list-group-item">
-                    <strong>Countries:</strong> {totalCountries}
+                    <strong>Pays:</strong> {totalCountries}
                 </li>
                 <li className="list-group-item">
-                    <strong>Cities:</strong> {totalCities}
+                    <strong>Villes:</strong> {totalCities}
                 </li>
                 <li className="list-group-item">
-                    <strong>Places:</strong> {totalPlaces}
+                    <strong>Lieux à valider :</strong> {totalPlaces}
                 </li>
             </ul>
-            {Object.keys(places).map(countryName => {
-                const { cityCount, placeCount } = getCountsForCountry(countryName);
-                return (
-                    <div key={countryName} className="mb-4 card shadow-sm">
-                        <div className="card-header bg-dark text-white">
-                            <h5 className="card-title m-0">{countryName} ({cityCount} cities, {placeCount} places)</h5>
-                        </div>
-                        <div className="card-body">
-                            {Object.keys(places[countryName]).map(cityName => (
-                                <div key={cityName} className="mb-2">
-                                    <h6 className="text-secondary">
-                                        <Link to={`/city/${countryName}/${cityName}`} className="text-decoration-none text-dark">
-                                            {cityName} ({getCountsForCity(countryName, cityName)} places)
-                                        </Link>
-                                    </h6>
+
+            <div className="mb-4">
+                <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Chercher un lieu"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                    <ul className="list-group mt-2">
+                        {filteredPlaces.map(({ country, city, place }) => (
+                            <li key={`${country}-${city}-${place.place_id}`} className="list-group-item">
+                                <div
+                                    onClick={() => handlePlaceClick(place)}
+                                    className="text-decoration-none text-dark"
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {country} - {city} - {place.place_name} - {place.place_id}
                                 </div>
-                            ))}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            <div className="row">
+                {Object.keys(places).map(countryName => {
+                    const { cityCount, placeCount } = getCountsForCountry(countryName);
+                    return (
+                        <div key={countryName} className="col-md-4 mb-4">
+                            <div className="card shadow-sm">
+                                <div className="card-header bg-dark text-white">
+                                    <h5 className="card-title m-0">{countryName} ({cityCount} villes, {placeCount} lieux)</h5>
+                                </div>
+                                <div className="card-body">
+                                    {Object.keys(places[countryName]).map(cityName => (
+                                        <div key={cityName} className="mb-2">
+                                            <h6 className="text-secondary">
+                                                <Link to={`/city/${countryName}/${cityName}`} className="text-decoration-none text-dark">
+                                                    {cityName} ({getCountsForCity(countryName, cityName)} lieux)
+                                                </Link>
+                                            </h6>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 };
