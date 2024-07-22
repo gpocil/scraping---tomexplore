@@ -140,9 +140,6 @@ export async function downloadPhotosTouristAttraction(name_en: string, id_tomexp
             }
         }));
 
-        // Write the JSON file with photo names and licenses
-        const jsonOutputPath = path.join(downloadDir, 'photo_licenses.json');
-        fs.writeFileSync(jsonOutputPath, JSON.stringify(photosWithLicenses, null, 2), 'utf-8');
 
         console.log('download dir : ' + downloadDir);
         return { downloadDir, imageCount: imageUrls.length, imageNames };

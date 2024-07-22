@@ -86,7 +86,7 @@ async function scrapeUnsplashImages(page: Page): Promise<{ urls: [string, string
                             if (authorElement) {
                                 const authorName = authorElement.textContent?.trim() || 'Unknown';
                                 console.log(`Found image by ${authorName}`);
-                                images.push([imageUrl, authorName, `Photo by ${authorName} on <a href="https://unsplash.com/" target="_blank">Unsplash</a>`]);
+                                images.push([imageUrl, authorName, `Unsplash`]);
                             }
                         }
                     }
