@@ -170,7 +170,7 @@ const updateTopAttributes = async (imageIds: number[]) => {
 export const setTopAndSetChecked = async (req: Request, res: Response) => {
     const { imageIds, place_id } = req.body;
 
-    if (!Array.isArray(imageIds) || imageIds.length !== 3) {
+    if (!Array.isArray(imageIds) || imageIds.length > 3) {
         return res.status(400).json({ error: 'A list of exactly 3 image IDs is required' });
     }
 

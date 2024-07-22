@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import './styles/PhotoSelector.css';
 import apiClient from '../util/apiClient';
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom';
 
 interface Image {
     image_name: string;
@@ -125,7 +125,7 @@ const PhotoSelector: React.FC = () => {
     console.log('Selected Images:', selectedImages);
     console.log('Top Images:', topImages);
 
-    const maxTopImages = Math.min(currentPlace?.images.length || 0, 3);
+    const totalImages = currentPlace?.images?.length || 0;
 
     return (
         <div className="container mt-5">
@@ -170,8 +170,7 @@ const PhotoSelector: React.FC = () => {
                             <button
                                 className="btn btn-primary mt-3"
                                 onClick={handleSelectTop}
-                                //TODO
-                                disabled={topImages.length !== 3}
+                                disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3}
                             >
                                 Confirmer le Top 3 & Lieu suivant
                             </button>
@@ -185,7 +184,7 @@ const PhotoSelector: React.FC = () => {
                     <div className="col-md-8" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                         <div className="card-body">
                             <div className="row image-grid">
-                                {currentPlace?.images.map((image) => {
+                                {currentPlace?.images?.map((image) => {
                                     const isSelectedDelete = selectedImages.some((img) => img.id === image.id);
                                     const topIndex = topImages.findIndex((img) => img.id === image.id);
                                     return (
