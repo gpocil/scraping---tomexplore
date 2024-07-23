@@ -5,6 +5,9 @@ const router = Router();
 
 router.get('/getCheckedPlace/:placeId', tomexploreController.getAllCheckedImagesByPlaceId);
 router.get('/getCheckedCity/:cityName', tomexploreController.getCheckedPlacesByCity);
+router.delete('/deletePlace/:placeId', tomexploreController.deleteCheckedPlaceById);
+router.delete('/deleteCity/:cityName', tomexploreController.deleteCheckedPlacesByCity);
+
 
 
 export default router;

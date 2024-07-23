@@ -8,7 +8,7 @@ import fileRoutes from './routes/scraping/FileRoutes';
 import wikiRoutes from './routes/scraping/WikipediaRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
 import wikimediaRoutes from './routes/scraping/WikimediaRoutes';
-import authRoutes from './routes/scraping/LoginRoutes';
+import authRoutes from './routes/security/LoginRoutes';
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 

@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
 import Country from '../../models/Country';
 import City from '../../models/City';
 import Place from '../../models/Place';
 import Image from '../../models/Image';
-
+import * as FileController from '../scraping/FileController'
+import path from 'path';
 
 export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
     const cityName = req.params.name;
@@ -102,6 +104,107 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
         res.json(response);
     } catch (error) {
         console.error('Error fetching images by place ID:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+export const deleteCheckedPlacesByCity = async (req: Request, res: Response) => {
+    const cityName = req.params.name;
+
+    try {
+        // Trouver tous les lieux vérifiés pour une ville donnée
+        const places = await Place.findAll({
+            where: { checked: true },
+            include: [
+                {
+                    model: City,
+                    as: 'city',
+                    where: { name: cityName },
+                    attributes: ['name']
+                }
+            ]
+        });
+
+        if (!places.length) {
+            return res.status(404).json({ error: 'No checked places found for this city' });
+        }
+
+        // Supprimer toutes les images associées à ces lieux
+        for (const place of places) {
+            await Image.destroy({
+                where: { place_id: place.id_tomexplore }
+            });
+        }
+
+        // Supprimer les lieux
+        await Place.destroy({
+            where: { id_tomexplore: places.map(place => place.id_tomexplore) }
+        });
+
+        res.status(200).json({ message: 'Checked places and their images successfully deleted for the city.' });
+    } catch (error) {
+        console.error('Error deleting checked places and their images by city:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
+
+export const deleteCheckedPlaceById = async (req: Request, res: Response) => {
+    const placeId = req.params.placeId;
+    console.log(`Received request to delete place and its images for place ID: ${placeId}`);
+
+    try {
+        const place = await Place.findByPk(placeId);
+        console.log(`Place found: ${place ? place.name_eng : 'Not found'}`);
+
+        if (!place) {
+            console.log(`Place not found for ID: ${placeId}`);
+            return res.status(404).json({ error: `Place ${placeId} not found` });
+        }
+
+        if (!place.checked) {
+            console.log(`Place with ID ${placeId} has not been checked yet`);
+            return res.status(400).json({ error: `Place ${place.name_eng} - ${place.id_tomexplore} has not been checked yet` });
+        }
+
+        const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
+        console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
+
+        try {
+            if (fs.existsSync(folderPath)) {
+                console.log(`Folder exists: ${folderPath}`);
+                fs.readdirSync(folderPath).forEach((file) => {
+                    const currentPath = path.join(folderPath, file);
+                    if (fs.lstatSync(currentPath).isDirectory()) {
+                        console.log(`Deleting directory: ${currentPath}`);
+                        fs.rmdirSync(currentPath, { recursive: true });
+                    } else {
+                        console.log(`Deleting file: ${currentPath}`);
+                        fs.unlinkSync(currentPath);
+                    }
+                });
+                fs.rmdirSync(folderPath);
+                console.log(`Deleted folder: ${folderPath}`);
+
+                await Image.destroy({
+                    where: { place_id: place.id_tomexplore }
+                });
+                console.log(`Deleted images for place ID: ${place.id_tomexplore}`);
+
+                await Place.destroy({
+                    where: { id_tomexplore: place.id_tomexplore }
+                });
+                console.log(`Deleted place with ID: ${place.id_tomexplore}`);
+            } else {
+                console.log(`Folder does not exist: ${folderPath}`);
+            }
+            res.status(200).json({ message: 'Checked place and its images successfully deleted.' });
+        } catch (error) {
+            console.error('Error deleting files for place ID:', placeId, error);
+            return res.status(500).json({ error: 'Internal server error while deleting files' });
+        }
+    } catch (error) {
+        console.error('Error deleting checked place and its images by ID:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
