@@ -5,7 +5,14 @@ const router = Router();
 
 /**
  * @swagger
- * texplore/business:
+ * tags:
+ *   name: Scraping
+ *   description: API pour la récupération d'images de lieux touristiques et d'établissements recevant du public
+ */
+
+/**
+ * @swagger
+ * /texplore/business:
  *   post:
  *     summary: Fetch photos from Instagram and Google for a business
  *     tags: [Scraping]
@@ -18,15 +25,35 @@ const router = Router();
  *           schema:
  *             type: object
  *             required:
- *               - username
- *               - location_full_address
+ *               - id_tomexplore
+ *               - name_en
+ *               - address
+ *               - city
+ *               - country
  *             properties:
- *               username:
+ *               id_tomexplore:
+ *                 type: integer
+ *               name_en:
+ *                 type: string
+ *                 example: 'Awen Brew Pub'
+ *               name_fr:
+ *                 type: string
+ *                 example: 'Pub de Brassage Awen'
+ *               link_maps:
+ *                 type: string
+ *                 example: 'https://maps.google.com'
+ *               instagram_username:
  *                 type: string
  *                 example: 'awen_brew_pub'
- *               location_full_address:
+ *               address:
  *                 type: string
- *                 example: 'Awen BRew Pub, 1 Rue Gilles Gahinet, 56000 Vannes'
+ *                 example: '1 Rue Gilles Gahinet'
+ *               city:
+ *                 type: string
+ *                 example: 'Vannes'
+ *               country:
+ *                 type: string
+ *                 example: 'France'
  *     responses:
  *       200:
  *         description: Photos fetched successfully
@@ -61,7 +88,7 @@ const router = Router();
  *               properties:
  *                 error:
  *                   type: string
- *                   example: 'Username and Google URL are required'
+ *                   example: 'Missing required fields'
  *       500:
  *         description: Internal Server Error
  *         content:
@@ -82,7 +109,7 @@ router.post('/business', ScrapingController.getPhotosBusiness);
 
 /**
  * @swagger
- * texplore/tourist_attraction:
+ * /texplore/tourist_attraction:
  *   post:
  *     summary: Fetch photos from Wikimedia and Unsplash for a tourist attraction
  *     tags: [Scraping]
@@ -95,16 +122,35 @@ router.post('/business', ScrapingController.getPhotosBusiness);
  *           schema:
  *             type: object
  *             required:
- *               - name
+ *               - id_tomexplore
+ *               - name_en
+ *               - city
+ *               - country
  *               - famous
  *             properties:
- *               name:
+ *               id_tomexplore:
+ *                 type: integer
+ *               name_en:
  *                 type: string
  *                 example: 'Tour Eiffel'
- *               famous:
+ *               name_fr:
  *                 type: string
- *                 enum: [true, false]
- *                 example: 'true'
+ *                 example: 'Eiffel Tower'
+ *               link_maps:
+ *                 type: string
+ *                 example: 'https://maps.google.com'
+ *               address:
+ *                 type: string
+ *                 example: 'Champ de Mars, 5 Avenue Anatole France'
+ *               city:
+ *                 type: string
+ *                 example: 'Paris'
+ *               country:
+ *                 type: string
+ *                 example: 'France'
+ *               famous:
+ *                 type: boolean
+ *                 example: true
  *     responses:
  *       200:
  *         description: Photos fetched successfully
@@ -139,7 +185,7 @@ router.post('/business', ScrapingController.getPhotosBusiness);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: 'Name and famous field are required'
+ *                   example: 'Missing required fields'
  *       500:
  *         description: Internal Server Error
  *         content:
