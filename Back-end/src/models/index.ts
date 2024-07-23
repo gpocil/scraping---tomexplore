@@ -2,6 +2,7 @@ import Country from './Country';
 import City from './City';
 import Place from './Place';
 import Image from './Image';
+import User from './User';
 
 Country.hasMany(City, { foreignKey: 'country_id', as: 'cities' });
 City.belongsTo(Country, { foreignKey: 'country_id', as: 'country' });
@@ -16,5 +17,6 @@ export {
     Country,
     City,
     Place,
-    Image
+    Image,
+    User
 };

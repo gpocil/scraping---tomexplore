@@ -27,7 +27,7 @@ const swaggerOptions = {
             },
         ],
     },
-    apis: ['./src/routes/*.ts', './src/controllers/*.ts'], // Adjust paths to your routes and controllers
+    apis: ['./src/routes/**/*.ts', './src/controllers/**/*.ts'], // Ajustez les chemins vers vos fichiers de routes et contrôleurs
 };
 
 export default swaggerOptions;

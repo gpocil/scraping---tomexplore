@@ -8,7 +8,7 @@ import * as FileController from '../scraping/FileController'
 import path from 'path';
 
 export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
-    const cityName = req.params.name;
+    const cityName = req.params.cityName;
 
     try {
         const places = await Place.findAll({
@@ -70,6 +70,7 @@ export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
     }
 };
 
+
 export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) => {
     const placeId = req.params.placeId;
 
@@ -92,14 +93,21 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
 
         const images = place.getDataValue('images') || [];
 
-        const response = images.map((image: { image_name: string; author: string; license: string; top: number; original_url: string }) => ({
-            image_name: image.image_name,
-            url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${image.image_name}`,
-            author: image.author,
-            license: image.license,
-            top: image.top,
-            original_url: image.original_url
-        }));
+        const response = {
+            place_id: place.id_tomexplore,
+            place_name: place.name_eng,
+            wikipedia_link: place.wikipedia_link || '',
+            google_maps_link: place.google_maps_link || '',
+            folder: place.folder,
+            images: images.map((image: { image_name: string; author: string; license: string; top: number; original_url: string }) => ({
+                image_name: image.image_name,
+                url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${encodeURIComponent(image.image_name)}`,
+                author: image.author,
+                license: image.license,
+                top: image.top,
+                original_url: image.original_url
+            }))
+        };
 
         res.json(response);
     } catch (error) {
@@ -107,6 +115,7 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 
 
