@@ -14,7 +14,7 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     const [data, setData] = useState<IResponseStructure>({});
 
     const fetchData = () => {
-        apiClient.get<IResponseStructure>('/getAllImages')
+        apiClient.get<IResponseStructure>('/front/getAllImages')
             .then((response) => {
                 setData(response.data);
                 console.log('Fetched places data:', response.data);  // Add this line to log the data

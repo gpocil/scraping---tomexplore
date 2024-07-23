@@ -65,7 +65,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const handleDeleteImages = async () => {
         try {
-            const response = await apiClient.post('/deleteImages', {
+            const response = await apiClient.post('/front/deleteImages', {
                 imageIds: selectedImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
@@ -87,7 +87,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const handleSelectTop = async () => {
         try {
-            const response = await apiClient.post('/setTop', {
+            const response = await apiClient.post('/front/setTop', {
                 imageIds: topImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });

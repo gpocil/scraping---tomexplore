@@ -9,8 +9,8 @@ import wikiRoutes from './routes/scraping/WikipediaRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
 import wikimediaRoutes from './routes/scraping/WikimediaRoutes';
 import authRoutes from './routes/scraping/LoginRoutes';
-import placesRoutes from './routes/front/placesRoutes';
-import imagesRoutes from './routes/front/imageRoutes';
+import frontRoutes from './routes/front/frontRoutes';
+import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
@@ -18,7 +18,7 @@ import { jwtMiddleware } from './controllers/security/JWTController';
 import swaggerOptions from './swagger';
 import sequelize from './sequelize';
 import path from 'path';
-import './models';  // Import des modèles et initialisation des associations
+import './models';
 
 const app = express();
 const port = 3000;
@@ -28,19 +28,19 @@ app.use(bodyParser.json());
 const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-app.use('', authRoutes);
+app.use('/auth', authRoutes);
 
 // app.use(jwtMiddleware);
 
 app.use('', googleRoutes);
 app.use('', instagramRoutes);
-app.use('', scrapingMainRoutes);
+app.use('/texplore', scrapingMainRoutes);
 app.use('', fileRoutes);
 app.use('', wikiRoutes);
 app.use('', unsplashRoutes);
 app.use('', wikimediaRoutes);
-app.use('', placesRoutes);
-app.use('', imagesRoutes);
+app.use('/front', frontRoutes);
+app.use('/texplore', texploreRoutes);
 
 // Servir les fichiers statiques depuis le dossier des images
 const imagesPath = path.join(__dirname, 'temp');
