@@ -4,7 +4,7 @@ import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useUser } from '../context/UserContext';
 import apiClient from '../util/apiClient';
-
+import validator from 'validator';
 
 const Login: React.FC = () => {
     const [login, setLogin] = useState('');
@@ -15,6 +15,12 @@ const Login: React.FC = () => {
 
     const handleLogin = async (event: React.FormEvent) => {
         event.preventDefault();
+
+        if (!validator.isAlphanumeric(login)) {
+            setError('Invalid input. Ensure login is alphanumeric.');
+            return;
+        }
+
         try {
             const response = await apiClient.post('/front/login', { login, password });
             if (response.data.login) {
