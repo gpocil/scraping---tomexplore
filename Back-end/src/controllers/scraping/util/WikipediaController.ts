@@ -15,7 +15,7 @@ export async function wikipediaSearch(req?: Request, res?: Response): Promise<[s
     try {
         console.log(`Launching browser for search: ${name}`);
         const browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,800'],
             defaultViewport: null // Use the full window size
         });

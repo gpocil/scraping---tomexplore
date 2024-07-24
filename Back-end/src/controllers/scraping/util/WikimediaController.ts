@@ -21,7 +21,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
     try {
         console.log(`Launching browser for search: ${name}`);
         browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-fullscreen'],
             defaultViewport: null // Use the full window size
         });

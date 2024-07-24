@@ -21,7 +21,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
   try {
     console.log(`Launching browser for search: ${username}`);
     browser = await puppeteer.launch({
-      headless: false,
+      headless: true,
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-fullscreen'],
       defaultViewport: null // Use the full window size
     });

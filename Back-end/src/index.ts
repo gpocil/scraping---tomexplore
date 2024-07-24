@@ -1,5 +1,5 @@
-import express from 'express';
-import cors from 'cors';
+import express, { Request, Response } from 'express';
+import cors, { CorsOptions } from 'cors';
 import bodyParser from 'body-parser';
 import instagramRoutes from './routes/scraping/InstagramRoutes';
 import googleRoutes from './routes/scraping/GoogleRoutes';
@@ -23,28 +23,42 @@ import './models';
 const app = express();
 const port = 3000;
 
-app.use(cors());
+const allowedOrigins = [
+    'http://localhost:3001',
+    'http://localhost:3001/login',
+    'http://localhost',
+    'http://37.187.35.37:3001',
+    'http://37.187.35.37:3001/login',
+    'http://37.187.35.37'
+];
+
+const corsOptions: CorsOptions = {
+    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
 app.use(bodyParser.json());
 const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-app.use('/auth', authRoutes);
-app.use('/front', frontRoutes);
-// Servir les fichiers statiques depuis le dossier des images
+app.use('/api/auth', authRoutes);
+app.use('/api/front', frontRoutes);
 const imagesPath = path.join(__dirname, 'temp');
-app.use('/images', express.static(imagesPath));
+app.use('/api/images', express.static(imagesPath));
 
+app.use('/api/texplore', scrapingMainRoutes);
+app.use('/api/texplore', texploreRoutes);
 
-//-----------------------------------Auth API requise-------------------------------------
-// app.use(jwtMiddleware);
-
-
-app.use('/texplore', scrapingMainRoutes);
-app.use('/texplore', texploreRoutes);
-
-
-
-// Test and sync database
 sequelize.authenticate()
     .then(() => {
         console.log('Connection has been established successfully.');
@@ -53,8 +67,8 @@ sequelize.authenticate()
             .then(() => {
                 console.log('Database & tables created!');
 
-                app.listen(port, () => {
-                    console.log('Doc available at localhost:' + port + '/api-docs');
+                app.listen(port, '0.0.0.0', () => {
+                    console.log(`Server running at http://localhost:${port}/api-docs`);
                 });
             })
             .catch(err => {

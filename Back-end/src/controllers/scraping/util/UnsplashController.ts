@@ -29,7 +29,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
     try {
         console.log(`Launching browser for search: ${name}`);
         browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,800'],
             defaultViewport: null // Use the full window size
         });
