@@ -4,15 +4,23 @@ import { usePlaces } from '../context/PlacesContext';
 import { IResponseStructure, IPlace } from '../model/Interfaces';
 import PhotoSelectorCity from './PhotoSelectorCity';
 import PhotoSelectorPlace from './PhotoSelectorPlace';
+import { useUser } from '../context/UserContext';
 
 const HomePage: React.FC = () => {
     const { data: places } = usePlaces() as { data: IResponseStructure };
     const [searchQuery, setSearchQuery] = useState('');
+    const { user } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace }[]>([]);
     const { countryName, cityName } = useParams<{ countryName: string; cityName: string; }>();
     const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
     const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!user) {
+            navigate('/login');
+        }
+    }, [user, navigate]);
 
     useEffect(() => {
         if (searchQuery) {
@@ -99,29 +107,33 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="container mt-5">
-            <h1 className="mb-4">Sélection de photos</h1>
-            <ul className="list-group mb-4">
-                <li className="list-group-item">
-                    <strong>🌍 Pays:</strong> {totalCountries}
-                </li>
-                <li className="list-group-item">
-                    <strong>🏙️ Villes:</strong> {totalCities}
-                </li>
-                <li className="list-group-item">
-                    <strong>🍻 Lieux à valider :</strong> {totalPlaces}
-                </li>
-            </ul>
+            <h1 className="mb-4 text-center">Sélection de photos</h1>
+            <div className="d-flex justify-content-center">
+                <ul className="list-group mb-4 w-50">
+                    <li className="list-group-item">
+                        <strong>🌍 Pays:</strong> {totalCountries}
+                    </li>
+                    <li className="list-group-item">
+                        <strong>🏙️ Villes:</strong> {totalCities}
+                    </li>
+                    <li className="list-group-item">
+                        <strong>🍻 Lieux à valider :</strong> {totalPlaces}
+                    </li>
+                </ul>
+            </div>
 
-            <div className="mb-4">
+            <div className="d-flex justify-content-center mb-4">
                 <input
                     type="text"
-                    className="form-control"
+                    className="form-control w-50"
                     placeholder="Chercher un lieu"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                 />
-                {searchQuery && (
-                    <ul className="list-group mt-2">
+            </div>
+            {searchQuery && (
+                <div className="d-flex justify-content-center">
+                    <ul className="list-group w-50">
                         {filteredPlaces.map(({ country, city, place }) => (
                             <li key={`${country}-${city}-${place.place_id}`} className="list-group-item">
                                 <div
@@ -134,8 +146,8 @@ const HomePage: React.FC = () => {
                             </li>
                         ))}
                     </ul>
-                )}
-            </div>
+                </div>
+            )}
 
             <div className="row">
                 {Object.keys(places).map(countryName => {

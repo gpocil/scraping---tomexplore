@@ -4,6 +4,7 @@ import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
+import { useUser } from '../context/UserContext';
 
 interface PhotoSelectorPlaceProps {
     place: IPlace;
@@ -13,11 +14,20 @@ interface PhotoSelectorPlaceProps {
 const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComplete }) => {
     const navigate = useNavigate();
     const { updatePlaces } = usePlaces();
+    const { user } = useUser();
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isPlaceComplete, setIsPlaceComplete] = useState(false);
 
+
+
+
+    useEffect(() => {
+        if (!user) {
+            navigate('/login');
+        }
+    }, [user, navigate]);
     useEffect(() => {
         if (isPlaceComplete) {
             onComplete();

@@ -29,22 +29,20 @@ const specs = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use('/auth', authRoutes);
-
-// app.use(jwtMiddleware);
-
-app.use('', googleRoutes);
-app.use('', instagramRoutes);
-app.use('/texplore', scrapingMainRoutes);
-app.use('', fileRoutes);
-app.use('', wikiRoutes);
-app.use('', unsplashRoutes);
-app.use('', wikimediaRoutes);
 app.use('/front', frontRoutes);
-app.use('/texplore', texploreRoutes);
-
 // Servir les fichiers statiques depuis le dossier des images
 const imagesPath = path.join(__dirname, 'temp');
 app.use('/images', express.static(imagesPath));
+
+
+//-----------------------------------Auth API requise-------------------------------------
+// app.use(jwtMiddleware);
+
+
+app.use('/texplore', scrapingMainRoutes);
+app.use('/texplore', texploreRoutes);
+
+
 
 // Test and sync database
 sequelize.authenticate()

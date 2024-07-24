@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IPlace, IImage } from '../model/Interfaces';
 import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
+import { useUser } from '../context/UserContext';
 
 interface PhotoSelectorCityProps {
     places: IPlace[];
@@ -13,11 +14,21 @@ interface PhotoSelectorCityProps {
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
     const navigate = useNavigate();
     const { updatePlaces } = usePlaces();
+    const { user } = useUser();
     const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isCityComplete, setIsCityComplete] = useState(false);
+
+
+
+    useEffect(() => {
+        if (!user) {
+            navigate('/login');
+        }
+    }, [user, navigate]);
+
 
     if (!cityName) {
         return <div>Error: Invalid city name.</div>;
