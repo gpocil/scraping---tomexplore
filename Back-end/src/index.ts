@@ -1,17 +1,10 @@
 import express, { Request, Response } from 'express';
 import cors, { CorsOptions } from 'cors';
 import bodyParser from 'body-parser';
-import instagramRoutes from './routes/scraping/InstagramRoutes';
-import googleRoutes from './routes/scraping/GoogleRoutes';
 import scrapingMainRoutes from './routes/scraping/ScrapingMainRoutes';
-import fileRoutes from './routes/scraping/FileRoutes';
-import wikiRoutes from './routes/scraping/WikipediaRoutes';
-import unsplashRoutes from './routes/scraping/UnsplashRoutes';
-import wikimediaRoutes from './routes/scraping/WikimediaRoutes';
 import authRoutes from './routes/security/LoginRoutes';
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
-
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
@@ -53,8 +46,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/front', frontRoutes);
+
 const imagesPath = path.join(__dirname, 'temp');
-app.use('/api/images', express.static(imagesPath));
+console.log('imagepath : ' + imagesPath);
+app.use('/images', express.static(imagesPath));
 
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);

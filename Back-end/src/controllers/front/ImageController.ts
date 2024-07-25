@@ -132,7 +132,7 @@ export const getImagesByPlaceId = async (req: Request, res: Response) => {
         }
 
         // Créer les URLs des images
-        const imageUrls = images.map((image: Image) => `http://localhost:3000/images/${folderName}/${image.image_name}`);
+        const imageUrls = images.map((image: Image) => `http://37.187.35.37:3000/images/${folderName}/${image.image_name}`);
         console.log(`Image URLs for place ID ${placeId}: ${JSON.stringify(imageUrls)}`);
 
         res.json(imageUrls);
