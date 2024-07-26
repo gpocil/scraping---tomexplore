@@ -1,10 +1,21 @@
 import { Sequelize } from 'sequelize';
+import { config } from './config';
 
-const sequelize = new Sequelize('scraping', 'root', 'XQaGAwX3pHQ3', {
-    host: 'localhost',
-    port: 3306,
-    dialect: 'mysql'
-});
+let sequelize: Sequelize;
+
+if (config.dev === true) {
+    sequelize = new Sequelize('scraping', 'root', '', {
+        host: 'localhost',
+        port: 3306,
+        dialect: 'mysql'
+    });
+} else {
+    sequelize = new Sequelize('scraping', 'root', 'XQaGAwX3pHQ3', {
+        host: 'localhost',
+        port: 3306,
+        dialect: 'mysql'
+    });
+}
 
 // Test the connection
 sequelize.authenticate()

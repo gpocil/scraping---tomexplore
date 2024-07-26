@@ -168,10 +168,6 @@ function randomTimeout(): number {
 
 
 
-
-
-
-
 export async function fetchGoogleBusinessAttributes(req?: Request, res?: Response): Promise<{ attributes: { [key: string]: number }, count: number, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
   const formattedAddress = formatAddressForURL(location_full_address);

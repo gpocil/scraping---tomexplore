@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import * as tomexploreController from '../../controllers/tomexplore/TomexploreController';
 import * as LoginController from '../../controllers/front/LoginController'
+import * as GoogleController from '../../controllers/scraping/util/GoogleController'
 
 const router = Router();
 
 
 /**
  * @swagger
- * /texplore/getCheckedPlace/{placeId}:
+ * /api/texplore/getCheckedPlace/{placeId}:
  *   get:
  *     summary: Retrieve all verified images for a given place by its ID
  *     tags: [Get Checked Places]
@@ -49,7 +50,7 @@ router.get('/getCheckedPlace/:placeId', tomexploreController.getAllCheckedImages
 
 /**
  * @swagger
- * /texplore/getCheckedCity/{cityName}:
+ * /api/texplore/getCheckedCity/{cityName}:
  *   get:
  *     summary: Retrieve all verified places and their images for a given city
  *     tags: [Get Checked Places]
@@ -110,7 +111,7 @@ router.get('/getCheckedCity/:cityName', tomexploreController.getCheckedPlacesByC
 
 /**
  * @swagger
- * /texplore/deletePlace/{placeId}:
+ * /api/texplore/deletePlace/{placeId}:
  *   delete:
  *     summary: Delete a verified place and its images by place ID
  *     tags: [Delete Checked Places]
@@ -133,7 +134,7 @@ router.delete('/deletePlace/:placeId', tomexploreController.deleteCheckedPlaceBy
 
 /**
  * @swagger
- * /texplore/deleteCity/{cityName}:
+ * /api/texplore/deleteCity/{cityName}:
  *   delete:
  *     summary: Delete all verified places and their images for a given city
  *     tags: [Delete Checked Places]
@@ -163,7 +164,7 @@ router.delete('/deleteCity/:cityName', tomexploreController.deleteCheckedPlacesB
 
 /**
  * @swagger
- * /texplore/createUser:
+ * /api/texplore/createUser:
  *   post:
  *     summary: Register a new user
  *     tags: [Malgache Creator]
@@ -191,5 +192,49 @@ router.delete('/deleteCity/:cityName', tomexploreController.deleteCheckedPlacesB
  */
 
 router.post('/createUser', LoginController.createUser);
+
+/**
+ * @swagger
+ * /api/texplore/google_attributes:
+ *   post:
+ *     summary: Retrieve Google Business attributes for a given location
+ *     tags: [Google Attributes]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - location_full_address
+ *             properties:
+ *               location_full_address:
+ *                 type: string
+ *                 description: Full address of the location to fetch attributes for
+ *     responses:
+ *       200:
+ *         description: Successfully retrieved attributes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 attributes:
+ *                   type: object
+ *                   additionalProperties:
+ *                     type: number
+ *                 count:
+ *                   type: number
+ *                 error:
+ *                   type: string
+ *                   nullable: true
+ *       400:
+ *         description: Location address is required
+ *       500:
+ *         description: Internal server error
+ */
+
+
+router.post('/google_attributes', GoogleController.fetchGoogleBusinessAttributes);
 
 export default router;

@@ -12,7 +12,7 @@ const router = Router();
 
 /**
  * @swagger
- * /texplore/business:
+ * /api/texplore/business:
  *   post:
  *     summary: Fetch photos from Instagram and Google for a business
  *     tags: [Scraping]
@@ -109,7 +109,7 @@ router.post('/business', ScrapingController.getPhotosBusiness);
 
 /**
  * @swagger
- * /texplore/tourist_attraction:
+ * /api/texplore/tourist_attraction:
  *   post:
  *     summary: Fetch photos from Wikimedia and Unsplash for a tourist attraction
  *     tags: [Scraping]

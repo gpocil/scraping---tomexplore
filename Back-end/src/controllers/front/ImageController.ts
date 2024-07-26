@@ -86,7 +86,7 @@ export const getUncheckedPlacesWithImages = async (req: Request, res: Response) 
                         images: images.map((image: { image_name: string; id: number }) => ({
                             id: image.id,
                             image_name: image.image_name,
-                            url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${image.image_name}`
+                            url: `http://37.187.35.37:3000/images/${encodeURIComponent(place.folder)}/${image.image_name}`
                         }))
                     };
 

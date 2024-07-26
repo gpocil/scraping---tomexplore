@@ -73,7 +73,7 @@ export async function downloadPhotosBusiness(name_en: string, id_tomexplore: num
     ];
 
     if (imageUrls.length > 0) {
-        const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString() + '-' + name_en);
+        const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
         fs.mkdirSync(downloadDir, { recursive: true });
 
         await Promise.all(imageUrls.map(async ({ url, generatedName }) => {
@@ -111,7 +111,7 @@ export async function downloadPhotosTouristAttraction(name_en: string, id_tomexp
         ...unsplashUrls.urls.map(([url, license, author]) => ({ url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` }))
     ];
 
-    const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString() + '-' + name_en);
+    const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
 
     if (imageUrls.length > 0) {
         fs.mkdirSync(downloadDir, { recursive: true });

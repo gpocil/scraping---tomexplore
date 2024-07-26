@@ -2,10 +2,12 @@ import { Request, Response } from 'express';
 import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import fs from 'fs';
+import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
-export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
+export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, screenshotUrl?: string, error?: string }> {
   const username = req ? req.body.username as string : '';
 
   if (!username) {
@@ -34,6 +36,16 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       waitUntil: 'networkidle2',
     });
     console.log(`Navigated to Instagram page of ${username}`);
+    await page.waitForTimeout(4000);
+
+    // Prendre une capture d'écran et l'enregistrer
+    const screenshotDir = path.join(__dirname, '../../..', 'temp', 'instaphotos');
+    if (!fs.existsSync(screenshotDir)) {
+      fs.mkdirSync(screenshotDir, { recursive: true });
+    }
+    const screenshotPath = path.join(screenshotDir, `${username}.png`);
+    await page.screenshot({ path: screenshotPath });
+    console.log(`Screenshot saved at ${screenshotPath}`);
 
     const pageNotFound = await page.evaluate(() => {
       return document.body.textContent?.includes("Sorry, this page isn't available.") || false;
@@ -80,7 +92,11 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       });
       console.log(`Found ${imageUrls.length} image URLs`);
 
-      const result = { urls: imageUrls, count: imageUrls.length };
+      const result = {
+        urls: imageUrls,
+        count: imageUrls.length,
+        screenshotUrl: `http://37.187.35.37:3000/images/${username}_screenshot.png`
+      };
       if (res) {
         res.json(result);
       }
