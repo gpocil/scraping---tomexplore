@@ -39,6 +39,7 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
     let googleImages: ImageResultBusiness = { urls: [], count: 0 };
     let errors: string[] = [];
     let location_full_address = name_en + " " + address + " " + cityName + " " + countryName;
+    console.log("location full adress : " + location_full_address)
     try {
         // Check if Country exists, otherwise create it
         let country = await Country.findOne({ where: { name: countryName } });

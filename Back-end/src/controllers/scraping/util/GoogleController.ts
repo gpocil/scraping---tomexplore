@@ -9,7 +9,11 @@ puppeteer.use(StealthPlugin());
 
 export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
+  console.log("location full adress : " + location_full_address);
+
   const formattedAddress = formatAddressForURL(location_full_address);
+  console.log("formatted adress : " + formattedAddress);
+
   const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
   console.log("url : " + url);
 
