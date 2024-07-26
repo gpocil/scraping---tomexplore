@@ -76,21 +76,28 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       await targetDiv.hover();
       console.log('Hovered over the target div');
 
-      for (let i = 0; i < 3; i++) {
-        await page.mouse.wheel({
-          deltaY: 1000,
+      let imageUrls: string[] = [];
+      let scrollCount = 0;
+      const maxScrolls = 10;
+
+      while (imageUrls.length === 0 || (imageUrls.length === 12 && scrollCount < maxScrolls)) {
+        for (let i = 0; i < 3; i++) {
+          await page.mouse.wheel({
+            deltaY: 1000,
+          });
+          console.log(`Scrolled down ${i + 1} times`);
+          await page.waitForTimeout(482);
+        }
+        await page.waitForTimeout(1682);
+
+        imageUrls = await page.evaluate(() => {
+          const imgs = Array.from(document.querySelectorAll('div.photo img'));
+          return imgs.map(img => (img as HTMLImageElement).src);
         });
-        console.log(`Scrolled down ${i + 1} times`);
-        await page.waitForTimeout(482);
 
+        console.log(`Found ${imageUrls.length} image URLs after scrolling`);
+        scrollCount++;
       }
-      await page.waitForTimeout(1682);
-
-      const imageUrls = await page.evaluate(() => {
-        const imgs = Array.from(document.querySelectorAll('div.photo img'));
-        return imgs.map(img => (img as HTMLImageElement).src);
-      });
-      console.log(`Found ${imageUrls.length} image URLs`);
 
       const result = {
         urls: imageUrls,

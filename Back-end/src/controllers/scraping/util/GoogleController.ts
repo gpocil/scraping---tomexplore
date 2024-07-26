@@ -92,43 +92,22 @@ async function handleConsentPage(page: Page): Promise<string> {
 }
 
 async function clickPhotosDuProprietaireButton(page: Page): Promise<void> {
-  const buttonSelectors = [
-    'button[aria-label="Photos du propriétaire"]',
-    'button[aria-label="By Owner"]',
-    'button[aria-label="Del propietario"]',
-    'button[aria-label="Vom Inhaber"]',
-    'button[aria-label="Do proprietário"]',
-    'button[aria-label="Van de eigenaar"]',
-    'button[aria-label="Fotografías del propietario"]',
-    'button[aria-label="Fra ejeren"]',
-    'button[aria-label="Dal proprietario"]',
-    'button[aria-label="Dostarczył właściciel"]',
-    'button[aria-label="De la proprietar"]'
-
-    // Ajoutez ici d'autres traductions si nécessaire
-  ];
-
   try {
-    for (const selector of buttonSelectors) {
-      try {
-        await page.waitForSelector(selector, { visible: true, timeout: 5000 });
-        const photosButton = await page.$(selector);
-        if (photosButton) {
-          await photosButton.click();
-          console.log(`Clicked on the button with selector: ${selector}`);
-          await page.waitForTimeout(randomTimeout()); // Wait for photos to load
-          return; // Quitter la fonction après avoir cliqué sur le bouton
-        }
-      } catch (innerError) {
-        console.log(`Button not found with selector: ${selector}`);
-      }
+    const photosButtonSelector = 'button[aria-label="Photos du propriétaire"]';
+    await page.waitForSelector(photosButtonSelector, { visible: true, timeout: 5000 });
+    const photosButton = await page.$(photosButtonSelector);
+    if (photosButton) {
+      await photosButton.click();
+      console.log('Clicked on the "Photos du propriétaire" button');
+      await page.waitForTimeout(randomTimeout()); // Wait for photos to load
+    } else {
+      const error = '"Photos du propriétaire" button not found';
+      console.log(error);
+      throw new Error(error);
     }
-    const error = 'Button not found with any of the selectors';
-    console.log(error);
-    throw new Error(error);
   } catch (clickError: any) {
-    console.error(`Error clicking on button: ${clickError.message}`);
-    throw new Error(`Error clicking on button: ${clickError.message}`);
+    console.error(`Error clicking on "Photos du propriétaire" button: ${clickError.message}`);
+    throw new Error(`Error clicking on "Photos du propriétaire" button: ${clickError.message}`);
   }
 }
 
