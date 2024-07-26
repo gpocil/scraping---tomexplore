@@ -81,6 +81,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
           deltaY: 1000,
         });
         console.log(`Scrolled down ${i + 1} times`);
+        await page.waitForTimeout(482);
 
       }
       await page.waitForTimeout(1682);
