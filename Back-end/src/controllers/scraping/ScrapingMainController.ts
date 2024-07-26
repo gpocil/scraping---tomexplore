@@ -101,7 +101,7 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                     type: 'Business', // Assuming 'type' is a required field, set to 'Business'
                     city_id: city.id,
                     checked: false, // Assuming 'done' is a required field, set to false by default
-                    folder: id_tomexplore + '-' + name_en,
+                    folder: id_tomexplore,
                     instagram_link: instagram_username,
                     google_maps_link,
                     unsplash_link: '',
