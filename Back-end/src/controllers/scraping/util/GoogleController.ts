@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
+import path from 'path';
 import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import fs from 'fs';
 
 puppeteer.use(StealthPlugin());
 
@@ -168,7 +170,7 @@ function randomTimeout(): number {
 
 
 
-export async function fetchGoogleBusinessAttributes(req?: Request, res?: Response): Promise<{ attributes: { [key: string]: number }, count: number, error?: string }> {
+export async function fetchGoogleBusinessAttributes(req?: Request, res?: Response): Promise<{ attributes: { [key: string]: number }, count: number, screenshotPath?: string, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
   const formattedAddress = formatAddressForURL(location_full_address);
   const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
@@ -204,7 +206,6 @@ export async function fetchGoogleBusinessAttributes(req?: Request, res?: Respons
     await page.waitForTimeout(randomTimeout());
     await clickReviewsTab(page);
     await page.waitForTimeout(randomTimeout());
-
     const attributes = await scrapeAttributes(page);
 
     await browser.close();
@@ -248,8 +249,8 @@ async function clickReviewsTab(page: Page): Promise<void> {
 
 async function scrapeAttributes(page: Page): Promise<{ [key: string]: number }> {
   try {
-    const attributeSelector = 'div.tXNTee.L6Bbsd';
-    await page.waitForSelector(attributeSelector, { visible: true, timeout: 5000 });
+    const attributeSelector = 'div.m6QErb.XiKgde.tLjsW button.e2moi';
+    await page.waitForSelector(attributeSelector, { visible: true, timeout: 10000 });
 
     const attributes = await page.$$eval(attributeSelector, elements => {
       const result: { [key: string]: number } = {};
@@ -257,8 +258,8 @@ async function scrapeAttributes(page: Page): Promise<{ [key: string]: number }> 
         const keyElement = element.querySelector('span.uEubGf.fontBodyMedium');
         const valueElement = element.querySelector('span.bC3Nkc.fontBodySmall');
         if (keyElement && valueElement) {
-          const key = keyElement?.textContent?.trim() ?? '';
-          const value = parseInt(valueElement?.textContent?.trim() ?? '0', 10);
+          const key = keyElement.textContent?.trim() ?? '';
+          const value = parseInt(valueElement.textContent?.trim() ?? '0', 10);
           if (key && !isNaN(value)) {
             result[key] = value;
           }
