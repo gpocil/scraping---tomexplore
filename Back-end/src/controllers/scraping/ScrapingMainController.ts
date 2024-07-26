@@ -112,7 +112,6 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
             const saveImage = async (url: string, source: string, generatedName: string) => {
                 return Image.create({
                     image_name: generatedName,
-                    original_url: url,
                     source,
                     place_id: place.id_tomexplore
                 });
