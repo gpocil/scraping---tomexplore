@@ -7,7 +7,7 @@ import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
-export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, screenshotUrl?: string, error?: string }> {
+export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
   const username = req ? req.body.username as string : '';
 
   if (!username) {
@@ -32,11 +32,10 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
     console.log('New page opened');
 
-    await page.goto(`https://www.instagram.com/${username}/`, {
+    await page.goto(`https://www.picuki.com/profile/${username}/`, {
       waitUntil: 'networkidle2',
     });
-    console.log(`Navigated to Instagram page of ${username}`);
-    await page.waitForTimeout(4000);
+    console.log(`Navigated to picuki page of ${username}`);
 
     // Prendre une capture d'écran et l'enregistrer
     const screenshotDir = path.join(__dirname, '../../..', 'temp', 'instaphotos');
@@ -62,13 +61,13 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       return { urls: [], count: 0, error };
     }
 
-    await page.waitForSelector('div._aagv');
-    await handleCookiesConsent(page);
-    await checkShowMorePosts(page);
+    await page.waitForSelector('div.photo');
+    // await handleCookiesConsent(page);
+    // await checkShowMorePosts(page);
 
     console.log('Image container detected');
 
-    const targetDivSelector = '._aagu';
+    const targetDivSelector = '.box-photo';
     await page.waitForSelector(targetDivSelector);
     const targetDiv = await page.$(targetDivSelector);
     console.log('Target div detected');
@@ -83,11 +82,11 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         });
         console.log(`Scrolled down ${i + 1} times`);
 
-        await page.waitForTimeout(2000);
       }
+      await page.waitForTimeout(1682);
 
       const imageUrls = await page.evaluate(() => {
-        const imgs = Array.from(document.querySelectorAll('div._aagv img'));
+        const imgs = Array.from(document.querySelectorAll('div.photo img'));
         return imgs.map(img => (img as HTMLImageElement).src);
       });
       console.log(`Found ${imageUrls.length} image URLs`);
