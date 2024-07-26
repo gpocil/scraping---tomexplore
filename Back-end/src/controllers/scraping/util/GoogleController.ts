@@ -27,7 +27,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
   let browser;
   try {
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     console.log('Browser launched');
