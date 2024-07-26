@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import cors, { CorsOptions } from 'cors';
 import bodyParser from 'body-parser';
 import scrapingMainRoutes from './routes/scraping/ScrapingMainRoutes';
+import InstagramRoutes from './routes/scraping/InstagramRoutes';
 import authRoutes from './routes/security/LoginRoutes';
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
@@ -51,12 +52,17 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.use('/api/auth', authRoutes);
 app.use('/api/front', frontRoutes);
 
+
+//------------------------Auth required---------------------------------
+
 const imagesPath = path.join(__dirname, 'temp');
 console.log('imagepath : ' + imagesPath);
 app.use('/images', express.static(imagesPath));
 
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);
+app.use('/api', InstagramRoutes);
+
 
 sequelize.authenticate()
     .then(() => {
