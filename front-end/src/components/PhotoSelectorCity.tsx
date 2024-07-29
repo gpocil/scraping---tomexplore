@@ -14,7 +14,7 @@ interface PhotoSelectorCityProps {
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
     const navigate = useNavigate();
     const { updatePlaces } = usePlaces();
-    const { user } = useUser();
+    const { checkCookie } = useUser();
     const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -22,12 +22,11 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const [isCityComplete, setIsCityComplete] = useState(false);
 
     useEffect(() => {
-        if (!user) {
+        if (!checkCookie()) {
             navigate('/login');
         }
-    }, [user, navigate]);
-
-
+        updatePlaces();
+    }, [checkCookie, navigate, updatePlaces]);
     const handleNext = () => {
         if (currentPlaceIndex < places.length - 1) {
             setCurrentPlaceIndex((prevIndex) => prevIndex + 1);

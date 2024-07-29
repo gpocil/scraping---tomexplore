@@ -14,7 +14,7 @@ interface PhotoSelectorPlaceProps {
 const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComplete }) => {
     const navigate = useNavigate();
     const { updatePlaces } = usePlaces();
-    const { user } = useUser();
+    const { checkCookie } = useUser();
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
@@ -22,12 +22,12 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
 
 
-
     useEffect(() => {
-        if (!user) {
+        if (!checkCookie()) {
             navigate('/login');
         }
-    }, [user, navigate]);
+        updatePlaces();
+    }, [checkCookie, navigate, updatePlaces]);
     useEffect(() => {
         if (isPlaceComplete) {
             onComplete();

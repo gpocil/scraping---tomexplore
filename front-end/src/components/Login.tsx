@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useUser } from '../context/UserContext';
 import apiClient from '../util/apiClient';
 import validator from 'validator';
+import Cookies from 'js-cookie';
 
 const Login: React.FC = () => {
     const [login, setLogin] = useState('');
@@ -25,6 +25,8 @@ const Login: React.FC = () => {
             const response = await apiClient.post('/front/login', { login, password });
             if (response.data.login) {
                 setUser({ login });
+                // Set a cookie to keep the user logged in for 2 hours
+                Cookies.set('user', login, { expires: 1 / 12 }); // 2 hours = 1/12 of a day
                 navigate('/');
             } else {
                 setError('Invalid login or password');

@@ -9,7 +9,7 @@ import { useUser } from '../context/UserContext';
 const HomePage: React.FC = () => {
     const { data: places, updatePlaces } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void };
     const [searchQuery, setSearchQuery] = useState('');
-    const { user } = useUser();
+    const { checkCookie } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace }[]>([]);
     const { countryName, cityName } = useParams<{ countryName: string; cityName: string; }>();
     const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
@@ -18,14 +18,15 @@ const HomePage: React.FC = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!user) {
+        if (!checkCookie()) {
             navigate('/login');
         }
-    }, [user, navigate]);
+        updatePlaces();
+    }, [checkCookie, navigate, updatePlaces]);
 
     useEffect(() => {
         updatePlaces();
-    }, [navigate]);
+    }, []);
 
     useEffect(() => {
         if (searchQuery) {

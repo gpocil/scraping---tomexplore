@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import Cookies from 'js-cookie';
 
 interface User {
     login: string;
@@ -7,6 +8,7 @@ interface User {
 interface UserContextType {
     user: User | null;
     setUser: (user: User | null) => void;
+    checkCookie: () => boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -14,8 +16,20 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
 
+    useEffect(() => {
+        const storedUser = Cookies.get('user');
+        if (storedUser) {
+            setUser({ login: storedUser });
+        }
+    }, []);
+
+    const checkCookie = () => {
+        const storedUser = Cookies.get('user');
+        return !!storedUser;
+    };
+
     return (
-        <UserContext.Provider value={{ user, setUser }}>
+        <UserContext.Provider value={{ user, setUser, checkCookie }}>
             {children}
         </UserContext.Provider>
     );
