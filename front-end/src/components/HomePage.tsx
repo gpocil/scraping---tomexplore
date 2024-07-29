@@ -59,6 +59,7 @@ const HomePage: React.FC = () => {
                 ? places.checked[countryName]?.[cityName] || {}
                 : places.unchecked[countryName]?.[cityName] || {};
             const flattenedPlaces = Object.values(cityPlaces).flat() as IPlace[];
+
             setSelectedCityPlaces(flattenedPlaces);
         }
     }, [countryName, cityName, places, viewChecked]);
@@ -79,16 +80,19 @@ const HomePage: React.FC = () => {
         const uniqueCities = new Set<string>();
         let totalPlacesUnchecked = 0;
         let totalPlacesChecked = 0;
+        let totalPlacesNeedsAttention = 0;
 
-        ['checked', 'unchecked'].forEach(status => {
+        ['checked', 'unchecked', 'needs_attention'].forEach(status => {
             for (const country of Object.keys(places[status])) {
                 uniqueCountries.add(country);
                 for (const city of Object.keys(places[status][country])) {
                     uniqueCities.add(`${country}-${city}`);
                     if (status === 'checked') {
                         totalPlacesChecked += Object.keys(places[status][country][city]).length;
-                    } else {
+                    } else if (status === 'unchecked') {
                         totalPlacesUnchecked += Object.keys(places[status][country][city]).length;
+                    } else if (status === 'needs_attention') {
+                        totalPlacesNeedsAttention += Object.keys(places[status][country][city]).length;
                     }
                 }
             }
@@ -98,7 +102,8 @@ const HomePage: React.FC = () => {
             totalCountries: uniqueCountries.size,
             totalCities: uniqueCities.size,
             totalPlacesUnchecked,
-            totalPlacesChecked
+            totalPlacesChecked,
+            totalPlacesNeedsAttention
         };
     };
 
@@ -108,7 +113,9 @@ const HomePage: React.FC = () => {
         let placeCount = 0;
 
         for (const city of Object.keys(countryData || {})) {
-            placeCount += Object.keys(countryData[city] || {}).length;
+            const placesInCity = Object.values(countryData[city] || {}).flat() as IPlace[];
+
+            placeCount += placesInCity.length;
         }
 
         return { cityCount, placeCount };
@@ -116,10 +123,12 @@ const HomePage: React.FC = () => {
 
     const getCountsForCity = (countryName: string, cityName: string, viewChecked: boolean) => {
         const cityData = viewChecked ? places.checked[countryName]?.[cityName] : places.unchecked[countryName]?.[cityName];
-        return Object.keys(cityData || {}).length;
+        const placesInCity = Object.values(cityData || {}).flat() as IPlace[];
+
+        return placesInCity.length;
     };
 
-    const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked } = getTotalCounts();
+    const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention } = getTotalCounts();
 
     if (selectedPlace) {
         return <PhotoSelectorPlace place={selectedPlace} onComplete={handlePlaceComplete} />;
@@ -131,13 +140,13 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="container mt-5">
-            <h1 className="mb-4 text-center">Sélection de photos</h1>
+            <h1 className="mb-4 text-center"> {viewChecked ? 'Lieux traités ✅' : 'Lieux à traiter ❌'}</h1>
             <div className="d-flex justify-content-center mb-4">
                 <button
                     className="btn btn-primary"
                     onClick={() => setViewChecked(!viewChecked)}
                 >
-                    {viewChecked ? 'Afficher To do' : 'Afficher Done'}
+                    {viewChecked ? 'Afficher lieux à traiter ❌' : 'Afficher lieux traités ✅'}
                 </button>
             </div>
             <div className="d-flex justify-content-center mb-4">
@@ -145,7 +154,7 @@ const HomePage: React.FC = () => {
                     className="btn btn-warning"
                     onClick={() => navigate('/places-needing-attention')}
                 >
-                    Places Needing Attention
+                    🚨 Lieux nécessitant une attention
                 </button>
             </div>
             <div className="d-flex justify-content-center">
@@ -161,6 +170,9 @@ const HomePage: React.FC = () => {
                     </li>
                     <li className="list-group-item">
                         <strong>🍻 Lieux validés :</strong> {totalPlacesChecked}
+                    </li>
+                    <li className="list-group-item">
+                        <strong>🚨 Lieux nécessitant une attention :</strong> {totalPlacesNeedsAttention}
                     </li>
                 </ul>
             </div>

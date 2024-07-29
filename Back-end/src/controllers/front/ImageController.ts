@@ -15,8 +15,10 @@ interface ImageResponse {
 interface PlaceResponse {
     place_id: number;
     place_name: string;
-    wikipedia_link: string;
+    wikipedia_link?: string;
     google_maps_link: string;
+    instagram_link?: string;
+    unsplash_link?: string;
     images: ImageResponse[];
     checked: Boolean;
     needs_attention: Boolean | undefined;
@@ -33,6 +35,8 @@ interface CountryResponse {
 interface ResponseStructure {
     checked: { [countryName: string]: CountryResponse };
     unchecked: { [countryName: string]: CountryResponse };
+    needs_attention: { [countryName: string]: CountryResponse };
+
 }
 
 export const getPlacesWithImages = async (req: Request, res: Response) => {
@@ -63,13 +67,17 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'No places found' });
         }
 
-        const response: ResponseStructure = { checked: {}, unchecked: {} };
+        const response: ResponseStructure = { checked: {}, unchecked: {}, needs_attention: {} };
 
         places.forEach(place => {
             const city = place.getDataValue('city');
             const country = city ? city.getDataValue('country') : null;
             const images = place.getDataValue('images') || [];
-            const checkedStatus: 'checked' | 'unchecked' = place.getDataValue('checked') ? 'checked' : 'unchecked';
+            const checkedStatus: 'checked' | 'unchecked' | 'needs_attention' = place.getDataValue('checked')
+                ? 'checked'
+                : place.getDataValue('needs_attention')
+                    ? 'needs_attention'
+                    : 'unchecked';
 
             if (country) {
                 if (!response[checkedStatus][country.name]) {
@@ -86,6 +94,8 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                         place_name: place.name_eng,
                         wikipedia_link: place.wikipedia_link || '',
                         google_maps_link: place.google_maps_link || '',
+                        instagram_link: place.instagram_link || '',
+                        unsplash_link: place.unsplash_link || '',
                         images: images.map((image: { image_name: string; id: number }) => ({
                             id: image.id,
                             image_name: image.image_name,
@@ -110,7 +120,6 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 export const getImagesByPlaceId = async (req: Request, res: Response) => {
     const placeId = req.params.placeId;

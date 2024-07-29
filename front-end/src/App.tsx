@@ -6,6 +6,7 @@ import HomePage from './components/HomePage';
 import Login from './components/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import PlacesNeedingAttention from './components/PlacesNeedingAttention';
+import CheckPlaceNeedsAttention from './components/CheckPlaceNeedsAttention';
 
 const App: React.FC = () => {
   return (
@@ -23,7 +24,7 @@ const App: React.FC = () => {
                     <Route path="/city/:countryName/:cityName" element={<HomePage />} />
                     <Route path="/place/:place_id" element={<HomePage />} />
                     <Route path="/places-needing-attention" element={<PlacesNeedingAttention />} />
-
+                    <Route path="/check-place/:placeId" element={<CheckPlaceNeedsAttention />} />
                   </Routes>
                 </RequireAuth>
               }

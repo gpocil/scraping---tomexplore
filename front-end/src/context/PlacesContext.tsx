@@ -10,7 +10,7 @@ interface PlaceContextType {
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
-    const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {} });
+    const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {} });
 
     const fetchData = useCallback(() => {
         apiClient.get<IResponseStructure>('/front/getAllImages')
