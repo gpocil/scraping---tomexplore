@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import apiClient from '../util/apiClient';
 import { IResponseStructure } from '../model/Interfaces';
 
@@ -7,24 +7,23 @@ interface PlaceContextType {
     updatePlaces: () => void;
 }
 
-// Create context
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
-    const [data, setData] = useState<IResponseStructure>({});
+    const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {} });
 
-    const fetchData = () => {
+    const fetchData = useCallback(() => {
         apiClient.get<IResponseStructure>('/front/getAllImages')
             .then((response) => {
                 setData(response.data);
-                console.log('Fetched places data:', response.data);  // Add this line to log the data
+                console.log('Fetched places data:', response.data);
             })
             .catch((error) => console.error('Error fetching places:', error));
-    };
+    }, []);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     const updatePlaces = () => {
         fetchData();
@@ -37,7 +36,6 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
-// Custom hook to use the PlaceContext
 export const usePlaces = () => {
     const context = useContext(PlaceContext);
     if (context === undefined) {

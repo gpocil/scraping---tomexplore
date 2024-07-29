@@ -29,13 +29,13 @@ interface CountryResponse {
 }
 
 interface ResponseStructure {
-    [countryName: string]: CountryResponse;
+    checked: { [countryName: string]: CountryResponse };
+    unchecked: { [countryName: string]: CountryResponse };
 }
 
-export const getUncheckedPlacesWithImages = async (req: Request, res: Response) => {
+export const getPlacesWithImages = async (req: Request, res: Response) => {
     try {
         const places = await Place.findAll({
-            where: { checked: false },
             include: [
                 {
                     model: Image,
@@ -58,24 +58,25 @@ export const getUncheckedPlacesWithImages = async (req: Request, res: Response) 
         });
 
         if (!places.length) {
-            return res.status(404).json({ error: 'No unchecked places found' });
+            return res.status(404).json({ error: 'No places found' });
         }
 
-        const response: ResponseStructure = {};
+        const response: ResponseStructure = { checked: {}, unchecked: {} };
 
         places.forEach(place => {
             const city = place.getDataValue('city');
             const country = city ? city.getDataValue('country') : null;
             const images = place.getDataValue('images') || [];
+            const checkedStatus: 'checked' | 'unchecked' = place.getDataValue('checked') ? 'checked' : 'unchecked';
 
             if (country) {
-                if (!response[country.name]) {
-                    response[country.name] = {};
+                if (!response[checkedStatus][country.name]) {
+                    response[checkedStatus][country.name] = {};
                 }
 
                 if (city) {
-                    if (!response[country.name][city.name]) {
-                        response[country.name][city.name] = {};
+                    if (!response[checkedStatus][country.name][city.name]) {
+                        response[checkedStatus][country.name][city.name] = {};
                     }
 
                     const placeResponse: PlaceResponse = {
@@ -90,18 +91,18 @@ export const getUncheckedPlacesWithImages = async (req: Request, res: Response) 
                         }))
                     };
 
-                    if (!response[country.name][city.name][place.name_eng]) {
-                        response[country.name][city.name][place.name_eng] = [];
+                    if (!response[checkedStatus][country.name][city.name][place.name_eng]) {
+                        response[checkedStatus][country.name][city.name][place.name_eng] = [];
                     }
 
-                    response[country.name][city.name][place.name_eng].push(placeResponse);
+                    response[checkedStatus][country.name][city.name][place.name_eng].push(placeResponse);
                 }
             }
         });
 
         res.json(response);
     } catch (error) {
-        console.error('Error fetching unchecked places with images:', error);
+        console.error('Error fetching places with images:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

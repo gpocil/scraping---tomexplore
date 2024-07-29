@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { IPlace, IImage } from '../model/Interfaces';
 import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
@@ -21,20 +21,12 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const [isStepOne, setIsStepOne] = useState(true);
     const [isCityComplete, setIsCityComplete] = useState(false);
 
-
-
     useEffect(() => {
         if (!user) {
             navigate('/login');
         }
     }, [user, navigate]);
 
-
-    if (!cityName) {
-        return <div>Error: Invalid city name.</div>;
-    }
-
-    const currentPlace = places[currentPlaceIndex];
 
     const handleNext = () => {
         if (currentPlaceIndex < places.length - 1) {
@@ -119,8 +111,18 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         setIsStepOne(true);
     };
 
+    if (!cityName) {
+        return <div>Error: Invalid city name.</div>;
+    }
+
+    if (places.length === 0) {
+        return <div>Error: No places found for the given city.</div>;
+    }
+
+    const currentPlace = places[currentPlaceIndex];
+    const totalImages = currentPlace?.images?.length || 0;
+
     if (isCityComplete) {
-        updatePlaces();
         return (
             <div className="container mt-5 text-center">
                 <h1>Ville terminée</h1>
@@ -131,15 +133,10 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         );
     }
 
-    if (places.length === 0) {
-        return <div>Error: No places found for the given city.</div>;
-    }
-
-    const totalImages = currentPlace?.images?.length || 0;
-
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
+                <h1>PhotoselectorCity</h1>
                 <button className="btn btn-primary" onClick={() => navigate('/')}>
                     Home
                 </button>

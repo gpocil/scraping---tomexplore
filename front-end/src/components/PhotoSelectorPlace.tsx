@@ -114,6 +114,8 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
+                <h1>PhotoselectorPlace</h1>
+
                 <button className="btn btn-primary" onClick={() => navigate('/')}>
                     Home
                 </button>
