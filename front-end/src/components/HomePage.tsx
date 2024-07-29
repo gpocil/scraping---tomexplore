@@ -112,7 +112,9 @@ const HomePage: React.FC = () => {
     const getCountsForCity = (countryName: string, cityName: string) => {
         const cityChecked = places.checked[countryName]?.[cityName] || {};
         const cityUnchecked = places.unchecked[countryName]?.[cityName] || {};
-        return Object.keys(cityChecked).length + Object.keys(cityUnchecked).length;
+        return viewChecked
+            ? Object.keys(cityChecked).length
+            : Object.keys(cityUnchecked).length;
     };
 
     const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked } = getTotalCounts();
