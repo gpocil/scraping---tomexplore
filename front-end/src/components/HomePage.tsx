@@ -94,28 +94,21 @@ const HomePage: React.FC = () => {
         return { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked };
     };
 
-    const getCountsForCountry = (countryName: string) => {
-        const countryChecked = places.checked[countryName] || {};
-        const countryUnchecked = places.unchecked[countryName] || {};
-        let cityCount = Object.keys(countryChecked).length + Object.keys(countryUnchecked).length;
+    const getCountsForCountry = (countryName: string, viewChecked: boolean) => {
+        const countryData = viewChecked ? places.checked[countryName] : places.unchecked[countryName];
+        const cityCount = Object.keys(countryData || {}).length;
         let placeCount = 0;
 
-        for (const city of Object.keys(countryChecked)) {
-            placeCount += Object.keys(countryChecked[city]).length;
-        }
-        for (const city of Object.keys(countryUnchecked)) {
-            placeCount += Object.keys(countryUnchecked[city]).length;
+        for (const city of Object.keys(countryData || {})) {
+            placeCount += Object.keys(countryData[city] || {}).length;
         }
 
         return { cityCount, placeCount };
     };
 
-    const getCountsForCity = (countryName: string, cityName: string) => {
-        const cityChecked = places.checked[countryName]?.[cityName] || {};
-        const cityUnchecked = places.unchecked[countryName]?.[cityName] || {};
-        return viewChecked
-            ? Object.keys(cityChecked).length
-            : Object.keys(cityUnchecked).length;
+    const getCountsForCity = (countryName: string, cityName: string, viewChecked: boolean) => {
+        const cityData = viewChecked ? places.checked[countryName]?.[cityName] : places.unchecked[countryName]?.[cityName];
+        return Object.keys(cityData || {}).length;
     };
 
     const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked } = getTotalCounts();
@@ -185,7 +178,7 @@ const HomePage: React.FC = () => {
 
             <div className="row">
                 {Object.keys(places[viewChecked ? 'checked' : 'unchecked']).map(countryName => {
-                    const { cityCount, placeCount } = getCountsForCountry(countryName);
+                    const { cityCount, placeCount } = getCountsForCountry(countryName, viewChecked);
                     return (
                         <div key={countryName} className="col-md-4 mb-4">
                             <div className="card shadow-sm">
@@ -199,10 +192,10 @@ const HomePage: React.FC = () => {
                                         <div key={cityName} className="mb-2">
                                             <h6 className="text-secondary">
                                                 {viewChecked ? (
-                                                    <span>{cityName} ({getCountsForCity(countryName, cityName)} 🍻)</span>
+                                                    <span>{cityName} ({getCountsForCity(countryName, cityName, viewChecked)} 🍻)</span>
                                                 ) : (
                                                     <Link to={`/city/${countryName}/${cityName}`} className="text-decoration-none text-dark">
-                                                        {cityName} ({getCountsForCity(countryName, cityName)} 🍻)
+                                                        {cityName} ({getCountsForCity(countryName, cityName, viewChecked)} 🍻)
                                                     </Link>
                                                 )}
                                             </h6>
