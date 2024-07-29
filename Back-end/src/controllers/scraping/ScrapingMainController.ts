@@ -236,7 +236,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                     type: 'Tourist Attraction',
                     city_id: city.id,
                     checked: false,
-                    folder: id_tomexplore + '-' + name_en,
+                    folder: id_tomexplore,
                     google_maps_link,
                     unsplash_link: unsplashResult.link,
                     wikipedia_link: wikipediaUrl
