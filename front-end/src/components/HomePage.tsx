@@ -21,8 +21,11 @@ const HomePage: React.FC = () => {
         if (!checkCookie()) {
             navigate('/login');
         }
+    }, [checkCookie, navigate]);
+
+    useEffect(() => {
         updatePlaces();
-    }, [checkCookie, navigate, updatePlaces]);
+    }, [navigate]);
 
     useEffect(() => {
         updatePlaces();

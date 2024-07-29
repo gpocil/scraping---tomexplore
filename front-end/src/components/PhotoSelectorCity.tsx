@@ -25,8 +25,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         if (!checkCookie()) {
             navigate('/login');
         }
-        updatePlaces();
-    }, [checkCookie, navigate, updatePlaces]);
+    }, [checkCookie, navigate]);
     const handleNext = () => {
         if (currentPlaceIndex < places.length - 1) {
             setCurrentPlaceIndex((prevIndex) => prevIndex + 1);

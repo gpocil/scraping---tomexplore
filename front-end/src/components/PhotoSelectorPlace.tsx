@@ -26,8 +26,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         if (!checkCookie()) {
             navigate('/login');
         }
-        updatePlaces();
-    }, [checkCookie, navigate, updatePlaces]);
+    }, [checkCookie, navigate]);
     useEffect(() => {
         if (isPlaceComplete) {
             onComplete();
