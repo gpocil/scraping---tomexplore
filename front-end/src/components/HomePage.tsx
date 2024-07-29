@@ -75,16 +75,16 @@ const HomePage: React.FC = () => {
     };
 
     const getTotalCounts = () => {
-        let totalCountries = 0;
-        let totalCities = 0;
+        const uniqueCountries = new Set<string>();
+        const uniqueCities = new Set<string>();
         let totalPlacesUnchecked = 0;
         let totalPlacesChecked = 0;
 
         ['checked', 'unchecked'].forEach(status => {
-            totalCountries += Object.keys(places[status]).length;
             for (const country of Object.keys(places[status])) {
-                totalCities += Object.keys(places[status][country]).length;
+                uniqueCountries.add(country);
                 for (const city of Object.keys(places[status][country])) {
+                    uniqueCities.add(`${country}-${city}`);
                     if (status === 'checked') {
                         totalPlacesChecked += Object.keys(places[status][country][city]).length;
                     } else {
@@ -94,7 +94,12 @@ const HomePage: React.FC = () => {
             }
         });
 
-        return { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked };
+        return {
+            totalCountries: uniqueCountries.size,
+            totalCities: uniqueCities.size,
+            totalPlacesUnchecked,
+            totalPlacesChecked
+        };
     };
 
     const getCountsForCountry = (countryName: string, viewChecked: boolean) => {
