@@ -39,7 +39,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
         await page.goto(searchUrl, {
             waitUntil: 'networkidle2',
         });
-        await page.waitForSelector('div.fWieE', { timeout: 5000 });
+        await page.waitForSelector('figure[itemprop="image"] img[src]', { timeout: 5000 });
 
         console.log('Scraping images from Unsplash');
         const result = await scrapeUnsplashImages(page);
@@ -68,28 +68,16 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
 async function scrapeUnsplashImages(page: Page): Promise<{ urls: [string, string, string][], count: number }> {
     try {
         return await page.evaluate(() => {
-            const imageElements = Array.from(document.querySelectorAll('div.fWieE img[srcset]'));
+            const imageElements = Array.from(document.querySelectorAll('figure[itemprop="image"] img[src]'));
             const images: [string, string, string][] = [];
 
             console.log(`Found ${imageElements.length} image elements`);
 
-            imageElements.slice(0, 50).forEach((img, index) => {
+            imageElements.slice(0, 30).forEach((img, index) => {
                 console.log(`Processing image ${index + 1}`);
-                const srcset = img.getAttribute('srcset');
-                if (srcset) {
-                    const match = srcset.match(/https:\/\/images\.unsplash\.com[^\s]+w=600[^\s]*/);
-                    if (match) {
-                        const imageUrl = match[0];
-                        const parentDiv = img.closest('div.fWieE');
-                        if (parentDiv) {
-                            const authorElement = parentDiv.querySelector('a.BkSVh');
-                            if (authorElement) {
-                                const authorName = authorElement.textContent?.trim() || 'Unknown';
-                                console.log(`Found image by ${authorName}`);
-                                images.push([imageUrl, authorName, `Unsplash`]);
-                            }
-                        }
-                    }
+                const src = img.getAttribute('src');
+                if (src && !src.startsWith('https://plus.unsplash.com') && !src.startsWith('data:image')) {
+                    images.push([src, '', `Unsplash`]);
                 }
             });
 

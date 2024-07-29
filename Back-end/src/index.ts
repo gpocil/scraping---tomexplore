@@ -6,6 +6,7 @@ import InstagramRoutes from './routes/scraping/InstagramRoutes';
 import authRoutes from './routes/security/LoginRoutes';
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
+import unsplashRoutes from './routes/scraping/UnsplashRoutes';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
@@ -61,6 +62,8 @@ app.use('/images', express.static(imagesPath));
 
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);
+app.use('/api/unsplash', unsplashRoutes);
+
 app.use('/api', InstagramRoutes);
 
 

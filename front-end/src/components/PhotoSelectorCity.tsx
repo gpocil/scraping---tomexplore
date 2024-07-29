@@ -13,7 +13,6 @@ interface PhotoSelectorCityProps {
 
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
     const navigate = useNavigate();
-    const { updatePlaces } = usePlaces();
     const { checkCookie } = useUser();
     const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
@@ -26,6 +25,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             navigate('/login');
         }
     }, [checkCookie, navigate]);
+
     const handleNext = () => {
         if (currentPlaceIndex < places.length - 1) {
             setCurrentPlaceIndex((prevIndex) => prevIndex + 1);
@@ -103,6 +103,20 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         }
     };
 
+    const handleSetNeedsAttention = async () => {
+        try {
+            const response = await apiClient.put('/front/setNeedsAttention', {
+                place_id: currentPlace?.place_id
+            });
+            if (response.status === 200) {
+                handleNext();
+            }
+        } catch (error) {
+            console.error('Error setting as needing attention:', error);
+            alert('Failed to set needing attention');
+        }
+    };
+
     const resetSelection = () => {
         setSelectedImages([]);
         setTopImages([]);
@@ -154,6 +168,9 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                     </h3>
                 </div>
                 <div className="mt-4">
+                    <button className="btn btn-warning mt-3" onClick={handleSetNeedsAttention}>
+                        Problème avec ce lieu ❌
+                    </button>
                     {isStepOne ? (
                         selectedImages.length === 0 ? (
                             <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)}>

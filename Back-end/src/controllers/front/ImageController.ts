@@ -18,6 +18,8 @@ interface PlaceResponse {
     wikipedia_link: string;
     google_maps_link: string;
     images: ImageResponse[];
+    checked: Boolean;
+    needs_attention: Boolean | undefined;
 }
 
 interface CityResponse {
@@ -88,7 +90,9 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                             id: image.id,
                             image_name: image.image_name,
                             url: `http://37.187.35.37:3000/images/${encodeURIComponent(place.folder)}/${image.image_name}`
-                        }))
+                        })),
+                        checked: place.checked,
+                        needs_attention: place.needs_attention
                     };
 
                     if (!response[checkedStatus][country.name][city.name][place.name_eng]) {
@@ -196,6 +200,7 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
         const place = await Place.findByPk(place_id);
         if (place) {
             place.checked = true;
+            place.needs_attention = false;
             await place.save();
             console.log(`Place with ID ${place_id} set to checked.`);
         } else {
@@ -210,3 +215,26 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
 };
 
 
+export const setPlaceNeedsAttention = async (req: Request, res: Response) => {
+    const { place_id } = req.body;
+
+    if (!place_id) {
+        return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    try {
+        const place = await Place.findByPk(place_id);
+        if (place) {
+            place.needs_attention = true;
+            place.checked = false;
+            await place.save();
+            console.log(`Place with ID ${place_id} set to needing attention.`);
+            res.status(200).json({ message: 'Place set to needing attention successfully' });
+        } else {
+            return res.status(404).json({ error: 'Place not found' });
+        }
+    } catch (error) {
+        console.error('Error setting place to needing attention:', error);
+        res.status(500).json({ error: 'An error occurred while setting place to needing attention' });
+    }
+};

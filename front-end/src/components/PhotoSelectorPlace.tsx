@@ -27,6 +27,8 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
             navigate('/login');
         }
     }, [checkCookie, navigate]);
+
+
     useEffect(() => {
         if (isPlaceComplete) {
             onComplete();
@@ -74,6 +76,21 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
             alert('Failed to delete images');
         }
     };
+
+    const handleSetNeedsAttention = async () => {
+        try {
+            const response = await apiClient.put('/front/setNeedsAttention', {
+                place_id: place?.place_id
+            });
+            if (response.status === 200) {
+                setIsPlaceComplete(true);
+            }
+        } catch (error) {
+            console.error('Error setting as needing attention:', error);
+            alert('Failed to set needing attention');
+        }
+    };
+
 
     const handleSelectTop = async () => {
         try {
@@ -127,6 +144,9 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                     </h4>
                 </div>
                 <div className="mt-4">
+                    <button className="btn btn-warning mt-3" onClick={handleSetNeedsAttention}>
+                        Problème avec ce lieu ❌
+                    </button>
                     {isStepOne ? (
                         selectedImages.length === 0 ? (
                             <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)}>

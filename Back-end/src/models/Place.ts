@@ -10,7 +10,11 @@ class Place extends Model {
     public checked!: boolean;
     public folder!: string;
     public wikipedia_link?: string;
+    public unsplash_link?: string;
+    public instagram_link?: string;
+
     public google_maps_link?: string;
+    public needs_attention?: Boolean;
 }
 
 Place.init({
@@ -42,6 +46,11 @@ Place.init({
         allowNull: false,
         defaultValue: false
     },
+    needs_attention: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false
+    },
     folder: {
         type: DataTypes.STRING,
         allowNull: false
@@ -49,7 +58,14 @@ Place.init({
     wikipedia_link: {
         type: DataTypes.STRING
     },
+    unsplash_link: {
+        type: DataTypes.STRING
+    },
+
     google_maps_link: {
+        type: DataTypes.STRING
+    },
+    instagram_link: {
         type: DataTypes.STRING
     }
 }, {

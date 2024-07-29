@@ -102,10 +102,9 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                     city_id: city.id,
                     checked: false, // Assuming 'done' is a required field, set to false by default
                     folder: id_tomexplore,
-                    instagram_link: instagram_username,
                     google_maps_link,
-                    unsplash_link: '',
-                    wikipedia_link: ''
+                    instagram_link: "https://instagram.com/" + instagram_username,
+                    wikipedia_link: '',
                 });
             }
 

@@ -140,6 +140,14 @@ const HomePage: React.FC = () => {
                     {viewChecked ? 'Afficher To do' : 'Afficher Done'}
                 </button>
             </div>
+            <div className="d-flex justify-content-center mb-4">
+                <button
+                    className="btn btn-warning"
+                    onClick={() => navigate('/places-needing-attention')}
+                >
+                    Places Needing Attention
+                </button>
+            </div>
             <div className="d-flex justify-content-center">
                 <ul className="list-group mb-4 w-50">
                     <li className="list-group-item">

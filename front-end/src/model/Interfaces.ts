@@ -11,6 +11,7 @@ export interface IPlace {
     place_name: string;
     wikipedia_link?: string;
     google_maps_link?: string;
+    needs_attention?: boolean;
     images: IImage[];
 }
 

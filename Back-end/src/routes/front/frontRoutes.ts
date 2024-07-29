@@ -10,6 +10,7 @@ router.get('/getAllImages', ImageController.getPlacesWithImages);
 router.post('/deleteImages', ImageController.deleteImagesUser);
 router.post('/setTop', ImageController.setTopAndSetChecked);
 router.post('/login', LoginController.loginUser);
+router.put('/setNeedsAttention', ImageController.setPlaceNeedsAttention);
 
 
 export default router;
