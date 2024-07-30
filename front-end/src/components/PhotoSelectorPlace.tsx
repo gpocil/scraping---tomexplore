@@ -5,6 +5,7 @@ import apiClient from '../util/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
+import NeedsAttentionDetails from './NeedsAttentionModal'; // Import du modal
 
 interface PhotoSelectorPlaceProps {
     place: IPlace;
@@ -19,15 +20,13 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isPlaceComplete, setIsPlaceComplete] = useState(false);
-
-
+    const [showModal, setShowModal] = useState(false); // État pour afficher le modal
 
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
         }
     }, [checkCookie, navigate]);
-
 
     useEffect(() => {
         if (isPlaceComplete) {
@@ -77,10 +76,15 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         }
     };
 
-    const handleSetNeedsAttention = async () => {
+    const handleSetNeedsAttention = () => {
+        setShowModal(true);
+    };
+
+    const handleModalSubmit = async (details: string) => {
         try {
             const response = await apiClient.put('/front/setNeedsAttention', {
-                place_id: place?.place_id
+                place_id: place?.place_id,
+                details: details
             });
             if (response.status === 200) {
                 setIsPlaceComplete(true);
@@ -88,9 +92,10 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         } catch (error) {
             console.error('Error setting as needing attention:', error);
             alert('Failed to set needing attention');
+        } finally {
+            setShowModal(false);
         }
     };
-
 
     const handleSelectTop = async () => {
         try {
@@ -131,7 +136,6 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <h1>PhotoselectorPlace</h1>
-
                 <button className="btn btn-primary" onClick={() => navigate('/')}>
                     Home
                 </button>
@@ -229,6 +233,11 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                     </div>
                 </div>
             </div>
+            <NeedsAttentionDetails
+                show={showModal}
+                onHide={() => setShowModal(false)}
+                onSubmit={handleModalSubmit}
+            />
         </div>
     );
 };

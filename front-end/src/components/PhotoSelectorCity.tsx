@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { IPlace, IImage } from '../model/Interfaces';
 import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
+import NeedsAttentionDetails from './NeedsAttentionModal'; // Import du modal
 
 interface PhotoSelectorCityProps {
     places: IPlace[];
@@ -19,6 +20,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isCityComplete, setIsCityComplete] = useState(false);
+    const [showModal, setShowModal] = useState(false); // État pour afficher le modal
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -103,10 +105,15 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         }
     };
 
-    const handleSetNeedsAttention = async () => {
+    const handleSetNeedsAttention = () => {
+        setShowModal(true);
+    };
+
+    const handleModalSubmit = async (details: string) => {
         try {
             const response = await apiClient.put('/front/setNeedsAttention', {
-                place_id: currentPlace?.place_id
+                place_id: currentPlace?.place_id,
+                details: details
             });
             if (response.status === 200) {
                 handleNext();
@@ -114,6 +121,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         } catch (error) {
             console.error('Error setting as needing attention:', error);
             alert('Failed to set needing attention');
+        } finally {
+            setShowModal(false);
         }
     };
 
@@ -253,6 +262,11 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                     </div>
                 </div>
             </div>
+            <NeedsAttentionDetails
+                show={showModal}
+                onHide={() => setShowModal(false)}
+                onSubmit={handleModalSubmit}
+            />
         </div>
     );
 };

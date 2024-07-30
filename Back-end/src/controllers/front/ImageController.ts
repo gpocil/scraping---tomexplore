@@ -22,6 +22,7 @@ interface PlaceResponse {
     images: ImageResponse[];
     checked: Boolean;
     needs_attention: Boolean | undefined;
+    details?: string;
 }
 
 interface CityResponse {
@@ -102,7 +103,8 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                             url: `http://37.187.35.37:3000/images/${encodeURIComponent(place.folder)}/${image.image_name}`
                         })),
                         checked: place.checked,
-                        needs_attention: place.needs_attention
+                        needs_attention: place.needs_attention,
+                        details: place.details
                     };
 
                     if (!response[checkedStatus][country.name][city.name][place.name_eng]) {
@@ -224,8 +226,9 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
 };
 
 
+
 export const setPlaceNeedsAttention = async (req: Request, res: Response) => {
-    const { place_id } = req.body;
+    const { place_id, details } = req.body;
 
     if (!place_id) {
         return res.status(400).json({ error: 'Place ID is required' });
@@ -236,8 +239,13 @@ export const setPlaceNeedsAttention = async (req: Request, res: Response) => {
         if (place) {
             place.needs_attention = true;
             place.checked = false;
+
+            if (details && typeof details === 'string') {
+                place.details = details;
+            }
+
             await place.save();
-            console.log(`Place with ID ${place_id} set to needing attention.`);
+            console.log(`Place with ID ${place_id} set to needing attention with details: ${details}`);
             res.status(200).json({ message: 'Place set to needing attention successfully' });
         } else {
             return res.status(404).json({ error: 'Place not found' });

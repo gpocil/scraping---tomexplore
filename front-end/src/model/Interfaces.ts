@@ -16,6 +16,7 @@ export interface IPlace {
     checked?: boolean;
     needs_attention?: boolean;
     images: IImage[];
+    details?: string;
 }
 
 export interface ICity {
