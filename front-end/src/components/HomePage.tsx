@@ -146,7 +146,7 @@ const HomePage: React.FC = () => {
                     className="btn btn-primary"
                     onClick={() => setViewChecked(!viewChecked)}
                 >
-                    {viewChecked ? 'Afficher lieux à vérifier ❌' : 'Afficher lieux traités ✅'}
+                    {viewChecked ? 'Afficher lieux à traiter ❌' : 'Afficher lieux traités ✅'}
                 </button>
             </div>
             <div className="d-flex justify-content-center mb-4">
