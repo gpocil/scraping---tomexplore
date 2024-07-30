@@ -12,9 +12,9 @@ class Place extends Model {
     public wikipedia_link?: string;
     public unsplash_link?: string;
     public instagram_link?: string;
-
     public google_maps_link?: string;
     public needs_attention?: Boolean;
+    public details?: string;
 }
 
 Place.init({
@@ -67,6 +67,10 @@ Place.init({
     },
     instagram_link: {
         type: DataTypes.STRING
+    },
+    details: {
+        type: DataTypes.STRING
+
     }
 }, {
     sequelize,

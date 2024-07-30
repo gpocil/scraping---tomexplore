@@ -39,6 +39,22 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
         await page.goto(searchUrl, {
             waitUntil: 'networkidle2',
         });
+
+        // Check for the no content image
+        const noContentFound = await page.evaluate(() => {
+            const noContentImg = document.querySelector('img[src="https://unsplash-assets.imgix.net/empty-states/photos.png?auto=format&fit=crop&q=60"]');
+            return !!noContentImg;
+        });
+
+        if (noContentFound) {
+            const result = { urls: [], count: 0, error: "No images found on Unsplash", link: searchUrl };
+            if (res) {
+                res.json(result);
+            }
+            await browser.close();
+            return result;
+        }
+
         await page.waitForSelector('figure[itemprop="image"] img[src]', { timeout: 5000 });
 
         console.log('Scraping images from Unsplash');

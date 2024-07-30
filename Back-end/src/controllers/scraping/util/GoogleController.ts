@@ -1,18 +1,16 @@
 import { Request, Response } from 'express';
-import path from 'path';
-import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import fs from 'fs';
+import { Page } from 'puppeteer';
 
 puppeteer.use(StealthPlugin());
 
 export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
-  console.log("location full adress : " + location_full_address);
+  console.log("location full address : " + location_full_address);
 
   const formattedAddress = formatAddressForURL(location_full_address);
-  console.log("formatted adress : " + formattedAddress);
+  console.log("formatted address : " + formattedAddress);
 
   const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
   console.log("url : " + url);
@@ -45,6 +43,16 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
 
     await handleConsentPage(page);
     await page.waitForTimeout(randomTimeout());
+
+    if (await checkIfBusinessClosed(page)) {
+      const result = { urls: [], count: 0, error: "Business is temporarily or permanently closed" };
+      if (res) {
+        res.json(result);
+      }
+      await browser.close();
+      return result;
+    }
+
     await clickPhotosDuProprietaireButton(page);
     await page.waitForTimeout(randomTimeout());
 
@@ -93,6 +101,21 @@ async function handleConsentPage(page: Page): Promise<string> {
     }
   }
   return currentUrl;
+}
+
+async function checkIfBusinessClosed(page: Page): Promise<boolean> {
+  const closedDivSelector = '.MkV9 .o0Svhf .ZDu9vd .aSftqf';
+  try {
+    await page.waitForSelector(closedDivSelector, { timeout: 5000 });
+    const closedText = await page.$eval(closedDivSelector, el => el.textContent?.trim().toLowerCase());
+    if (closedText && (closedText.includes('fermé temporairement') || closedText.includes('fermé définitivement'))) {
+      console.log('Business is closed: ' + closedText);
+      return true;
+    }
+  } catch (error) {
+    console.log('Business closure check: Selector not found, continuing...');
+  }
+  return false;
 }
 
 async function clickPhotosDuProprietaireButton(page: Page): Promise<void> {
@@ -169,11 +192,6 @@ function randomTimeout(): number {
   return Math.floor(500 + Math.random() * 1500);
 }
 
-
-
-
-
-
 export async function fetchGoogleBusinessAttributes(req?: Request, res?: Response): Promise<{ attributes: { [key: string]: number }, count: number, screenshotPath?: string, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
   const formattedAddress = formatAddressForURL(location_full_address);
@@ -208,8 +226,19 @@ export async function fetchGoogleBusinessAttributes(req?: Request, res?: Respons
 
     await handleConsentPage(page);
     await page.waitForTimeout(randomTimeout());
+
+    if (await checkIfBusinessClosed(page)) {
+      const result = { attributes: {}, count: 0, error: "Business is temporarily or permanently closed" };
+      if (res) {
+        res.json(result);
+      }
+      await browser.close();
+      return result;
+    }
+
     await clickReviewsTab(page);
     await page.waitForTimeout(randomTimeout());
+
     const attributes = await scrapeAttributes(page);
 
     await browser.close();
@@ -231,6 +260,7 @@ export async function fetchGoogleBusinessAttributes(req?: Request, res?: Respons
     return { attributes: {}, count: 0, error: errorMessage };
   }
 }
+
 async function clickReviewsTab(page: Page): Promise<void> {
   try {
     const reviewsTabSelector = 'button[aria-label*="Avis"]';

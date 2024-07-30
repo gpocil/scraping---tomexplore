@@ -38,6 +38,21 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
 
         console.log('Submitting the search form');
         await page.keyboard.press('Enter');
+        await page.waitForTimeout(1000);
+
+        // Check for the no results div
+        const noResults = await page.evaluate(() => {
+            return !!document.querySelector('.sdms-no-results');
+        });
+
+        if (noResults) {
+            const result = { urls: [], count: 0, error: "No images found on Wikimedia commons" };
+            if (res) {
+                res.json(result);
+            }
+            await browser.close();
+            return result;
+        }
 
         await page.waitForSelector('a.sdms-image-result');
 

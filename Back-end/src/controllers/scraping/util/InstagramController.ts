@@ -37,18 +37,12 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     });
     console.log(`Navigated to picuki page of ${username}`);
 
-    // Prendre une capture d'écran et l'enregistrer
-    const screenshotDir = path.join(__dirname, '../../..', 'temp', 'instaphotos');
-    if (!fs.existsSync(screenshotDir)) {
-      fs.mkdirSync(screenshotDir, { recursive: true });
-    }
-    const screenshotPath = path.join(screenshotDir, `${username}.png`);
-    await page.screenshot({ path: screenshotPath });
-    console.log(`Screenshot saved at ${screenshotPath}`);
-
     const pageNotFound = await page.evaluate(() => {
-      return document.body.textContent?.includes("Sorry, this page isn't available.") || false;
+      return document.body.textContent?.includes("Sorry, this page isn't available.") ||
+        document.querySelector('h1')?.textContent === '404' ||
+        false;
     });
+
 
     if (pageNotFound) {
       const error = "No Instagram account found, check spelling";

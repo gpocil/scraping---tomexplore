@@ -166,10 +166,10 @@ const HomePage: React.FC = () => {
                         <strong>🏙️ Villes:</strong> {totalCities}
                     </li>
                     <li className="list-group-item">
-                        <strong>🍻 Lieux à valider :</strong> {totalPlacesUnchecked}
+                        <strong>🍻 Lieux à traiter :</strong> {totalPlacesUnchecked}
                     </li>
                     <li className="list-group-item">
-                        <strong>🍻 Lieux validés :</strong> {totalPlacesChecked}
+                        <strong>🍻 Lieux traités :</strong> {totalPlacesChecked}
                     </li>
                     <li className="list-group-item">
                         <strong>🚨 Lieux nécessitant une attention :</strong> {totalPlacesNeedsAttention}

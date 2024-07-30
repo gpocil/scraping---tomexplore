@@ -79,6 +79,23 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
 
         if (instagramImages.urls.length === 0 && googleImages.urls.length === 0) {
             res.status(500).json({ error: 'Failed to fetch images from both Instagram and Google', details: errors });
+            let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
+            if (!place) {
+                place = await Place.create({
+                    id_tomexplore,
+                    name_eng: name_en,
+                    name_fr,
+                    type: 'Business',
+                    city_id: city.id,
+                    checked: false,
+                    needs_attention: true,
+                    folder: id_tomexplore,
+                    google_maps_link,
+                    instagram_link: "https://instagram.com/" + instagram_username,
+                    wikipedia_link: '',
+                    details: errors.toString()
+                });
+            }
             return;
         }
 
@@ -214,6 +231,24 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
         // Check if both calls failed
         if (wikiMediaResult.urls.length === 0 && unsplashResult.urls.length === 0) {
             res.status(500).json({ error: 'Failed to fetch images from both Wikimedia and Unsplash', details: errors });
+            let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
+            if (!place) {
+                place = await Place.create({
+                    id_tomexplore,
+                    name_eng: name_en,
+                    name_fr,
+                    type: 'Tourist Attraction',
+                    city_id: city.id,
+                    checked: false,
+                    needs_attention: true,
+                    folder: id_tomexplore,
+                    google_maps_link,
+                    unsplash_link: unsplashResult.link,
+                    wikipedia_link: wikipediaUrl,
+                    details: errors.toString()
+                });
+            }
+
             return;
         }
 
