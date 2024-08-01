@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as ProxyController from '../ProxyController';
@@ -45,73 +44,65 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
         console.log('New page opened');
 
         await page.authenticate({ username: proxy.username, password: proxy.pw });
-        console.log('Proxy authenticated');
 
-        await page.goto(searchUrl, {
-            waitUntil: 'networkidle2',
-        });
+        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
+        console.log(`Navigated to ${searchUrl}`);
 
-        // Check for the no content image
-        const noContentFound = await page.evaluate(() => {
-            const noContentImg = document.querySelector('img[src="https://unsplash-assets.imgix.net/empty-states/photos.png?auto=format&fit=crop&q=60"]');
-            return !!noContentImg;
-        });
+        // Fonction de défilement
+        await page.evaluate(async () => {
+            const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+            const scrollHeight = document.body.scrollHeight;
 
-        if (noContentFound) {
-            const result = { urls: [], count: 0, error: "No images found on Unsplash", link: searchUrl };
-            if (res) {
-                res.json(result);
+            for (let i = 0; i < scrollHeight / window.innerHeight; i++) {
+                window.scrollBy(0, window.innerHeight);
+                await delay(1000);
             }
-            await browser.close();
-            return result;
-        }
+        });
 
-        await page.waitForSelector('figure[itemprop="image"] img[src]', { timeout: 5000 });
+        // Attendre le chargement des images après le défilement
+        await page.waitForTimeout(2000);
 
-        console.log('Scraping images from Unsplash');
-        const result = await scrapeUnsplashImages(page);
+        const imageUrls = await page.evaluate(() => {
+            const images: [string, string, string][] = [];
+            document.querySelectorAll('img').forEach((img: HTMLImageElement) => {
+                const src = img.src;
+                if (src.startsWith('https://images.unsplash.com/photo') || src.startsWith('https://images.unsplash.com/flagged/photo')) {
+                    images.push([src, img.width.toString(), img.height.toString()]);
+                }
+            });
+            return images;
+        });
 
-        await browser.close();
-        const finalResult = { ...result, link: searchUrl };
+        console.log('Images extracted:', imageUrls.length);
+
         if (res) {
-            res.json(finalResult);
+            res.status(200).json({
+                urls: imageUrls,
+                count: imageUrls.length,
+                link: searchUrl
+            });
         }
-        console.log(finalResult);
-        return finalResult;
-
-    } catch (error: any) {
-        console.error(`Error during search process: ${error.message}`);
-        if (browser) {
-            await browser.close();
-        }
-        const errorMessage = `Error during search process: ${error.message}`;
+        return {
+            urls: imageUrls,
+            count: imageUrls.length,
+            link: searchUrl
+        };
+    } catch (error) {
+        console.error('Error:', error);
+        const errorMessage = 'Error occurred during image search';
         if (res) {
             res.status(500).json({ error: errorMessage });
         }
-        return { urls: [], count: 0, error: errorMessage, link: "" };
-    }
-}
-
-async function scrapeUnsplashImages(page: Page): Promise<{ urls: [string, string, string][], count: number }> {
-    try {
-        return await page.evaluate(() => {
-            const imageElements = Array.from(document.querySelectorAll('figure[itemprop="image"] img[src]'));
-            const images: [string, string, string][] = [];
-
-            console.log(`Found ${imageElements.length} image elements`);
-
-            imageElements.slice(0, 30).forEach((img, index) => {
-                console.log(`Processing image ${index + 1}`);
-                const src = img.getAttribute('src');
-                if (src && !src.startsWith('https://plus.unsplash.com') && !src.startsWith('data:image')) {
-                    images.push([src, '', `Unsplash`]);
-                }
-            });
-
-            return { urls: images, count: images.length };
-        });
-    } catch (error: any) {
-        console.error(`Error during image scraping: ${error.message}`);
-        throw new Error(`Error during image scraping: ${error.message}`);
+        return {
+            urls: [],
+            count: 0,
+            error: errorMessage,
+            link: ""
+        };
+    } finally {
+        if (browser) {
+            await browser.close();
+            console.log('Browser closed');
+        }
     }
 }
