@@ -277,7 +277,6 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
             const saveImage = async (url: string, source: string, author: string, license: string, generatedName: string) => {
                 return Image.create({
                     image_name: generatedName,
-                    original_url: url,
                     source,
                     author,
                     license,
