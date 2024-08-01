@@ -5,6 +5,7 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { Image } from '../../models';
 import { Place } from '../../models';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 export function deleteFolderRecursive(req: Request, res: Response): void {
     const name = req.params.name;
@@ -66,7 +67,7 @@ interface Url {
     generatedName: string;
 }
 
-export async function downloadPhotosBusiness(name_en: string, id_tomexplore: number, instagramImages: { urls: string[], count: number }, googleImages: { urls: string[], count: number }): Promise<{ downloadDir: string, imageCount: number, imageNames: string[] }> {
+export async function downloadPhotosBusiness(id_tomexplore: number, instagramImages: { urls: string[], count: number }, googleImages: { urls: string[], count: number }): Promise<{ downloadDir: string, imageCount: number, imageNames: string[] }> {
     const imageUrls: Url[] = [
         ...instagramImages.urls.map(url => ({ url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` })),
         ...googleImages.urls.map(url => ({ url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` }))
@@ -172,3 +173,76 @@ export async function deleteImages(imageIds: number[]): Promise<void> {
     });
 }
 
+interface ImageUrl {
+    url: string;
+    generatedName: string;
+}
+
+async function getPublicIP(agent?: HttpsProxyAgent<string>): Promise<string> {
+    try {
+        const options = agent ? { httpsAgent: agent } : {};
+        const response = await axios.get('https://api.ipify.org?format=json', options);
+        return response.data.ip;
+    } catch (error) {
+        console.error('Failed to fetch public IP:', error);
+        return 'Unable to fetch IP';
+    }
+}
+
+
+export async function downloadPhotosTest(req: Request, res: Response): Promise<void> {
+    const { id_tomexplore, googleImages } = req.body;
+
+    if (!id_tomexplore || !googleImages) {
+        res.status(400).json({ error: 'Missing required fields' });
+        return;
+    }
+
+    const imageUrls: ImageUrl[] = googleImages.urls.map((url: string) => ({
+        url,
+        generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+    }));
+
+    const proxy = 'http://brd-customer-hl_dd53869d-zone-datacenter_proxy1:uzrz21c9e4qu@brd.superproxy.io:22225';
+    const agent = new HttpsProxyAgent<string>(proxy);
+
+    // Obtenir et afficher l'adresse IP publique sans proxy
+    const publicIP = await getPublicIP();
+    console.log('Public IP without proxy:', publicIP);
+
+    // Obtenir et afficher l'adresse IP publique avec proxy
+    const publicIPWithProxy = await getPublicIP(agent);
+    console.log('Public IP with proxy:', publicIPWithProxy);
+
+    if (imageUrls.length > 0) {
+        const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
+        fs.mkdirSync(downloadDir, { recursive: true });
+
+        await Promise.all(imageUrls.map(async ({ url, generatedName }: ImageUrl) => {
+            try {
+                const response = await axios.get(url, {
+                    responseType: 'arraybuffer',
+                    httpsAgent: agent
+                });
+                const imageBuffer = Buffer.from(response.data);
+                const outputPath = path.join(downloadDir, generatedName);
+
+                if (fs.existsSync(outputPath)) {
+                    fs.unlinkSync(outputPath);
+                }
+                await sharp(imageBuffer).toFile(outputPath);
+            } catch (error) {
+                console.error(`Failed to download image at ${url}:`, error);
+            }
+        }));
+
+        console.log('Download directory:', downloadDir);
+        res.json({
+            downloadDir,
+            imageCount: imageUrls.length,
+            imageNames: imageUrls.map(({ generatedName }) => generatedName)
+        });
+    } else {
+        res.json({ downloadDir: '', imageCount: 0, imageNames: [] });
+    }
+}

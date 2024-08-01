@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import * as ProxyController from '../ProxyController';
 
 puppeteer.use(StealthPlugin());
 
@@ -17,28 +18,36 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return { urls: [], count: 0, error };
     }
 
+    const searchTerm = encodeURIComponent(name);
+
     let browser;
     try {
-        console.log(`Launching browser for search: ${name}`);
+        const proxy = ProxyController.getRandomProxy();
+        console.log("Using proxy: " + proxy.address);
+
         browser = await puppeteer.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-fullscreen'],
-            defaultViewport: null // Use the full window size
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--start-fullscreen',
+                `--proxy-server=${proxy.address}`,
+            ],
         });
+        console.log('Browser launched');
         const page = await browser.newPage();
-        await page.setViewport({ width: 0, height: 0 });
+        console.log('New page opened');
 
-        console.log('Navigating to Wikimedia Commons');
-        await page.goto('https://commons.wikimedia.org/', {
+        await page.authenticate({ username: proxy.username, password: proxy.pw });
+        console.log('Proxy authenticated');
+
+
+        const searchUrl = `https://commons.m.wikimedia.org/w/index.php?go=Go&search=${searchTerm}&title=Special:MediaSearch&type=image`;
+
+        console.log(`Navigating to URL: ${searchUrl}`);
+        await page.goto(searchUrl, {
             waitUntil: 'networkidle2',
         });
-
-        console.log(`Typing search query: ${name}`);
-        await page.type('#searchInput', name);
-
-        console.log('Submitting the search form');
-        await page.keyboard.press('Enter');
-        await page.waitForTimeout(1000);
 
         // Check for the no results div
         const noResults = await page.evaluate(() => {

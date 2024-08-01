@@ -2,15 +2,13 @@ import { Request, Response } from 'express';
 import * as InstagramController from './util/InstagramController';
 import * as GoogleController from './util/GoogleController';
 import * as FileController from './FileController';
-import * as UnsplashController from './util/UnsplashController';
-import * as WikimediaController from './util/WikimediaController';
-import * as WikipediaController from './util/WikipediaController';
-
-
 import Country from '../../models/Country';
 import City from '../../models/City';
 import Place from '../../models/Place';
 import Image from '../../models/Image';
+import * as UnsplashController from './util/UnsplashController';
+import * as WikimediaController from './util/WikimediaController';
+import * as WikipediaController from './util/WikipediaController';
 
 interface ImageResultBusiness {
     urls: string[];
@@ -19,95 +17,93 @@ interface ImageResultBusiness {
 }
 
 export async function getPhotosBusiness(req: Request, res: Response): Promise<void> {
-    const {
-        id_tomexplore,
-        name_en,
-        name_fr,
-        link_maps: google_maps_link,
-        instagram_username,
-        address: address,
-        city: cityName,
-        country: countryName
-    } = req.body;
+    const places = req.body; // Supposons que req.body soit un tableau d'objets
 
-    if (!id_tomexplore || !countryName || !cityName || !address || !name_en) {
-        res.status(400).json({ error: 'Missing required fields' });
+    if (!Array.isArray(places) || places.length === 0) {
+        res.status(400).json({ error: 'Expected an array of places' });
         return;
     }
 
-    let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
-    let googleImages: ImageResultBusiness = { urls: [], count: 0 };
-    let errors: string[] = [];
-    let location_full_address = name_en + " " + address + " " + cityName + " " + countryName;
-    console.log("location full adress : " + location_full_address)
-    try {
-        // Check if Country exists, otherwise create it
-        let country = await Country.findOne({ where: { name: countryName } });
-        if (!country) {
-            country = await Country.create({ name: countryName });
+    const tasks = places.map(async (placeData) => {
+        const {
+            id_tomexplore,
+            name_en,
+            name_fr,
+            link_maps: google_maps_link,
+            instagram_username,
+            address,
+            city: cityName,
+            country: countryName
+        } = placeData;
+
+        if (!id_tomexplore || !countryName || !cityName || !address || !name_en) {
+            return { error: 'Missing required fields', placeData };
         }
 
-        // Check if City exists, otherwise create it
-        let city = await City.findOne({ where: { name: cityName, country_id: country.id } });
-        if (!city) {
-            city = await City.create({ name: cityName, country_id: country.id });
-        }
+        let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
+        let googleImages: ImageResultBusiness = { urls: [], count: 0 };
+        let errors: string[] = [];
+        let location_full_address = `${name_en} ${address} ${cityName} ${countryName}`;
+        console.log("location full address : " + location_full_address);
 
+        try {
+            // Check if Country exists, otherwise create it
+            let country = await Country.findOne({ where: { name: countryName } });
+            if (!country) {
+                country = await Country.create({ name: countryName });
+            }
 
+            // Check if City exists, otherwise create it
+            let city = await City.findOne({ where: { name: cityName, country_id: country.id } });
+            if (!city) {
+                city = await City.create({ name: cityName, country_id: country.id });
+            }
 
-        // Fetch Instagram Images if username is provided
-        if (instagram_username) {
+            // Fetch Instagram Images if username is provided
+            if (instagram_username) {
+                try {
+                    instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
+                    if (instagramImages.error) errors.push(instagramImages.error);
+                } catch (error: any) {
+                    console.error(`Error fetching Instagram images: ${error.message}`);
+                    errors.push(`Error fetching Instagram images: ${error.message}`);
+                    instagramImages.error = `Error fetching Instagram images: ${error.message}`;
+                }
+            }
+
+            // Fetch Google Images
             try {
-                instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
-                if (instagramImages.error) errors.push(instagramImages.error);
+                googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
+                if (googleImages.error) errors.push(googleImages.error);
             } catch (error: any) {
-                console.error(`Error fetching Instagram images: ${error.message}`);
-                errors.push(`Error fetching Instagram images: ${error.message}`);
-                instagramImages.error = `Error fetching Instagram images: ${error.message}`;
+                console.error(`Error fetching Google images: ${error.message}`);
+                errors.push(`Error fetching Google images: ${error.message}`);
+                googleImages.error = `Error fetching Google images: ${error.message}`;
             }
-        }
 
-        // Fetch Google Images
-        try {
-            googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
-            if (googleImages.error) errors.push(googleImages.error);
-        } catch (error: any) {
-            console.error(`Error fetching Google images: ${error.message}`);
-            errors.push(`Error fetching Google images: ${error.message}`);
-            googleImages.error = `Error fetching Google images: ${error.message}`;
-        }
-
-        if (instagramImages.urls.length === 0 && googleImages.urls.length === 0) {
-            res.status(500).json({ error: 'Failed to fetch images from both Instagram and Google', details: errors });
-            let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
-            if (!place) {
-                place = await Place.create({
-                    id_tomexplore,
-                    name_eng: name_en,
-                    name_fr,
-                    type: 'Business',
-                    city_id: city.id,
-                    checked: false,
-                    needs_attention: true,
-                    folder: id_tomexplore,
-                    google_maps_link,
-                    instagram_link: "https://instagram.com/" + instagram_username,
-                    wikipedia_link: '',
-                    details: errors.toString()
-                });
+            if (instagramImages.urls.length === 0 && googleImages.urls.length === 0) {
+                let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
+                if (!place) {
+                    place = await Place.create({
+                        id_tomexplore,
+                        name_eng: name_en,
+                        name_fr,
+                        type: 'Business',
+                        city_id: city.id,
+                        checked: false,
+                        needs_attention: true,
+                        folder: id_tomexplore,
+                        google_maps_link,
+                        instagram_link: "https://instagram.com/" + instagram_username,
+                        wikipedia_link: '',
+                        details: errors.toString()
+                    });
+                }
+                return { error: 'Failed to fetch images from both Instagram and Google', details: errors, placeData };
             }
-            return;
-        }
 
-        try {
-            const result = await FileController.downloadPhotosBusiness(name_en, id_tomexplore, instagramImages, googleImages);
-            res.json({
-                downloadDir: result.downloadDir.replace(/\\/g, '/'),
-                imageCount: result.imageCount,
-                instagramError: instagramImages.error,
-                googleError: googleImages.error,
-                errors: errors.length > 0 ? errors : undefined
-            });
+            const result = await FileController.downloadPhotosBusiness(id_tomexplore, instagramImages, googleImages);
+
             // Check if Place exists, otherwise create it
             let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
             if (!place) {
@@ -141,17 +137,24 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                     return saveImage(url, source, generatedName);
                 })
             );
+
+            return {
+                downloadDir: result.downloadDir.replace(/\\/g, '/'),
+                imageCount: result.imageCount,
+                instagramError: instagramImages.error,
+                googleError: googleImages.error,
+                errors: errors.length > 0 ? errors : undefined,
+                placeData
+            };
         } catch (error: any) {
             console.error(`Error downloading photos: ${error.message}`);
-            res.status(500).json({ error: `Error downloading photos: ${error.message}`, details: errors });
+            return { error: `Error downloading photos: ${error.message}`, details: errors, placeData };
         }
-    } catch (error: any) {
-        console.error(`Error handling business photos: ${error.message}`);
-        res.status(500).json({ error: `Error handling business photos: ${error.message}` });
-    }
+    });
+
+    const results = await Promise.all(tasks);
+    res.json(results);
 }
-
-
 
 
 
@@ -163,104 +166,97 @@ interface ImageResultTourist {
 }
 
 export async function getPhotosTouristAttraction(req: Request, res: Response): Promise<void> {
-    const {
-        id_tomexplore,
-        famous,
-        name_en,
-        name_fr,
-        link_maps: google_maps_link,
-        address,
-        city: cityName,
-        country: countryName
-    } = req.body;
+    const places = req.body; // Supposons que req.body soit un tableau d'objets
 
-    if (!id_tomexplore || !name_en || !cityName || !countryName || famous === undefined) {
-        res.status(400).json({ error: 'Missing required fields' });
+    if (!Array.isArray(places) || places.length === 0) {
+        res.status(400).json({ error: 'Expected an array of places' });
         return;
     }
 
-    let wikiMediaResult: ImageResultTourist = { urls: [], count: 0 };
-    let wikipediaUrl: string = '';
-    let unsplashResult: ImageResultTourist = { urls: [], count: 0, link: '' };
-    let errors: string[] = [];
+    const tasks = places.map(async (placeData) => {
+        const {
+            id_tomexplore,
+            famous,
+            name_en,
+            name_fr,
+            link_maps: google_maps_link,
+            address,
+            city: cityName,
+            country: countryName
+        } = placeData;
 
-    try {
-        // Check if Country exists, otherwise create it
-        let country = await Country.findOne({ where: { name: countryName } });
-        if (!country) {
-            country = await Country.create({ name: countryName });
+        if (!id_tomexplore || !name_en || !cityName || !countryName || famous === undefined) {
+            return { error: 'Missing required fields', placeData };
         }
 
-        // Check if City exists, otherwise create it
-        let city = await City.findOne({ where: { name: cityName, country_id: country.id } });
-        if (!city) {
-            city = await City.create({ name: cityName, country_id: country.id });
-        }
+        let wikiMediaResult: ImageResultTourist = { urls: [], count: 0 };
+        let wikipediaUrl: string = '';
+        let unsplashResult: ImageResultTourist = { urls: [], count: 0, link: '' };
+        let errors: string[] = [];
 
-
-
-        // Fetch Wikimedia Images
         try {
-            wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
-            wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en } } as Request);
+            // Check if Country exists, otherwise create it
+            let country = await Country.findOne({ where: { name: countryName } });
+            if (!country) {
+                country = await Country.create({ name: countryName });
+            }
 
-            if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
-        } catch (error: any) {
-            console.error(`Error fetching Wikimedia images: ${error.message}`);
-            errors.push(`Error fetching Wikimedia images: ${error.message}`);
-            wikiMediaResult.error = `Error fetching Wikimedia images: ${error.message}`;
-        }
+            // Check if City exists, otherwise create it
+            let city = await City.findOne({ where: { name: cityName, country_id: country.id } });
+            if (!city) {
+                city = await City.create({ name: cityName, country_id: country.id });
+            }
 
-        // Fetch Unsplash Images if famous is true
-        if (famous === true) {
+            // Fetch Wikimedia Images
             try {
-                unsplashResult = await UnsplashController.unsplashSearch({ body: { name: name_en } } as Request);
-                if (unsplashResult.error) errors.push(unsplashResult.error);
+                wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
+                wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en } } as Request);
+
+                if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
             } catch (error: any) {
-                console.error(`Error fetching Unsplash images: ${error.message}`);
-                errors.push(`Error fetching Unsplash images: ${error.message}`);
-                unsplashResult.error = `Error fetching Unsplash images: ${error.message}`;
-            }
-        } else if (famous !== false) {
-            res.status(400).json({ error: 'Field "famous" must be "true" or "false"' });
-            return;
-        }
-
-
-
-        // Check if both calls failed
-        if (wikiMediaResult.urls.length === 0 && unsplashResult.urls.length === 0) {
-            res.status(500).json({ error: 'Failed to fetch images from both Wikimedia and Unsplash', details: errors });
-            let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
-            if (!place) {
-                place = await Place.create({
-                    id_tomexplore,
-                    name_eng: name_en,
-                    name_fr,
-                    type: 'Tourist Attraction',
-                    city_id: city.id,
-                    checked: false,
-                    needs_attention: true,
-                    folder: id_tomexplore,
-                    google_maps_link,
-                    unsplash_link: unsplashResult.link,
-                    wikipedia_link: wikipediaUrl,
-                    details: errors.toString()
-                });
+                console.error(`Error fetching Wikimedia images: ${error.message}`);
+                errors.push(`Error fetching Wikimedia images: ${error.message}`);
+                wikiMediaResult.error = `Error fetching Wikimedia images: ${error.message}`;
             }
 
-            return;
-        }
+            // Fetch Unsplash Images if famous is true
+            if (famous === true) {
+                try {
+                    unsplashResult = await UnsplashController.unsplashSearch({ body: { name: name_en } } as Request);
+                    if (unsplashResult.error) errors.push(unsplashResult.error);
+                } catch (error: any) {
+                    console.error(`Error fetching Unsplash images: ${error.message}`);
+                    errors.push(`Error fetching Unsplash images: ${error.message}`);
+                    unsplashResult.error = `Error fetching Unsplash images: ${error.message}`;
+                }
+            } else if (famous !== false) {
+                return { error: 'Field "famous" must be "true" or "false"', placeData };
+            }
 
-        try {
+            // Check if both calls failed
+            if (wikiMediaResult.urls.length === 0 && unsplashResult.urls.length === 0) {
+                let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
+                if (!place) {
+                    place = await Place.create({
+                        id_tomexplore,
+                        name_eng: name_en,
+                        name_fr,
+                        type: 'Tourist Attraction',
+                        city_id: city.id,
+                        checked: false,
+                        needs_attention: true,
+                        folder: id_tomexplore,
+                        google_maps_link,
+                        unsplash_link: unsplashResult.link,
+                        wikipedia_link: wikipediaUrl,
+                        details: errors.toString()
+                    });
+                }
+                return { error: 'Failed to fetch images from both Wikimedia and Unsplash', details: errors, placeData };
+            }
+
             const result = await FileController.downloadPhotosTouristAttraction(name_en, id_tomexplore, wikiMediaResult, unsplashResult);
-            res.json({
-                downloadDir: result.downloadDir.replace(/\\/g, '/'),
-                imageCount: result.imageCount,
-                wikiMediaError: wikiMediaResult.error,
-                unsplashError: unsplashResult.error,
-                errors: errors.length > 0 ? errors : undefined
-            });
+
             // Check if Place exists, otherwise create it
             let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id } });
             if (!place) {
@@ -299,12 +295,21 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                     return saveImage(url, source, author, license, generatedName);
                 })
             );
+
+            return {
+                downloadDir: result.downloadDir.replace(/\\/g, '/'),
+                imageCount: result.imageCount,
+                wikiMediaError: wikiMediaResult.error,
+                unsplashError: unsplashResult.error,
+                errors: errors.length > 0 ? errors : undefined,
+                placeData
+            };
         } catch (error: any) {
             console.error(`Error downloading photos: ${error.message}`);
-            res.status(500).json({ error: `Error downloading photos: ${error.message}`, details: errors });
+            return { error: `Error downloading photos: ${error.message}`, details: errors, placeData };
         }
-    } catch (error: any) {
-        console.error(`Error handling tourist attraction photos: ${error.message}`);
-        res.status(500).json({ error: `Error handling tourist attraction photos: ${error.message}` });
-    }
+    });
+
+    const results = await Promise.all(tasks);
+    res.json(results);
 }

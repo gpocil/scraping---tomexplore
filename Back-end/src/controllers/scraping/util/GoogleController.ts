@@ -2,8 +2,12 @@ import { Request, Response } from 'express';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Page } from 'puppeteer';
+import * as ProxyController from '../ProxyController';
 
 puppeteer.use(StealthPlugin());
+
+
+
 
 export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
@@ -12,7 +16,9 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
   const formattedAddress = formatAddressForURL(location_full_address);
   console.log("formatted address : " + formattedAddress);
 
-  const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
+  const encodedAddress = encodeURIComponent(formattedAddress);
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+  console.log("encoded address : " + encodedAddress);
   console.log("url : " + url);
 
   if (!url) {
@@ -28,21 +34,36 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
 
   let browser;
   try {
+    const proxy = ProxyController.getRandomProxy();
+    console.log("Using proxy: " + proxy.address);
+
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--start-fullscreen',
+        `--proxy-server=${proxy.address}`,
+      ],
     });
     console.log('Browser launched');
-
     const page = await browser.newPage();
     console.log('New page opened');
+
+    await page.authenticate({ username: proxy.username, password: proxy.pw });
+    console.log('Proxy authenticated');
+
 
     await page.goto(url, {
       waitUntil: 'networkidle2',
     });
+    console.log('Page navigated to URL');
 
     await handleConsentPage(page);
+    console.log('Consent page handled');
+
     await page.waitForTimeout(randomTimeout());
+    console.log('Waited for a random timeout');
 
     if (await checkIfBusinessClosed(page)) {
       const result = { urls: [], count: 0, error: "Business is temporarily or permanently closed" };
@@ -50,15 +71,21 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
         res.json(result);
       }
       await browser.close();
+      console.log('Browser closed after detecting business closure');
       return result;
     }
 
     await clickPhotosDuProprietaireButton(page);
+    console.log('Clicked on Photos du Propriétaire button');
+
     await page.waitForTimeout(randomTimeout());
+    console.log('Waited for a random timeout after clicking Photos du Propriétaire');
 
     const imageUrls = await scrapeImageUrls(page);
+    console.log('Scraped image URLs:', imageUrls);
 
     await browser.close();
+    console.log('Browser closed after scraping image URLs');
 
     const result = { urls: imageUrls, count: imageUrls.length };
     if (res) {
@@ -69,6 +96,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     console.error(`Error fetching image URLs: ${error.message}`);
     if (browser) {
       await browser.close();
+      console.log('Browser closed after error');
     }
     const errorMessage = `Error fetching image URLs: ${error.message}, check spelling or no owner photos available`;
     if (res) {
@@ -77,6 +105,8 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     return { urls: [], count: 0, error: errorMessage };
   }
 }
+
+
 
 async function handleConsentPage(page: Page): Promise<string> {
   let currentUrl = page.url();
@@ -120,7 +150,7 @@ async function checkIfBusinessClosed(page: Page): Promise<boolean> {
 
 async function clickPhotosDuProprietaireButton(page: Page): Promise<void> {
   try {
-    const photosButtonSelector = 'button[aria-label="Photos du propriétaire"]';
+    const photosButtonSelector = 'button[aria-label="By owner"]';
     await page.waitForSelector(photosButtonSelector, { visible: true, timeout: 5000 });
     const photosButton = await page.$(photosButtonSelector);
     if (photosButton) {
@@ -192,18 +222,16 @@ function randomTimeout(): number {
   return Math.floor(500 + Math.random() * 1500);
 }
 
-export async function fetchGoogleBusinessAttributes(req?: Request, res?: Response): Promise<{ attributes: { [key: string]: number }, count: number, screenshotPath?: string, error?: string }> {
-  const { location_full_address } = req ? req.body : { location_full_address: '' };
+export async function fetchGoogleBusinessAttributes(req: Request, res: Response) {
+  const { location_full_address } = req.body;
   const formattedAddress = formatAddressForURL(location_full_address);
-  const url = "https://www.google.com/maps/search/?api=1&query=" + formattedAddress;
-  console.log("url : " + url);
+  const url = `https://www.google.com/maps/search/?api=1&query=${formattedAddress}`;
+  console.log(`url: ${url}`);
 
   if (!url) {
     const error = 'URL is required';
     console.error(error);
-    if (res) {
-      res.status(400).json({ error });
-    }
+    res.status(400).json({ error });
     return { attributes: {}, count: 0, error };
   }
 
@@ -211,27 +239,36 @@ export async function fetchGoogleBusinessAttributes(req?: Request, res?: Respons
 
   let browser;
   try {
+    const proxy = ProxyController.getRandomProxy();
+    console.log("Using proxy: " + proxy.address);
+
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--start-fullscreen',
+        `--proxy-server=${proxy.address}`,
+      ],
     });
     console.log('Browser launched');
-
     const page = await browser.newPage();
     console.log('New page opened');
+
+    await page.authenticate({ username: proxy.username, password: proxy.pw });
+    console.log('Proxy authenticated');
 
     await page.goto(url, {
       waitUntil: 'networkidle2',
     });
+    console.log('Navigated to URL');
 
     await handleConsentPage(page);
     await page.waitForTimeout(randomTimeout());
 
     if (await checkIfBusinessClosed(page)) {
       const result = { attributes: {}, count: 0, error: "Business is temporarily or permanently closed" };
-      if (res) {
-        res.json(result);
-      }
+      res.json(result);
       await browser.close();
       return result;
     }
@@ -244,9 +281,7 @@ export async function fetchGoogleBusinessAttributes(req?: Request, res?: Respons
     await browser.close();
 
     const result = { attributes, count: Object.keys(attributes).length };
-    if (res) {
-      res.json(result);
-    }
+    res.json(result);
     return result;
   } catch (error: any) {
     console.error(`Error fetching attributes: ${error.message}`);
@@ -254,10 +289,10 @@ export async function fetchGoogleBusinessAttributes(req?: Request, res?: Respons
       await browser.close();
     }
     const errorMessage = `Error fetching attributes: ${error.message}`;
-    if (res) {
-      res.status(500).json({ error: errorMessage });
-    }
+    res.status(500).json({ error: errorMessage });
     return { attributes: {}, count: 0, error: errorMessage };
+  } finally {
+
   }
 }
 

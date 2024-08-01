@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import fs from 'fs';
+import * as ProxyController from '../ProxyController';
 import path from 'path';
 
 puppeteer.use(StealthPlugin());
@@ -21,16 +20,24 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
   let browser;
   try {
-    console.log(`Launching browser for search: ${username}`);
+    const proxy = ProxyController.getRandomProxy();
+    console.log("Using proxy: " + proxy.address);
+
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--start-fullscreen'],
-      defaultViewport: null // Use the full window size
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--start-fullscreen',
+        `--proxy-server=${proxy.address}`,
+      ],
     });
+    console.log('Browser launched');
     const page = await browser.newPage();
-    await page.setViewport({ width: 0, height: 0 });
-
     console.log('New page opened');
+
+    await page.authenticate({ username: proxy.username, password: proxy.pw });
+    console.log('Proxy authenticated');
 
     await page.goto(`https://www.picuki.com/profile/${username}/`, {
       waitUntil: 'networkidle2',
@@ -42,7 +49,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         document.querySelector('h1')?.textContent === '404' ||
         false;
     });
-
 
     if (pageNotFound) {
       const error = "No Instagram account found, check spelling";
@@ -56,8 +62,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     }
 
     await page.waitForSelector('div.photo');
-    // await handleCookiesConsent(page);
-    // await checkShowMorePosts(page);
 
     console.log('Image container detected');
 
@@ -71,10 +75,22 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       console.log('Hovered over the target div');
 
       let imageUrls: string[] = [];
-      let scrollCount = 0;
-      const maxScrolls = 10;
+      let attempts = 0;
+      const maxAttempts = 2;
 
-      while (imageUrls.length === 0 || (imageUrls.length === 12 && scrollCount < maxScrolls)) {
+      while (attempts < maxAttempts) {
+        if (imageUrls.length === 12) {
+          const loadMoreButton = await page.$('button.pagination-failed-retry');
+          if (loadMoreButton) {
+            console.log('Clicking "Load More" button');
+            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton); // Modifier le style pour rendre le bouton cliquable
+            await loadMoreButton.click();
+            await page.waitForTimeout(2000); // Attendre le chargement
+            attempts++;
+            continue; // Passer à la prochaine tentative sans scroller
+          }
+        }
+
         for (let i = 0; i < 3; i++) {
           await page.mouse.wheel({
             deltaY: 1000,
@@ -90,13 +106,12 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         });
 
         console.log(`Found ${imageUrls.length} image URLs after scrolling`);
-        scrollCount++;
+        attempts++;
       }
 
       const result = {
         urls: imageUrls,
         count: imageUrls.length,
-        screenshotUrl: `http://37.187.35.37:3000/images/${username}_screenshot.png`
       };
       if (res) {
         res.json(result);
@@ -124,53 +139,5 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       res.status(500).json({ error: error.message });
     }
     return { urls: [], count: 0, error: error.message };
-  }
-}
-
-async function handleCookiesConsent(page: Page): Promise<void> {
-  try {
-    const cookiesButtonSelector = 'button._a9--._ap36._a9_0';
-    const cookiesButton = await page.$(cookiesButtonSelector);
-    if (cookiesButton) {
-      console.log('Cookies consent button detected, clicking it...');
-      await cookiesButton.click();
-      await page.waitForTimeout(1000); // Wait for the page to update after clicking
-      console.log('Cookies consent button clicked');
-    } else {
-      console.log('Cookies consent button not found');
-    }
-  } catch (error: any) {
-    console.error(`Error handling cookies consent: ${error.message}`);
-    throw new Error(`Error handling cookies consent: ${error.message}`);
-  }
-}
-
-async function checkShowMorePosts(page: Page): Promise<void> {
-  try {
-    const showMorePostsButtonSelector = 'button.x1lugfcp';
-    let retries = 3;  // Nombre de tentatives avant d'abandonner
-    let clicked = false;
-
-    while (retries > 0 && !clicked) {
-      const showMorePostsButton = await page.$(showMorePostsButtonSelector);
-      if (showMorePostsButton) {
-        console.log('Show more posts button detected, clicking it...');
-        await showMorePostsButton.click();
-        await page.waitForTimeout(1000);
-        console.log('Show more posts button clicked');
-        clicked = true;
-      } else {
-        console.log('Show more posts button not found, retrying...');
-        await page.waitForTimeout(2000);
-        retries--;
-      }
-    }
-
-    if (!clicked) {
-      console.log('Failed to click Show more posts button after multiple attempts');
-    }
-  } catch (error: any) {
-    console.error(`Error checking show more posts button: ${error.message}`);
-    throw new Error(`Error checking show more posts button: ${error.message}`);
   }
 }

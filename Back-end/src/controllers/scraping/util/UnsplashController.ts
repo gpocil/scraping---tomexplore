@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import * as ProxyController from '../ProxyController';
 
 puppeteer.use(StealthPlugin());
 
@@ -27,14 +28,24 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
 
     let browser;
     try {
-        console.log(`Launching browser for search: ${name}`);
+        const proxy = ProxyController.getRandomProxy();
+        console.log("Using proxy: " + proxy.address);
+
         browser = await puppeteer.launch({
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,800'],
-            defaultViewport: null // Use the full window size
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--start-fullscreen',
+                `--proxy-server=${proxy.address}`,
+            ],
         });
+        console.log('Browser launched');
         const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 800 });
+        console.log('New page opened');
+
+        await page.authenticate({ username: proxy.username, password: proxy.pw });
+        console.log('Proxy authenticated');
 
         await page.goto(searchUrl, {
             waitUntil: 'networkidle2',

@@ -4,6 +4,12 @@ import bodyParser from 'body-parser';
 import scrapingMainRoutes from './routes/scraping/ScrapingMainRoutes';
 import InstagramRoutes from './routes/scraping/InstagramRoutes';
 import authRoutes from './routes/security/LoginRoutes';
+import wikipediaRoutes from './routes/scraping/WikipediaRoutes';
+import wikimediaRoutes from './routes/scraping/WikimediaRoutes';
+import fileRoutes from './routes/scraping/FileRoutes';
+import googleRoutes from './routes/scraping/GoogleRoutes';
+
+
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
@@ -65,6 +71,12 @@ app.use('/api/texplore', texploreRoutes);
 app.use('/api/unsplash', unsplashRoutes);
 
 app.use('/api', InstagramRoutes);
+app.use('/api', wikipediaRoutes);
+app.use('/api', wikimediaRoutes);
+app.use('/api', fileRoutes);
+app.use('/api', googleRoutes);
+
+
 
 
 sequelize.authenticate()
