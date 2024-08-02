@@ -5,6 +5,7 @@ import City from '../../models/City';
 import Place from '../../models/Place';
 import Image from '../../models/Image';
 import { deleteImages } from '../scraping/FileController';
+import fs from 'fs';
 
 interface ImageResponse {
     image_name: string;
@@ -175,10 +176,8 @@ export const deleteImagesUser = async (req: Request, res: Response) => {
 
 const updateTopAttributes = async (imageIds: number[], placeId: number) => {
     try {
-        // Set top = 0 for all images with the given place_id
         await Image.update({ top: 0 }, { where: { place_id: placeId } });
 
-        // Update top attribute for the selected images
         for (let i = 0; i < imageIds.length; i++) {
             const image = await Image.findByPk(imageIds[i]);
             if (image) {
@@ -212,6 +211,7 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
         if (place) {
             place.checked = true;
             place.needs_attention = false;
+            place.last_modification = new Date();
             await place.save();
             console.log(`Place with ID ${place_id} set to checked.`);
         } else {
@@ -239,6 +239,7 @@ export const setPlaceNeedsAttention = async (req: Request, res: Response) => {
         if (place) {
             place.needs_attention = true;
             place.checked = false;
+            place.last_modification = new Date();
 
             if (details && typeof details === 'string') {
                 place.details = details;
@@ -253,5 +254,49 @@ export const setPlaceNeedsAttention = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error setting place to needing attention:', error);
         res.status(500).json({ error: 'An error occurred while setting place to needing attention' });
+    }
+};
+
+export const uploadPhotos = async (req: Request, res: Response) => {
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files);
+
+    const { place_id } = req.body;
+    let files: Express.Multer.File[] = [];
+
+    if (Array.isArray(req.files)) {
+        files = req.files;
+    } else if (req.files) {
+        for (const key in req.files) {
+            if (req.files.hasOwnProperty(key)) {
+                files = files.concat(req.files[key] as Express.Multer.File[]);
+            }
+        }
+    }
+
+    if (!place_id || files.length === 0) {
+        return res.status(400).json({ error: 'Place ID and files are required' });
+    }
+
+    try {
+        const place = await Place.findByPk(place_id);
+        if (!place) {
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        const images = [];
+        for (const file of files) {
+            const image = await Image.create({
+                image_name: file.filename,
+                source: 'Upload',
+                place_id: place_id
+            });
+            images.push(image);
+        }
+
+        res.status(200).json({ message: 'Photos uploaded successfully', images });
+    } catch (error: any) {
+        console.error('Error uploading photos:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };

@@ -96,7 +96,9 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                         google_maps_link,
                         instagram_link: "https://instagram.com/" + instagram_username,
                         wikipedia_link: '',
-                        details: errors.toString()
+                        details: errors.toString(),
+                        last_modification: new Date()
+
                     });
                 }
                 return { error: 'Failed to fetch images from both Instagram and Google', details: errors, placeData };
@@ -118,6 +120,7 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                     google_maps_link,
                     instagram_link: "https://instagram.com/" + instagram_username,
                     wikipedia_link: '',
+                    last_modification: new Date()
                 });
             }
 
@@ -249,7 +252,8 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                         google_maps_link,
                         unsplash_link: unsplashResult.link,
                         wikipedia_link: wikipediaUrl,
-                        details: errors.toString()
+                        details: errors.toString(),
+                        last_modification: new Date()
                     });
                 }
                 return { error: 'Failed to fetch images from both Wikimedia and Unsplash', details: errors, placeData };
@@ -270,7 +274,9 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                     folder: id_tomexplore,
                     google_maps_link,
                     unsplash_link: unsplashResult.link,
-                    wikipedia_link: wikipediaUrl
+                    wikipedia_link: wikipediaUrl,
+                    last_modification: new Date()
+
                 });
             }
             // Save images in the database with the generated names

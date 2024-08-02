@@ -1,4 +1,4 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, DateDataType } from 'sequelize';
 import sequelize from '../sequelize';
 import City from './City';
 
@@ -15,6 +15,7 @@ class Place extends Model {
     public google_maps_link?: string;
     public needs_attention?: Boolean;
     public details?: string;
+    public last_modification!: Date;
 }
 
 Place.init({
@@ -71,6 +72,10 @@ Place.init({
     details: {
         type: DataTypes.STRING
 
+    },
+    last_modification: {
+        type: DataTypes.DATE,
+        allowNull: false
     }
 }, {
     sequelize,
