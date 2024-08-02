@@ -5,12 +5,13 @@ import { IResponseStructure, IPlace } from '../model/Interfaces';
 import PhotoSelectorCity from './PhotoSelectorCity';
 import PhotoSelectorPlace from './PhotoSelectorPlace';
 import { useUser } from '../context/UserContext';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const HomePage: React.FC = () => {
     const { data: places, updatePlaces } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void };
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie } = useUser();
-    const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace }[]>([]);
+    const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
     const { countryName, cityName } = useParams<{ countryName: string; cityName: string; }>();
     const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
     const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
@@ -33,14 +34,17 @@ const HomePage: React.FC = () => {
 
     useEffect(() => {
         if (searchQuery) {
-            const newFilteredPlaces: { country: string; city: string; place: IPlace }[] = [];
+            const newFilteredPlaces: { country: string; city: string; place: IPlace; status: string }[] = [];
 
-            ['checked', 'unchecked'].forEach(status => {
+            ['checked', 'unchecked', 'needs_attention'].forEach(status => {
                 for (const country of Object.keys(places[status])) {
                     for (const city of Object.keys(places[status][country])) {
                         for (const place of Object.values(places[status][country][city]).flat()) {
-                            if (place.place_name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                                newFilteredPlaces.push({ country, city, place });
+                            if (
+                                place.place_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                place.place_id.toString().includes(searchQuery)
+                            ) {
+                                newFilteredPlaces.push({ country, city, place, status });
                             }
                         }
                     }
@@ -140,20 +144,14 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="container mt-5">
-            <h1 className="mb-4 text-center"> {viewChecked ? 'Lieux traités ✅' : 'Lieux à traiter ❌'}</h1>
+            <h1 className="mb-4 text-center">{viewChecked ? 'Lieux traités ✅' : 'Lieux à traiter ❌'}</h1>
             <div className="d-flex justify-content-center mb-4">
-                <button
-                    className="btn btn-primary"
-                    onClick={() => setViewChecked(!viewChecked)}
-                >
+                <button className="btn btn-primary" onClick={() => setViewChecked(!viewChecked)}>
                     {viewChecked ? 'Afficher lieux à traiter ❌' : 'Afficher lieux traités ✅'}
                 </button>
             </div>
             <div className="d-flex justify-content-center mb-4">
-                <button
-                    className="btn btn-warning"
-                    onClick={() => navigate('/places-needing-attention')}
-                >
+                <button className="btn btn-warning" onClick={() => navigate('/places-needing-attention')}>
                     🚨 Lieux nécessitant une attention
                 </button>
             </div>
@@ -176,12 +174,11 @@ const HomePage: React.FC = () => {
                     </li>
                 </ul>
             </div>
-
             <div className="d-flex justify-content-center mb-4">
                 <input
                     type="text"
                     className="form-control w-50"
-                    placeholder="Chercher un lieu"
+                    placeholder="Chercher un lieu par nom ou ID"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                 />
@@ -189,21 +186,20 @@ const HomePage: React.FC = () => {
             {searchQuery && (
                 <div className="d-flex justify-content-center">
                     <ul className="list-group w-50">
-                        {filteredPlaces.map(({ country, city, place }) => (
+                        {filteredPlaces.map(({ country, city, place, status }) => (
                             <li key={`${country}-${city}-${place.place_id}`} className="list-group-item">
                                 <div
                                     onClick={() => handlePlaceClick(place)}
                                     className="text-decoration-none text-dark"
                                     style={{ cursor: 'pointer' }}
                                 >
-                                    {place.place_name} - {place.place_id} - {country} - {city}
+                                    {place.place_name} - {place.place_id} - {country} - {city} <span className="place-status">({status === 'checked' ? 'Déjà vérifié' : status === 'unchecked' ? 'A vérifier' : 'Requiert une attention'})</span>
                                 </div>
                             </li>
                         ))}
                     </ul>
                 </div>
             )}
-
             <div className="row">
                 {Object.keys(places[viewChecked ? 'checked' : 'unchecked']).map(countryName => {
                     const { cityCount, placeCount } = getCountsForCountry(countryName, viewChecked);

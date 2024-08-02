@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { IPlace, IImage } from '../model/Interfaces';
 import apiClient from '../util/apiClient';
-import UploadPhotosModal from './UploadPhotosModal'; // Import the new modal
+import UploadPhotosModal from './UploadPhotosModal';
+import { Button, Container, Row, Col } from 'react-bootstrap';
+import './styles/CheckPlaceNeedsAttention.css';
 
 const CheckPlaceNeedsAttention: React.FC = () => {
     const { placeId } = useParams<{ placeId: string }>();
@@ -14,7 +16,7 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSettingTop, setIsSettingTop] = useState(false);
-    const [showUploadModal, setShowUploadModal] = useState(false); // State for showing the upload modal
+    const [showUploadModal, setShowUploadModal] = useState(false);
 
     const place: IPlace | undefined = useMemo(() => {
         if (!placeId) return undefined;
@@ -22,7 +24,7 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     }, [findPlaceById, placeId]);
 
     if (!placeId || !place) {
-        return <div className="container mt-5">Lieu non trouvé</div>;
+        return <Container className="mt-5">Lieu non trouvé</Container>;
     }
 
     const handleImageClick = (image: IImage) => {
@@ -100,7 +102,7 @@ const CheckPlaceNeedsAttention: React.FC = () => {
                     'Content-Type': 'multipart/form-data',
                 },
             });
-            console.log('Upload response:', response); // Added log
+            console.log('Upload response:', response);
             if (response.status === 200) {
                 updatePlaces();
                 alert('Photos uploaded successfully');
@@ -116,74 +118,80 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     };
 
     return (
-        <div className="container mt-5">
-            <button className="btn btn-primary mb-4" onClick={handleBackClick}>
-                Retour
-            </button>
-            <h1 className="mb-4 text-center">{place.place_name}</h1>
-            {place.details && <h2 className="mb-4 text-center">🚨 {place.details}</h2>}
-            <div className="mb-4 text-center">
-                {place.wikipedia_link && (
-                    <a className="btn btn-secondary mr-2 mb-2" href={place.wikipedia_link} target="_blank" rel="noopener noreferrer">
-                        Wikipedia
-                    </a>
-                )}
-                {place.google_maps_link && (
-                    <a className="btn btn-secondary mr-2 mb-2" href={place.google_maps_link} target="_blank" rel="noopener noreferrer">
-                        Google Maps
-                    </a>
-                )}
-                {place.instagram_link && (
-                    <a className="btn btn-secondary mr-2 mb-2" href={place.instagram_link} target="_blank" rel="noopener noreferrer">
-                        Instagram
-                    </a>
-                )}
-                {place.unsplash_link && (
-                    <a className="btn btn-secondary mb-2" href={place.unsplash_link} target="_blank" rel="noopener noreferrer">
-                        Unsplash
-                    </a>
-                )}
-            </div>
-            <div className="mb-4 text-center">
-                <button className="btn btn-danger mr-2" onClick={() => setIsDeleting(!isDeleting)}>
-                    {isDeleting ? 'Annuler' : 'Supprimer photos'}
-                </button>
-                <button className="btn btn-primary mr-2" onClick={() => setIsSettingTop(!isSettingTop)}>
-                    {isSettingTop ? 'Annuler' : 'Définir top 3 et valider'}
-                </button>
-                <button className="btn btn-success" onClick={() => setShowUploadModal(true)}>
-                    Uploader des photos
-                </button>
-                {isDeleting && (
-                    <button className="btn btn-danger ml-2" onClick={handleDeleteImages} disabled={selectedImages.length === 0}>
-                        Confirmer suppression
-                    </button>
-                )}
-                {isSettingTop && (
-                    <button className="btn btn-primary ml-2" onClick={handleSetTopImages} disabled={topImages.length !== 3}>
-                        Confirmer top 3
-                    </button>
-                )}
-            </div>
-            <div className="row">
-                {place.images.map((image, index) => (
-                    <div
-                        key={index}
-                        className={`col-md-4 mb-4 image-container ${selectedImages.includes(image) ? 'selected-delete' : ''} ${topImages.includes(image) ? 'selected-top' : ''}`}
-                        onClick={() => handleImageClick(image)}
-                    >
-                        <img src={image.url} className="img-fluid rounded" />
-                        {selectedImages.includes(image) && <div className="selected-overlay">✓</div>}
-                        {topImages.includes(image) && <div className="selected-overlay">{topImages.indexOf(image) + 1}</div>}
+        <Container className="mt-5">
+            <Row>
+                <Col md={2} className="d-flex flex-column align-items-start">
+                    <Button className="mb-3 w-100" variant="primary" onClick={handleBackClick}>
+                        🔙 Retour
+                    </Button>
+                    <Button className="mb-3 w-100" variant="danger" onClick={() => setIsDeleting(!isDeleting)}>
+                        {isDeleting ? '❌ Annuler' : '🗑️ Supprimer photos'}
+                    </Button>
+                    <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)}>
+                        {isSettingTop ? '❌ Annuler' : '⭐ Définir top 3 et valider'}
+                    </Button>
+                    <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
+                        📤 Uploader des photos
+                    </Button>
+                    {isDeleting && (
+                        <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0}>
+                            🗑️ Confirmer suppression
+                        </Button>
+                    )}
+                    {isSettingTop && (
+                        <Button className="mb-3 w-100" variant="primary" onClick={handleSetTopImages} disabled={topImages.length !== 3}>
+                            ⭐ Confirmer top 3
+                        </Button>
+                    )}
+                </Col>
+                <Col md={10}>
+                    <h1 className="mb-4 text-center">{place.place_name}</h1>
+                    {place.details && <h2 className="mb-4 text-center">🚨 {place.details}</h2>}
+                    <div className="mb-4 text-center">
+                        {place.wikipedia_link && (
+                            <a className="btn btn-secondary mx-2 mb-2" href={place.wikipedia_link} target="_blank" rel="noopener noreferrer">
+                                🌐 Wikipedia
+                            </a>
+                        )}
+                        {place.google_maps_link && (
+                            <a className="btn btn-secondary mx-2 mb-2" href={place.google_maps_link} target="_blank" rel="noopener noreferrer">
+                                🗺️ Google Maps
+                            </a>
+                        )}
+                        {place.instagram_link && (
+                            <a className="btn btn-secondary mx-2 mb-2" href={place.instagram_link} target="_blank" rel="noopener noreferrer">
+                                📸 Instagram
+                            </a>
+                        )}
+                        {place.unsplash_link && (
+                            <a className="btn btn-secondary mx-2 mb-2" href={place.unsplash_link} target="_blank" rel="noopener noreferrer">
+                                📷 Unsplash
+                            </a>
+                        )}
                     </div>
-                ))}
-            </div>
+
+                    <Row>
+                        {place.images.map((image, index) => (
+                            <Col md={4} key={index} className="mb-4 image-container">
+                                <div
+                                    className={`image-wrapper ${selectedImages.includes(image) ? 'selected-delete' : ''} ${topImages.includes(image) ? 'selected-top' : ''}`}
+                                    onClick={() => handleImageClick(image)}
+                                >
+                                    <img src={image.url} className="img-fluid rounded" />
+                                    {selectedImages.includes(image) && <div className="selected-overlay">✓</div>}
+                                    {topImages.includes(image) && <div className="selected-overlay">{topImages.indexOf(image) + 1}</div>}
+                                </div>
+                            </Col>
+                        ))}
+                    </Row>
+                </Col>
+            </Row>
             <UploadPhotosModal
                 show={showUploadModal}
                 onHide={() => setShowUploadModal(false)}
                 onSubmit={handleUploadSubmit}
             />
-        </div>
+        </Container>
     );
 };
 
