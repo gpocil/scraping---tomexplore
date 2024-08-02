@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as ImageController from '../../controllers/front/ImageController';
 import * as LoginController from '../../controllers/front/LoginController';
-import upload from '../../controllers/front/multerCOntroller'
+import upload from '../../controllers/front/MulterController'
 
 const router = Router();
 
