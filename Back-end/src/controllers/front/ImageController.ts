@@ -257,11 +257,14 @@ export const setPlaceNeedsAttention = async (req: Request, res: Response) => {
     }
 };
 
+
+
 export const uploadPhotos = async (req: Request, res: Response) => {
     console.log('Request body:', req.body);
     console.log('Request files:', req.files);
+    console.log('Request params:', req.params);
 
-    const { place_id } = req.body;
+    const { place_id } = req.params; // Get place_id from URL params
     let files: Express.Multer.File[] = [];
 
     if (Array.isArray(req.files)) {
@@ -298,5 +301,11 @@ export const uploadPhotos = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error uploading photos:', error);
         res.status(500).json({ error: 'Internal server error' });
+    } finally {
+        for (const file of files) {
+            fs.unlink(path.join('uploads', file.filename), (err) => {
+                if (err) console.error('Error removing file:', file.filename);
+            });
+        }
     }
 };

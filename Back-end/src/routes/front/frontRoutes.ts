@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as ImageController from '../../controllers/front/ImageController';
 import * as LoginController from '../../controllers/front/LoginController';
-import upload from '../../controllers/front/MulterController'
+import upload from '../../controllers/front/MulterController';
 
 const router = Router();
 
@@ -11,6 +11,6 @@ router.post('/deleteImages', ImageController.deleteImagesUser);
 router.post('/setTop', ImageController.setTopAndSetChecked);
 router.post('/login', LoginController.loginUser);
 router.put('/setNeedsAttention', ImageController.setPlaceNeedsAttention);
-router.post('/uploadPhotos', upload.array('photos'), ImageController.uploadPhotos);  // Use the multer instance here
+router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.uploadPhotos);
 
 export default router;

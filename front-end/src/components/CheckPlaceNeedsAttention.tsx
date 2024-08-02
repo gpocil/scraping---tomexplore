@@ -84,22 +84,23 @@ const CheckPlaceNeedsAttention: React.FC = () => {
         }
     };
 
-
     const handleUploadSubmit = async (files: File[]) => {
         const formData = new FormData();
         files.forEach(file => {
             formData.append('photos', file);
             console.log('Added file to FormData:', file.name);
         });
-        formData.append('place_id', place.place_id.toString());
-        console.log('Added place_id to FormData:', place.place_id.toString());
+
+        const placeId = place.place_id.toString();
+        console.log('Added place_id to FormData:', placeId);
 
         try {
-            const response = await apiClient.post('/front/uploadPhotos', formData, {
+            const response = await apiClient.post(`/front/uploadPhotos/${placeId}`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
             });
+            console.log('Upload response:', response); // Added log
             if (response.status === 200) {
                 updatePlaces();
                 alert('Photos uploaded successfully');
@@ -109,7 +110,6 @@ const CheckPlaceNeedsAttention: React.FC = () => {
             alert('Failed to upload photos');
         }
     };
-
 
     const handleBackClick = () => {
         navigate('/places-needing-attention');
