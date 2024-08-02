@@ -210,7 +210,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
             // Fetch Wikimedia Images
             try {
                 wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
-                wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en } } as Request);
+                wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName } } as Request);
 
                 if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
             } catch (error: any) {

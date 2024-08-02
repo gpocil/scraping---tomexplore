@@ -2,13 +2,70 @@ import { Request, Response } from 'express';
 import puppeteer, { Page } from 'puppeteer';
 import * as ProxyController from '../ProxyController';
 
+const wikiExtensions = [
+    ["Ireland", "en"],
+    ["United Kingdom", "en"],
+    ["Germany", "de"],
+    ["Austria", "de"],
+    ["Switzerland", "de"],
+    ["France", "fr"],
+    ["Belgium", "fr"],
+    ["Switzerland", "fr"],
+    ["Sweden", "sv"],
+    ["Netherlands", "nl"],
+    ["Belgium", "nl"],
+    ["Russia", "ru"],
+    ["Ukraine", "uk"],
+    ["Italy", "it"],
+    ["Poland", "pl"],
+    ["Spain", "es"],
+    ["Switzerland", "it"],
+    ["Portugal", "pt"],
+    ["Romania", "ro"],
+    ["Serbia", "sr"],
+    ["Montenegro", "sr"],
+    ["Croatia", "hr"],
+    ["Bosnia and Herzegovina", "sh"],
+    ["Slovakia", "sk"],
+    ["Czech Republic", "cs"],
+    ["Hungary", "hu"],
+    ["Finland", "fi"],
+    ["Estonia", "et"],
+    ["Latvia", "lv"],
+    ["Lithuania", "lt"],
+    ["Slovenia", "sl"],
+    ["Greece", "el"],
+    ["Bulgaria", "bg"],
+    ["Denmark", "da"],
+    ["Norway", "no"],
+    ["Iceland", "is"],
+    ["Macedonia", "mk"],
+    ["Albania", "sq"],
+    ["Belarus", "be"],
+    ["Moldova", "ro"],
+    ["Luxembourg", "lb"],
+    ["Malta", "mt"],
+    ["Armenia", "hy"],
+    ["Georgia", "ka"],
+    ["Bosnia and Herzegovina", "bs"],
+    ["Monaco", "fr"],
+    ["San Marino", "it"],
+    ["Andorra", "ca"],
+    ["Liechtenstein", "de"],
+    ["Kosovo", "sq"],
+    ["Vatican City", "la"],
+    ["Cyprus", "el"],
+    ["Turkey", "tr"]
+];
+
 export async function findWikipediaUrl(req?: Request, res?: Response): Promise<string> {
     const name = req ? req.body.name as string : '';
+    const country = req ? req.body.country as string : '';
 
-    if (!name) {
+    if (!name || !country) {
         if (res) {
-            console.log('Error: name is required');
-            res.status(400).json({ error: 'name is required' });
+            console.log('Error: name and country are required');
+            res.status(400).json({ error: 'name and country are required' });
         }
         return '';
     }
@@ -58,16 +115,21 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
 
         console.log('Found links:', links);
 
-        console.log('Prioritizing en.wikipedia.org URLs');
-        const enWikiUrl = links.find(link => link.includes('en.wikipedia.org'));
-        const wikiUrl = enWikiUrl ? enWikiUrl : links.find(link => link.includes('wikipedia.org'));
+        console.log(`Prioritizing ${country} specific Wikipedia URL`);
+        const countryExtension = wikiExtensions.find(([c, ext]) => c.toLowerCase() === country.toLowerCase())?.[1];
+        let preferredWikiUrl = links.find(link => link.includes(`${countryExtension}.wikipedia.org`));
 
-        if (!wikiUrl) {
+        if (!preferredWikiUrl) {
+            console.log(`No specific Wikipedia URL found for country: ${country}, falling back to en.wikipedia.org`);
+            preferredWikiUrl = links.find(link => link.includes('en.wikipedia.org')) || links.find(link => link.includes('wikipedia.org'));
+        }
+
+        if (!preferredWikiUrl) {
             throw new Error('No Wikipedia URL found');
         }
 
-        console.log(`Navigating to Wikipedia URL: ${wikiUrl}`);
-        await page.goto(wikiUrl, {
+        console.log(`Navigating to Wikipedia URL: ${preferredWikiUrl}`);
+        await page.goto(preferredWikiUrl, {
             waitUntil: 'networkidle2',
         });
 
