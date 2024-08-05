@@ -85,8 +85,9 @@ const HomePage: React.FC = () => {
         let totalPlacesUnchecked = 0;
         let totalPlacesChecked = 0;
         let totalPlacesNeedsAttention = 0;
+        let totalPlacesToBeDeleted = 0;
 
-        ['checked', 'unchecked', 'needs_attention'].forEach(status => {
+        ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => {
             for (const country of Object.keys(places[status])) {
                 uniqueCountries.add(country);
                 for (const city of Object.keys(places[status][country])) {
@@ -97,6 +98,8 @@ const HomePage: React.FC = () => {
                         totalPlacesUnchecked += Object.keys(places[status][country][city]).length;
                     } else if (status === 'needs_attention') {
                         totalPlacesNeedsAttention += Object.keys(places[status][country][city]).length;
+                    } else if (status === 'to_be_deleted') {
+                        totalPlacesToBeDeleted += Object.keys(places[status][country][city]).length;
                     }
                 }
             }
@@ -107,7 +110,8 @@ const HomePage: React.FC = () => {
             totalCities: uniqueCities.size,
             totalPlacesUnchecked,
             totalPlacesChecked,
-            totalPlacesNeedsAttention
+            totalPlacesNeedsAttention,
+            totalPlacesToBeDeleted
         };
     };
 
@@ -132,7 +136,7 @@ const HomePage: React.FC = () => {
         return placesInCity.length;
     };
 
-    const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention } = getTotalCounts();
+    const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention, totalPlacesToBeDeleted } = getTotalCounts();
 
     if (selectedPlace) {
         return <PhotoSelectorPlace place={selectedPlace} onComplete={handlePlaceComplete} />;
@@ -172,8 +176,12 @@ const HomePage: React.FC = () => {
                     <li className="list-group-item">
                         <strong>🚨 Lieux nécessitant une attention :</strong> {totalPlacesNeedsAttention}
                     </li>
+                    <li className="list-group-item">
+                        <strong>🗑️ Lieux à supprimer :</strong> {totalPlacesToBeDeleted}
+                    </li>
                 </ul>
             </div>
+
             <div className="d-flex justify-content-center mb-4">
                 <input
                     type="text"

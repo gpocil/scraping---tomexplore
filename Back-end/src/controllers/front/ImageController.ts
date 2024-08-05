@@ -4,7 +4,7 @@ import Country from '../../models/Country';
 import City from '../../models/City';
 import Place from '../../models/Place';
 import Image from '../../models/Image';
-import { deleteImages } from '../scraping/FileController';
+import { deleteFolderRecursiveHelper, deleteImages } from '../scraping/FileController';
 import fs from 'fs';
 
 interface ImageResponse {
@@ -38,6 +38,8 @@ interface ResponseStructure {
     checked: { [countryName: string]: CountryResponse };
     unchecked: { [countryName: string]: CountryResponse };
     needs_attention: { [countryName: string]: CountryResponse };
+    to_be_deleted: { [countryName: string]: CountryResponse };
+
 
 }
 
@@ -69,17 +71,26 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'No places found' });
         }
 
-        const response: ResponseStructure = { checked: {}, unchecked: {}, needs_attention: {} };
+        const response: ResponseStructure = { checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} };
 
         places.forEach(place => {
             const city = place.getDataValue('city');
             const country = city ? city.getDataValue('country') : null;
             const images = place.getDataValue('images') || [];
-            const checkedStatus: 'checked' | 'unchecked' | 'needs_attention' = place.getDataValue('checked')
-                ? 'checked'
-                : place.getDataValue('needs_attention')
-                    ? 'needs_attention'
-                    : 'unchecked';
+            const checked = place.getDataValue('checked');
+            const needsAttention = place.getDataValue('needs_attention');
+            const toBeDeleted = place.getDataValue('to_be_deleted');
+
+            let checkedStatus: 'checked' | 'unchecked' | 'needs_attention' | 'to_be_deleted';
+            if (toBeDeleted) {
+                checkedStatus = 'to_be_deleted';
+            } else if (checked) {
+                checkedStatus = 'checked';
+            } else if (needsAttention) {
+                checkedStatus = 'needs_attention';
+            } else {
+                checkedStatus = 'unchecked';
+            }
 
             if (country) {
                 if (!response[checkedStatus][country.name]) {
@@ -123,6 +134,7 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 export const getImagesByPlaceId = async (req: Request, res: Response) => {
     const placeId = req.params.placeId;
@@ -307,5 +319,44 @@ export const uploadPhotos = async (req: Request, res: Response) => {
                 if (err) console.error('Error removing file:', file.filename);
             });
         }
+    }
+};
+
+
+export const setPlaceToBeDeleted = async (req: Request, res: Response) => {
+    const { place_id } = req.body;
+
+    if (!place_id) {
+        return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    try {
+        const place = await Place.findByPk(place_id);
+        if (!place) {
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        place.to_be_deleted = true;
+        place.checked = false;
+        place.needs_attention = false;
+        await place.save();
+
+        const images = await Image.findAll({ where: { place_id: place_id } });
+        const imageIds = images.map(image => image.id);
+
+        await deleteImages(imageIds);
+
+        const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
+        if (fs.existsSync(folderPath)) {
+            deleteFolderRecursiveHelper(folderPath);
+            console.log('Dossier supprimé');
+        }
+        else {
+            console.log('dossier non trouvé ' + folderPath);
+        }
+        res.status(200).json({ message: 'Place set to be deleted and all associated images removed' });
+    } catch (error) {
+        console.error('Error setting place to be deleted:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 };

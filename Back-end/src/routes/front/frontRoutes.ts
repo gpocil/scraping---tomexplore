@@ -12,5 +12,8 @@ router.post('/setTop', ImageController.setTopAndSetChecked);
 router.post('/login', LoginController.loginUser);
 router.put('/setNeedsAttention', ImageController.setPlaceNeedsAttention);
 router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.uploadPhotos);
+router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.uploadPhotos);
+router.post('/setPlaceToBeDeleted', ImageController.setPlaceToBeDeleted);
+
 
 export default router;

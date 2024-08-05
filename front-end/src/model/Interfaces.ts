@@ -15,6 +15,7 @@ export interface IPlace {
     instagram_link?: string;
     checked?: boolean;
     needs_attention?: boolean;
+    to_be_deleted?: boolean;
     images: IImage[];
     details?: string;
 }

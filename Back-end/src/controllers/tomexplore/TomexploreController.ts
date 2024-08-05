@@ -71,6 +71,68 @@ export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
 };
 
 
+export const getAllCheckedPlaces = async (req: Request, res: Response) => {
+
+    try {
+        const places = await Place.findAll({
+            where: { checked: true },
+            include: [
+                {
+                    model: Image,
+                    as: 'images',
+                    attributes: ['image_name', 'author', 'license', 'top', 'original_url']
+                },
+                {
+                    model: City,
+                    as: 'city',
+                    attributes: ['name'],
+                    include: [
+                        {
+                            model: Country,
+                            as: 'country',
+                            attributes: ['name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!places.length) {
+            return res.status(404).json({ error: 'No checked places found' });
+        }
+
+        const response = places.map(place => {
+            const city = place.getDataValue('city');
+            const country = city ? city.getDataValue('country') : null;
+            const images = place.getDataValue('images') || [];
+
+            return {
+                place_id: place.id_tomexplore,
+                place_name: place.name_eng,
+                wikipedia_link: place.wikipedia_link || '',
+                google_maps_link: place.google_maps_link || '',
+                folder: place.folder,
+                images: images.map((image: { image_name: string; author: string; license: string; top: number; original_url: string }) => ({
+                    image_name: image.image_name,
+                    url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${encodeURIComponent(image.image_name)}`,
+                    author: image.author,
+                    license: image.license,
+                    top: image.top,
+                    original_url: image.original_url
+                })),
+                city_name: city ? city.name : '',
+                country_name: country ? country.name : ''
+            };
+        });
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching checked places:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
 export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) => {
     const placeId = req.params.placeId;
 
@@ -226,6 +288,26 @@ export const deleteCheckedPlaceById = async (req: Request, res: Response) => {
         }
     } catch (error) {
         console.error('Error deleting checked place and its images by ID:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+export const getAllPlacesToBeDeleted = async (req: Request, res: Response) => {
+    try {
+        const places = await Place.findAll({
+            where: { to_be_deleted: true },
+        });
+        if (!places.length) {
+            return res.status(404).json({ error: 'No places to be deleted found' });
+        }
+        const response = places.map(place => {
+            return {
+                place_id: place.id_tomexplore,
+            };
+        });
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching places to be deleted:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

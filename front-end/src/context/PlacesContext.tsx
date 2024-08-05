@@ -11,7 +11,7 @@ interface PlaceContextType {
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
-    const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {} });
+    const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} });
 
     const fetchData = useCallback(() => {
         apiClient.get<IResponseStructure>('/front/getAllImages')
@@ -28,7 +28,7 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
 
     const findPlaceById = (placeId: number): IPlace | undefined => {
         console.log('Searching for place with ID:', placeId);
-        for (const status of ['unchecked', 'needs_attention', 'checked'] as const) {
+        for (const status of ['unchecked', 'needs_attention', 'checked', 'to_be_deleted'] as const) {
             console.log(`Checking status: ${status}`);
             for (const country of Object.keys(data[status])) {
                 console.log(`Checking country: ${country}`);

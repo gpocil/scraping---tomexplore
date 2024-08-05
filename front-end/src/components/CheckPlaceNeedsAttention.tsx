@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { IPlace, IImage } from '../model/Interfaces';
 import apiClient from '../util/apiClient';
-import UploadPhotosModal from './UploadPhotosModal';
+import UploadPhotosModal from './modals/UploadPhotosModal';
+import DeletePlaceModal from './modals/DeletePlaceModal';
 import { Button, Container, Row, Col } from 'react-bootstrap';
 import './styles/CheckPlaceNeedsAttention.css';
 import { usePlaces } from '../context/PlacesContext';
@@ -22,6 +23,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSettingTop, setIsSettingTop] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false); // State for the delete modal
 
     useEffect(() => {
         console.log('Component mounted');
@@ -124,6 +126,22 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
+    const handleDeletePlace = async () => {
+        try {
+            const response = await apiClient.post('/front/setPlaceToBeDeleted', {
+                place_id: place?.place_id
+            });
+
+            if (response.status === 200) {
+                updatePlaces();
+                handleBackClick();
+            }
+        } catch (error) {
+            console.error('Error deleting place:', error);
+            alert('Failed to delete place');
+        }
+    };
+
     const handleBackClick = () => {
         console.log('Navigating back');
         navigate('/places-needing-attention');
@@ -145,6 +163,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
                         📤 Uploader des photos
                     </Button>
+
                     {isDeleting && (
                         <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0}>
                             🗑️ Confirmer suppression
@@ -158,6 +177,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 </Col>
                 <Col md={10}>
                     <h1 className="mb-4 text-center">{place.place_name}</h1>
+
                     {place.details && <h2 className="mb-4 text-center">🚨 {place.details}</h2>}
                     <div className="mb-4 text-center">
                         {place.wikipedia_link && (
@@ -180,7 +200,19 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                                 📷 Unsplash
                             </a>
                         )}
+                        <Row className="justify-content-center">
+                            <Col xs="auto">
+                                <Button className="mb-3" variant="danger" onClick={() => setShowDeleteModal(true)}>
+                                    🗑️ Supprimer le lieu
+                                </Button>
+                            </Col>
+                        </Row>
                     </div>
+
+
+
+
+
 
                     <Row>
                         {place.images.map((image, index) => (
@@ -202,6 +234,11 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 show={showUploadModal}
                 onHide={() => setShowUploadModal(false)}
                 onSubmit={handleUploadSubmit}
+            />
+            <DeletePlaceModal
+                show={showDeleteModal}
+                onHide={() => setShowDeleteModal(false)}
+                onConfirm={handleDeletePlace}
             />
         </Container>
     );

@@ -14,6 +14,7 @@ class Place extends Model {
     public instagram_link?: string;
     public google_maps_link?: string;
     public needs_attention?: Boolean;
+    public to_be_deleted?: Boolean;
     public details?: string;
     public last_modification!: Date;
 }
@@ -48,6 +49,11 @@ Place.init({
         defaultValue: false
     },
     needs_attention: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false
+    },
+    to_be_deleted: {
         type: DataTypes.BOOLEAN,
         allowNull: true,
         defaultValue: false

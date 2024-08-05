@@ -5,7 +5,6 @@ import * as GoogleController from '../../controllers/scraping/util/GoogleControl
 
 const router = Router();
 
-
 /**
  * @swagger
  * /api/texplore/getCheckedPlace/{placeId}:
@@ -157,6 +156,60 @@ router.delete('/deleteCity/:cityName', tomexploreController.deleteCheckedPlacesB
 
 /**
  * @swagger
+ * /api/texplore/getAllPlacesToBeDeleted:
+ *   get:
+ *     summary: Retrieve all places marked to be deleted
+ *     tags: [Get Places To Be Deleted]
+ *     responses:
+ *       200:
+ *         description: List of places to be deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   place_id:
+ *                     type: integer
+ *                   place_name:
+ *                     type: string
+ *                   wikipedia_link:
+ *                     type: string
+ *                   google_maps_link:
+ *                     type: string
+ *                   folder:
+ *                     type: string
+ *                   images:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         image_name:
+ *                           type: string
+ *                         url:
+ *                           type: string
+ *                         author:
+ *                           type: string
+ *                         license:
+ *                           type: string
+ *                         top:
+ *                           type: integer
+ *                         original_url:
+ *                           type: string
+ *                   city_name:
+ *                     type: string
+ *                   country_name:
+ *                     type: string
+ *       404:
+ *         description: No places to be deleted found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getAllPlacesToBeDeleted', tomexploreController.getAllPlacesToBeDeleted);
+
+/**
+ * @swagger
  * tags:
  *   name: Authentication
  *   description: API for user authentication
@@ -234,7 +287,60 @@ router.post('/createUser', LoginController.createUser);
  *         description: Internal server error
  */
 
-
 router.post('/google_attributes', GoogleController.fetchGoogleBusinessAttributes);
+
+/**
+ * @swagger
+ * /api/texplore/getAllCheckedPlaces:
+ *   get:
+ *     summary: Retrieve all checked places
+ *     tags: [Get Checked Places]
+ *     responses:
+ *       200:
+ *         description: List of all checked places
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   place_id:
+ *                     type: integer
+ *                   place_name:
+ *                     type: string
+ *                   wikipedia_link:
+ *                     type: string
+ *                   google_maps_link:
+ *                     type: string
+ *                   folder:
+ *                     type: string
+ *                   images:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         image_name:
+ *                           type: string
+ *                         url:
+ *                           type: string
+ *                         author:
+ *                           type: string
+ *                         license:
+ *                           type: string
+ *                         top:
+ *                           type: integer
+ *                         original_url:
+ *                           type: string
+ *                   city_name:
+ *                     type: string
+ *                   country_name:
+ *                     type: string
+ *       404:
+ *         description: No checked places found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getAllCheckedPlaces', tomexploreController.getAllCheckedPlaces);
 
 export default router;
