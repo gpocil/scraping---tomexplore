@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors, { CorsOptions } from 'cors';
 import bodyParser from 'body-parser';
+import path from 'path';
 import scrapingMainRoutes from './routes/scraping/ScrapingMainRoutes';
 import InstagramRoutes from './routes/scraping/InstagramRoutes';
 import authRoutes from './routes/security/LoginRoutes';
@@ -8,8 +9,6 @@ import wikipediaRoutes from './routes/scraping/WikipediaRoutes';
 import wikimediaRoutes from './routes/scraping/WikimediaRoutes';
 import fileRoutes from './routes/scraping/FileRoutes';
 import googleRoutes from './routes/scraping/GoogleRoutes';
-
-
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
@@ -18,7 +17,6 @@ import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
 import swaggerOptions from './swagger';
 import sequelize from './sequelize';
-import path from 'path';
 import './models';
 
 const app = express();
@@ -64,7 +62,6 @@ app.use('/images', express.static(imagesPath));
 
 //------------------------Auth required---------------------------------
 
-
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);
 app.use('/api/unsplash', unsplashRoutes);
@@ -74,8 +71,13 @@ app.use('/api', wikimediaRoutes);
 app.use('/api', fileRoutes);
 app.use('/api', googleRoutes);
 
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, 'front-end/build')));
 
-
+// The "catchall" handler: for any request that doesn't match one above, send back index.html
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'front-end/build', 'index.html'));
+});
 
 sequelize.authenticate()
     .then(() => {
