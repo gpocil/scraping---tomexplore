@@ -58,18 +58,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/front', frontRoutes);
-
-
-//------------------------Auth required---------------------------------
-
 const imagesPath = path.join(__dirname, 'temp');
 console.log('imagepath : ' + imagesPath);
 app.use('/images', express.static(imagesPath));
 
+//------------------------Auth required---------------------------------
+
+
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);
 app.use('/api/unsplash', unsplashRoutes);
-
 app.use('/api', InstagramRoutes);
 app.use('/api', wikipediaRoutes);
 app.use('/api', wikimediaRoutes);
