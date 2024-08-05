@@ -20,7 +20,6 @@ const CheckPlaceNeedsAttention: React.FC = () => {
 
     const place: IPlace | undefined = useMemo(() => {
         console.log('useMemo called with placeId:', placeId);
-        if (!placeId) return undefined;
         const foundPlace = findPlaceById(Number(placeId));
         console.log('Found place:', foundPlace);
         return foundPlace;
