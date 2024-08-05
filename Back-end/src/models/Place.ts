@@ -17,6 +17,7 @@ class Place extends Model {
     public to_be_deleted?: Boolean;
     public details?: string;
     public last_modification!: Date;
+    public instagram_updated?: boolean;
 }
 
 Place.init({
@@ -54,6 +55,11 @@ Place.init({
         defaultValue: false
     },
     to_be_deleted: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false
+    },
+    instagram_updated: {
         type: DataTypes.BOOLEAN,
         allowNull: true,
         defaultValue: false

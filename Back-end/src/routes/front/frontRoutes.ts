@@ -14,6 +14,7 @@ router.put('/setNeedsAttention', ImageController.setPlaceNeedsAttention);
 router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.uploadPhotos);
 router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.uploadPhotos);
 router.post('/setPlaceToBeDeleted', ImageController.setPlaceToBeDeleted);
+router.post('/updateInstagram', ImageController.updateInstagram);
 
 
 export default router;

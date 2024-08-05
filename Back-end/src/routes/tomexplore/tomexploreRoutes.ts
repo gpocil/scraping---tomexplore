@@ -112,7 +112,7 @@ router.get('/getCheckedCity/:cityName', tomexploreController.getCheckedPlacesByC
  * /api/texplore/deletePlaces:
  *   delete:
  *     summary: Delete verified places and their images by place IDs
- *     tags: [Delete Checked Places]
+ *     tags: [Delete Places]
  *     requestBody:
  *       required: true
  *       content:
@@ -143,7 +143,7 @@ router.delete('/deletePlaces', tomexploreController.deleteCheckedPlacesByIds);
  * /api/texplore/deleteCity/{cityName}:
  *   delete:
  *     summary: Delete all verified places and their images for a given city
- *     tags: [Delete Checked Places]
+ *     tags: [Delete Places]
  *     parameters:
  *       - in: path
  *         name: cityName

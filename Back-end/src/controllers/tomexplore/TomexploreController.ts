@@ -56,10 +56,14 @@ export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
                     author: image.author,
                     license: image.license,
                     top: image.top,
-                    original_url: image.original_url
+                    original_url: image.original_url,
+
                 })),
                 city_name: city ? city.name : '',
-                country_name: country ? country.name : ''
+                country_name: country ? country.name : '',
+                ...(place.instagram_updated && { instagram_link: place.instagram_link }),
+                instagram_updated: place.instagram_updated
+
             };
         });
 
@@ -118,10 +122,14 @@ export const getAllCheckedPlaces = async (req: Request, res: Response) => {
                     author: image.author,
                     license: image.license,
                     top: image.top,
-                    original_url: image.original_url
+                    original_url: image.original_url,
+
                 })),
                 city_name: city ? city.name : '',
-                country_name: country ? country.name : ''
+                country_name: country ? country.name : '',
+                ...(place.instagram_updated && { instagram_link: place.instagram_link }),
+                instagram_updated: place.instagram_updated
+
             };
         });
 
@@ -161,6 +169,8 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
             wikipedia_link: place.wikipedia_link || '',
             google_maps_link: place.google_maps_link || '',
             folder: place.folder,
+            ...(place.instagram_updated && { instagram_link: place.instagram_link }),
+            instagram_updated: place.instagram_updated,
             images: images.map((image: { image_name: string; author: string; license: string; top: number; original_url: string }) => ({
                 image_name: image.image_name,
                 url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${encodeURIComponent(image.image_name)}`,

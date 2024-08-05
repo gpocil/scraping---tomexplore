@@ -6,6 +6,7 @@ import Place from '../../models/Place';
 import Image from '../../models/Image';
 import { deleteFolderRecursiveHelper, deleteImages } from '../scraping/FileController';
 import fs from 'fs';
+import { scrapeInstagramAfterUpdate } from '../scraping/ScrapingMainController';
 
 interface ImageResponse {
     image_name: string;
@@ -357,6 +358,63 @@ export const setPlaceToBeDeleted = async (req: Request, res: Response) => {
         res.status(200).json({ message: 'Place set to be deleted and all associated images removed' });
     } catch (error) {
         console.error('Error setting place to be deleted:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
+export const updateInstagram = async (req: Request, res: Response) => {
+    const { place_id, instagram_link } = req.body;
+
+    if (!place_id || !instagram_link) {
+        console.log('Missing place_id or instagram_link');
+        return res.status(400).json({ error: 'Place ID and Instagram link are required' });
+    }
+
+    try {
+        const place = await Place.findByPk(place_id);
+        if (!place) {
+            console.log(`Place not found for ID: ${place_id}`);
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        place.instagram_link = instagram_link;
+        place.instagram_updated = true;
+        await place.save();
+
+        console.log(`Updated Instagram link for place ID: ${place_id}`);
+
+        // Appeler scrapeInstagramAfterUpdate pour récupérer les nouvelles images Instagram
+        const usernameMatch = instagram_link.match(/(?:http[s]?:\/\/)?(?:www\.)?instagram\.com\/([^\/\?\&]+)/);
+        const instagram_username = usernameMatch ? usernameMatch[1] : '';
+
+        const scrapeRequest = {
+            body: {
+                id_tomexplore: place.id_tomexplore,
+                instagram_username // Utiliser le nom d'utilisateur extrait
+            }
+        } as Request;
+
+        const scrapeResponse: any = {
+            json: (data: any) => {
+                console.log('Scrape response data:', data);
+                return data;
+            },
+            status: (statusCode: number) => {
+                console.log('Scrape response status:', statusCode);
+                return scrapeResponse;
+            }
+        } as unknown as Response;
+
+        console.log(`Starting Instagram scraping for place ID: ${place_id} with username: ${instagram_username}`);
+        const scrapeResult = await scrapeInstagramAfterUpdate(scrapeRequest, scrapeResponse);
+
+        console.log(`Completed Instagram scraping for place ID: ${place_id}`);
+
+        // Envoyer la réponse seulement après l'appel de scrapeInstagramAfterUpdate
+        res.status(200).json({ message: 'Instagram link updated successfully', place, scrapeResult });
+    } catch (error) {
+        console.error('Error updating Instagram link:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

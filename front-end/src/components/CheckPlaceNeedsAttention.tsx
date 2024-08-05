@@ -4,7 +4,7 @@ import { IPlace, IImage } from '../model/Interfaces';
 import apiClient from '../util/apiClient';
 import UploadPhotosModal from './modals/UploadPhotosModal';
 import DeletePlaceModal from './modals/DeletePlaceModal';
-import { Button, Container, Row, Col } from 'react-bootstrap';
+import { Button, Container, Row, Col, Form, Spinner } from 'react-bootstrap';
 import './styles/CheckPlaceNeedsAttention.css';
 import { usePlaces } from '../context/PlacesContext';
 
@@ -23,7 +23,11 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSettingTop, setIsSettingTop] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false); // State for the delete modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showInstagramInput, setShowInstagramInput] = useState(false);
+    const [instagramLink, setInstagramLink] = useState(place.instagram_link || '');
+    const [isScraping, setIsScraping] = useState(false);
+    const [images, setImages] = useState<IImage[]>(place.images || []);
 
     useEffect(() => {
         console.log('Component mounted');
@@ -31,6 +35,10 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             console.log('Component unmounted');
         };
     }, []);
+
+    useEffect(() => {
+        setImages(place.images);
+    }, [place.images]);
 
     const handleImageClick = (image: IImage) => {
         console.log('Image clicked:', image);
@@ -66,9 +74,9 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 setSelectedImages([]);
-                place.images = place.images.filter(
+                setImages(prevImages => prevImages.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
-                );
+                ));
                 updatePlaces();
             }
         } catch (error) {
@@ -142,6 +150,44 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
+    const handleInstagramUpdate = async () => {
+        setIsScraping(true);
+        try {
+            const response = await apiClient.post('/front/updateInstagram', {
+                place_id: place?.place_id,
+                instagram_link: instagramLink
+            });
+
+            if (response.status === 200) {
+                await updateImages();
+                updatePlaces();
+                alert('Instagram updated and images scraped successfully');
+            }
+        } catch (error) {
+            console.error('Error updating Instagram:', error);
+            alert('Failed to update Instagram');
+        } finally {
+            setIsScraping(false);
+        }
+    };
+
+    const updateImages = async () => {
+        try {
+            const response = await apiClient.get(`/front/${place?.place_id}/images`);
+            console.log('Update images response:', response);
+            if (response.status === 200) {
+                const newImages = response.data.map((url: string, index: number) => ({
+                    id: index,
+                    image_name: url.split('/').pop() || `image_${index}`,
+                    url: url
+                }));
+                setImages(newImages);
+            }
+        } catch (error) {
+            console.error('Error updating images:', error);
+        }
+    };
+
     const handleBackClick = () => {
         console.log('Navigating back');
         navigate('/places-needing-attention');
@@ -162,6 +208,9 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     </Button>
                     <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
                         📤 Uploader des photos
+                    </Button>
+                    <Button className="mb-3 w-100" variant="info" onClick={() => setShowInstagramInput(!showInstagramInput)}>
+                        {showInstagramInput ? '❌ Annuler' : '📸 Mettre l\'Instagram à jour'}
                     </Button>
 
                     {isDeleting && (
@@ -209,13 +258,31 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                         </Row>
                     </div>
 
-
-
-
-
+                    {showInstagramInput && (
+                        <Row className="justify-content-center">
+                            <Col xs="auto">
+                                <Form.Group controlId="instagramLink">
+                                    <Form.Label>Instagram Link</Form.Label>
+                                    <Form.Control
+                                        type="text"
+                                        value={instagramLink}
+                                        onChange={(e) => setInstagramLink(e.target.value)}
+                                        placeholder="Enter new Instagram link"
+                                    />
+                                </Form.Group>
+                                <Button className="mt-3" variant="primary" onClick={handleInstagramUpdate} disabled={isScraping}>
+                                    {isScraping ? (
+                                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                                    ) : (
+                                        'Mettre à jour Instagram'
+                                    )}
+                                </Button>
+                            </Col>
+                        </Row>
+                    )}
 
                     <Row>
-                        {place.images.map((image, index) => (
+                        {images.map((image, index) => (
                             <Col md={4} key={index} className="mb-4">
                                 <div
                                     className={`image-container ${selectedImages.includes(image) ? 'selected-delete' : ''} ${topImages.includes(image) ? 'selected-top' : ''}`}

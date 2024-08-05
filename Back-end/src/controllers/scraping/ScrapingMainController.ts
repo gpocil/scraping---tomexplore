@@ -318,3 +318,77 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
     const results = await Promise.all(tasks);
     res.json(results);
 }
+
+export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
+    const placeData = req.body;
+    const { id_tomexplore, instagram_username } = placeData;
+
+    if (!id_tomexplore || !instagram_username) {
+        console.log('Missing required fields:', placeData);
+        return { error: 'Missing required fields', placeData };
+    }
+
+    let instagramImages: any = { urls: [], count: 0 };
+    let errors: string[] = [];
+
+    try {
+        if (instagram_username && instagram_username !== "") {
+            try {
+                console.log(`Fetching Instagram images for username: ${instagram_username}`);
+                instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
+                if (instagramImages.error) errors.push(instagramImages.error);
+            } catch (error: any) {
+                console.error(`Error fetching Instagram images: ${error.message}`);
+                errors.push(`Error fetching Instagram images: ${error.message}`);
+                instagramImages.error = `Error fetching Instagram images: ${error.message}`;
+            }
+        }
+
+        if (instagramImages.urls.length === 0) {
+            console.log('No Instagram images found:', errors);
+            return { error: 'Failed to fetch images from Instagram', details: errors, placeData };
+        }
+
+        console.log(`Downloading Instagram photos for place ID: ${id_tomexplore}`);
+        const result = await FileController.downloadPhotosBusiness(id_tomexplore, instagramImages, { urls: [], count: 0 });
+
+        let place = await Place.findOne({ where: { id_tomexplore } });
+        if (place) {
+            await place.update({
+                instagram_link: "https://instagram.com/" + instagram_username,
+                last_modification: new Date()
+            });
+            console.log(`Updated place with new Instagram link: ${place.id_tomexplore}`);
+        }
+
+        const saveImage = async (url: string, source: string, generatedName: string) => {
+            console.log(`Saving image: ${generatedName}`);
+            return Image.create({
+                image_name: generatedName,
+                source,
+                place_id: place!.id_tomexplore
+            });
+        };
+
+        await Promise.all(
+            result.imageNames.map((generatedName, index) => {
+                const source = 'Instagram';
+                const url = instagramImages.urls[index];
+                return saveImage(url, source, generatedName);
+            })
+        );
+
+        console.log(`Downloaded and saved ${result.imageCount} images for place ID: ${id_tomexplore}`);
+
+        return {
+            downloadDir: result.downloadDir.replace(/\\/g, '/'),
+            imageCount: result.imageCount,
+            instagramError: instagramImages.error,
+            errors: errors.length > 0 ? errors : undefined,
+            placeData
+        };
+    } catch (error: any) {
+        console.error(`Error downloading photos: ${error.message}`);
+        return { error: `Error downloading photos: ${error.message}`, details: errors, placeData };
+    }
+}
