@@ -60,7 +60,7 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
             }
 
             // Fetch Instagram Images if username is provided
-            if (instagram_username) {
+            if (instagram_username && instagram_username !== "") {
                 try {
                     instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
                     if (instagramImages.error) errors.push(instagramImages.error);

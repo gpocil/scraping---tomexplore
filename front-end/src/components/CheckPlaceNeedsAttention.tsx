@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { IPlace, IImage } from '../model/Interfaces';
@@ -19,42 +19,56 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     const [showUploadModal, setShowUploadModal] = useState(false);
 
     const place: IPlace | undefined = useMemo(() => {
+        console.log('useMemo called with placeId:', placeId);
         if (!placeId) return undefined;
-        return findPlaceById(Number(placeId));
+        const foundPlace = findPlaceById(Number(placeId));
+        console.log('Found place:', foundPlace);
+        return foundPlace;
     }, [findPlaceById, placeId]);
 
+    useEffect(() => {
+        console.log('Component mounted');
+        return () => {
+            console.log('Component unmounted');
+        };
+    }, []);
+
     if (!placeId || !place) {
+        console.log('No place found for placeId:', placeId);
         return <Container className="mt-5">Lieu non trouvé</Container>;
     }
 
     const handleImageClick = (image: IImage) => {
+        console.log('Image clicked:', image);
         if (isDeleting) {
             setSelectedImages((prevSelectedImages) => {
                 const isSelected = prevSelectedImages.some((img) => img.id === image.id);
-                if (isSelected) {
-                    return prevSelectedImages.filter((img) => img.id !== image.id);
-                } else {
-                    return [...prevSelectedImages, image];
-                }
+                const newSelectedImages = isSelected
+                    ? prevSelectedImages.filter((img) => img.id !== image.id)
+                    : [...prevSelectedImages, image];
+                console.log('Updated selectedImages:', newSelectedImages);
+                return newSelectedImages;
             });
         } else if (isSettingTop) {
             setTopImages((prevTopImages) => {
                 const isSelected = prevTopImages.some((img) => img.id === image.id);
-                if (isSelected) {
-                    return prevTopImages.filter((img) => img.id !== image.id);
-                } else {
-                    return prevTopImages.length < 3 ? [...prevTopImages, image] : prevTopImages;
-                }
+                const newTopImages = isSelected
+                    ? prevTopImages.filter((img) => img.id !== image.id)
+                    : prevTopImages.length < 3 ? [...prevTopImages, image] : prevTopImages;
+                console.log('Updated topImages:', newTopImages);
+                return newTopImages;
             });
         }
     };
 
     const handleDeleteImages = async () => {
+        console.log('Deleting images:', selectedImages);
         try {
             const response = await apiClient.post('/front/deleteImages', {
                 imageIds: selectedImages.map((image) => image.id),
                 place_id: place?.place_id
             });
+            console.log('Delete images response:', response);
 
             if (response.status === 200) {
                 setSelectedImages([]);
@@ -70,11 +84,14 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     };
 
     const handleSetTopImages = async () => {
+        console.log('Setting top images:', topImages);
         try {
             const response = await apiClient.post('/front/setTop', {
                 imageIds: topImages.map((image) => image.id),
                 place_id: place?.place_id
             });
+            console.log('Set top images response:', response);
+
             if (response.status === 200) {
                 setTopImages([]);
                 place.checked = true;
@@ -87,6 +104,7 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     };
 
     const handleUploadSubmit = async (files: File[]) => {
+        console.log('Uploading files:', files);
         const formData = new FormData();
         files.forEach(file => {
             formData.append('photos', file);
@@ -114,6 +132,7 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     };
 
     const handleBackClick = () => {
+        console.log('Navigating back');
         navigate('/places-needing-attention');
     };
 

@@ -28,7 +28,7 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
 
     const findPlaceById = (placeId: number): IPlace | undefined => {
         console.log('Searching for place with ID:', placeId);
-        for (const status of ['unchecked', 'needs_attention'] as const) {
+        for (const status of ['unchecked', 'needs_attention', 'checked'] as const) {
             console.log(`Checking status: ${status}`);
             for (const country of Object.keys(data[status])) {
                 console.log(`Checking country: ${country}`);
