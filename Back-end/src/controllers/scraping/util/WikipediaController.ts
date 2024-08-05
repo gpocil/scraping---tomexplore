@@ -76,7 +76,7 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         console.log("Using proxy: " + proxy.address);
 
         browser = await puppeteer.launch({
-            headless: true,
+            headless: "new",
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

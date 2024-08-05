@@ -241,60 +241,84 @@ export const deleteCheckedPlacesByCity = async (req: Request, res: Response) => 
 };
 
 
-export const deleteCheckedPlaceById = async (req: Request, res: Response) => {
-    const placeId = req.params.placeId;
-    console.log(`Received request to delete place and its images for place ID: ${placeId}`);
+export const deleteCheckedPlacesByIds = async (req: Request, res: Response) => {
+    const { placeIds } = req.body;
+    console.log(`Received request to delete places and their images for place IDs: ${placeIds}`);
+
+    if (!Array.isArray(placeIds) || placeIds.length === 0) {
+        return res.status(400).json({ error: 'placeIds must be a non-empty array' });
+    }
 
     try {
-        const place = await Place.findByPk(placeId);
-        console.log(`Place found: ${place ? place.name_eng : 'Not found'}`);
+        for (const placeId of placeIds) {
+            const place = await Place.findByPk(placeId);
+            console.log(`Place found: ${place ? place.name_eng : 'Not found'}`);
 
-        if (!place) {
-            console.log(`Place not found for ID: ${placeId}`);
-            return res.status(404).json({ error: `Place ${placeId} not found` });
-        }
-
-        if (!place.checked) {
-            console.log(`Place with ID ${placeId} has not been checked yet`);
-            return res.status(400).json({ error: `Place ${place.name_eng} - ${place.id_tomexplore} has not been checked yet` });
-        }
-
-        const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
-        console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
-
-        try {
-            if (fs.existsSync(folderPath)) {
-                console.log(`Folder exists: ${folderPath}`);
-                FileController.deleteFolderRecursiveHelper(folderPath);
-                console.log(`Deleted folder: ${folderPath}`);
-            } else {
-                console.log(`Folder does not exist: ${folderPath}`);
+            if (!place) {
+                console.log(`Place not found for ID: ${placeId}`);
+                continue;
             }
+            const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
+            console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
 
-            await Image.destroy({
-                where: { place_id: place.id_tomexplore }
-            });
-            console.log(`Deleted images for place ID: ${place.id_tomexplore}`);
+            try {
+                if (fs.existsSync(folderPath)) {
+                    console.log(`Folder exists: ${folderPath}`);
+                    FileController.deleteFolderRecursiveHelper(folderPath);
+                    console.log(`Deleted folder: ${folderPath}`);
+                } else {
+                    console.log(`Folder does not exist: ${folderPath}`);
+                }
 
-            await Place.destroy({
-                where: { id_tomexplore: place.id_tomexplore }
-            });
-            console.log(`Deleted place with ID: ${place.id_tomexplore}`);
+                await Image.destroy({
+                    where: { place_id: place.id_tomexplore }
+                });
+                console.log(`Deleted images for place ID: ${place.id_tomexplore}`);
 
-            res.status(200).json({ message: 'Checked place and its images successfully deleted.' });
-        } catch (error) {
-            console.error('Error deleting files for place ID:', placeId, error);
-            return res.status(500).json({ error: 'Internal server error while deleting files' });
+                await Place.destroy({
+                    where: { id_tomexplore: place.id_tomexplore }
+                });
+                console.log(`Deleted place with ID: ${place.id_tomexplore}`);
+            } catch (error) {
+                console.error(`Error deleting files for place ID: ${placeId}`, error);
+                return res.status(500).json({ error: `Internal server error while deleting files for place ID: ${placeId}` });
+            }
         }
+
+        res.status(200).json({ message: 'Places and their images successfully deleted.' });
     } catch (error) {
-        console.error('Error deleting checked place and its images by ID:', error);
+        console.error('Error deleting places and their images by IDs:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+
+
 export const getAllPlacesToBeDeleted = async (req: Request, res: Response) => {
     try {
         const places = await Place.findAll({
             where: { to_be_deleted: true },
+        });
+        if (!places.length) {
+            return res.status(404).json({ error: 'No places to be deleted found' });
+        }
+        const response = places.map(place => {
+            return {
+                place_id: place.id_tomexplore,
+            };
+        });
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching places to be deleted:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const getAllPlacesNeedingAttention = async (req: Request, res: Response) => {
+    try {
+        const places = await Place.findAll({
+            where: { needs_attention: true },
         });
         if (!places.length) {
             return res.status(404).json({ error: 'No places to be deleted found' });

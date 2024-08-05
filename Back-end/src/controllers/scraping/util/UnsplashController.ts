@@ -31,7 +31,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
         console.log("Using proxy: " + proxy.address);
 
         browser = await puppeteer.launch({
-            headless: true,
+            headless: "new",
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

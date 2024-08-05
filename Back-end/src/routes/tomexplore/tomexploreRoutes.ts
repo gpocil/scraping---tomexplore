@@ -10,7 +10,7 @@ const router = Router();
  * /api/texplore/getCheckedPlace/{placeId}:
  *   get:
  *     summary: Retrieve all verified images for a given place by its ID
- *     tags: [Get Checked Places]
+ *     tags: [Get Places]
  *     parameters:
  *       - in: path
  *         name: placeId
@@ -52,7 +52,7 @@ router.get('/getCheckedPlace/:placeId', tomexploreController.getAllCheckedImages
  * /api/texplore/getCheckedCity/{cityName}:
  *   get:
  *     summary: Retrieve all verified places and their images for a given city
- *     tags: [Get Checked Places]
+ *     tags: [Get Places]
  *     parameters:
  *       - in: path
  *         name: cityName
@@ -107,29 +107,36 @@ router.get('/getCheckedPlace/:placeId', tomexploreController.getAllCheckedImages
  *         description: Internal server error
  */
 router.get('/getCheckedCity/:cityName', tomexploreController.getCheckedPlacesByCity);
-
 /**
  * @swagger
- * /api/texplore/deletePlace/{placeId}:
+ * /api/texplore/deletePlaces:
  *   delete:
- *     summary: Delete a verified place and its images by place ID
+ *     summary: Delete verified places and their images by place IDs
  *     tags: [Delete Checked Places]
- *     parameters:
- *       - in: path
- *         name: placeId
- *         schema:
- *           type: integer
- *         required: true
- *         description: ID of the place
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               placeIds:
+ *                 type: array
+ *                 items:
+ *                   type: integer
+ *             required:
+ *               - placeIds
  *     responses:
  *       200:
- *         description: Verified place and its images successfully deleted
+ *         description: Verified places and their images successfully deleted
+ *       400:
+ *         description: placeIds must be a non-empty array
  *       404:
  *         description: Place not found or not verified
  *       500:
  *         description: Internal server error
  */
-router.delete('/deletePlace/:placeId', tomexploreController.deleteCheckedPlaceById);
+router.delete('/deletePlaces', tomexploreController.deleteCheckedPlacesByIds);
 
 /**
  * @swagger
@@ -159,7 +166,7 @@ router.delete('/deleteCity/:cityName', tomexploreController.deleteCheckedPlacesB
  * /api/texplore/getAllPlacesToBeDeleted:
  *   get:
  *     summary: Retrieve all places marked to be deleted
- *     tags: [Get Places To Be Deleted]
+ *     tags: [Get Places]
  *     responses:
  *       200:
  *         description: List of places to be deleted
@@ -293,8 +300,8 @@ router.post('/google_attributes', GoogleController.fetchGoogleBusinessAttributes
  * @swagger
  * /api/texplore/getAllCheckedPlaces:
  *   get:
- *     summary: Retrieve all checked places
- *     tags: [Get Checked Places]
+ *     summary: Retrieve all verified places
+ *     tags: [Get Places]
  *     responses:
  *       200:
  *         description: List of all checked places
@@ -342,5 +349,30 @@ router.post('/google_attributes', GoogleController.fetchGoogleBusinessAttributes
  *         description: Internal server error
  */
 router.get('/getAllCheckedPlaces', tomexploreController.getAllCheckedPlaces);
+
+/**
+ * @swagger
+ * /api/texplore/getAllPlacesNeedingAttention:
+ *   get:
+ *     summary: Retrieve all places needing attention
+ *     tags: [Get Places]
+ *     responses:
+ *       200:
+ *         description: List of all places needing attention
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   place_id:
+ *                     type: integer
+ *       404:
+ *         description: No places needing attention found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getAllPlacesNeedingAttention', tomexploreController.getAllPlacesNeedingAttention);
 
 export default router;

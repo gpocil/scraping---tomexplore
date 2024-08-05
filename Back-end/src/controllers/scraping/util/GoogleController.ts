@@ -38,7 +38,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: "new",
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -243,7 +243,7 @@ export async function fetchGoogleBusinessAttributes(req: Request, res: Response)
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: "new",
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
