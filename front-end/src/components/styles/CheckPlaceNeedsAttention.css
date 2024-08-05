@@ -1,27 +1,34 @@
-.place-item {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 5px;
-    margin-bottom: 10px;
-    padding: 15px;
-    transition: transform 0.2s, background-color 0.2s;
+.image-container {
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s;
 }
 
-.place-item:hover {
+.image-container:hover {
     transform: scale(1.02);
-    background-color: #e9ecef;
 }
 
-.place-item span {
-    font-size: 1.2rem;
-    font-weight: 500;
+.image-container.selected-delete .selected-overlay {
+    background-color: rgba(255, 0, 0, 0.5);
+    /* Red highlight */
 }
 
-.place-item .btn-warning {
-    background-color: #ffc107;
-    border: none;
+.image-container.selected-top .selected-overlay {
+    background-color: rgba(0, 0, 255, 0.5);
+    /* Blue highlight */
 }
 
-.place-item .btn-warning:hover {
-    background-color: #e0a800;
+.selected-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: bold;
+    color: white;
+    transition: background-color 0.3s;
 }

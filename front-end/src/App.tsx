@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import { PlaceProvider } from './context/PlacesContext';
 import { UserProvider, useUser } from './context/UserContext';
 import HomePage from './components/HomePage';
@@ -7,6 +7,7 @@ import Login from './components/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import PlacesNeedingAttention from './components/PlacesNeedingAttention';
 import CheckPlaceNeedsAttention from './components/CheckPlaceNeedsAttention';
+import { IPlace } from './model/Interfaces';
 
 const App: React.FC = () => {
   return (
@@ -24,7 +25,12 @@ const App: React.FC = () => {
                     <Route path="/city/:countryName/:cityName" element={<HomePage />} />
                     <Route path="/place/:place_id" element={<HomePage />} />
                     <Route path="/places-needing-attention" element={<PlacesNeedingAttention />} />
-                    <Route path="/check-place/:placeId" element={<CheckPlaceNeedsAttention />} />
+                    <Route
+                      path="/check-place/:placeId"
+                      element={
+                        <CheckPlaceNeedsAttentionWrapper />
+                      }
+                    />
                   </Routes>
                 </RequireAuth>
               }
@@ -34,6 +40,17 @@ const App: React.FC = () => {
       </PlaceProvider>
     </UserProvider>
   );
+};
+
+const CheckPlaceNeedsAttentionWrapper: React.FC = () => {
+  const location = useLocation();
+  const place = location.state?.place as IPlace;
+
+  if (!place) {
+    return <div>Place not found</div>;
+  }
+
+  return <CheckPlaceNeedsAttention place={place} />;
 };
 
 const RequireAuth: React.FC<{ children: JSX.Element }> = ({ children }) => {

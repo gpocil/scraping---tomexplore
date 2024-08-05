@@ -1,16 +1,21 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { usePlaces } from '../context/PlacesContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { IPlace, IImage } from '../model/Interfaces';
 import apiClient from '../util/apiClient';
 import UploadPhotosModal from './UploadPhotosModal';
 import { Button, Container, Row, Col } from 'react-bootstrap';
 import './styles/CheckPlaceNeedsAttention.css';
+import { usePlaces } from '../context/PlacesContext';
 
-const CheckPlaceNeedsAttention: React.FC = () => {
-    const { placeId } = useParams<{ placeId: string }>();
-    const { findPlaceById, updatePlaces } = usePlaces();
+interface CheckPlaceNeedsAttentionProps {
+    place: IPlace;
+}
+
+const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const place = (location.state as { place: IPlace }).place;
+    const { updatePlaces } = usePlaces();
 
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -18,24 +23,12 @@ const CheckPlaceNeedsAttention: React.FC = () => {
     const [isSettingTop, setIsSettingTop] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
 
-    const place: IPlace | undefined = useMemo(() => {
-        console.log('useMemo called with placeId:', placeId);
-        const foundPlace = findPlaceById(Number(placeId));
-        console.log('Found place:', foundPlace);
-        return foundPlace;
-    }, [findPlaceById, placeId]);
-
     useEffect(() => {
         console.log('Component mounted');
         return () => {
             console.log('Component unmounted');
         };
     }, []);
-
-    if (!placeId || !place) {
-        console.log('No place found for placeId:', placeId);
-        return <Container className="mt-5">Lieu non trouvé</Container>;
-    }
 
     const handleImageClick = (image: IImage) => {
         console.log('Image clicked:', image);
@@ -95,6 +88,7 @@ const CheckPlaceNeedsAttention: React.FC = () => {
                 setTopImages([]);
                 place.checked = true;
                 updatePlaces();
+                handleBackClick();
             }
         } catch (error) {
             console.error('Error setting top images:', error);
@@ -190,9 +184,9 @@ const CheckPlaceNeedsAttention: React.FC = () => {
 
                     <Row>
                         {place.images.map((image, index) => (
-                            <Col md={4} key={index} className="mb-4 image-container">
+                            <Col md={4} key={index} className="mb-4">
                                 <div
-                                    className={`image-wrapper ${selectedImages.includes(image) ? 'selected-delete' : ''} ${topImages.includes(image) ? 'selected-top' : ''}`}
+                                    className={`image-container ${selectedImages.includes(image) ? 'selected-delete' : ''} ${topImages.includes(image) ? 'selected-top' : ''}`}
                                     onClick={() => handleImageClick(image)}
                                 >
                                     <img src={image.url} className="img-fluid rounded" />

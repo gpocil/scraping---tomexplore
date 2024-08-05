@@ -3,7 +3,7 @@ import { usePlaces } from '../context/PlacesContext';
 import { IPlace } from '../model/Interfaces';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './styles/PlacesNeedingAttention.css'; // Custom CSS file
+import './styles/PlacesNeedingAttention.css';
 
 const PlacesNeedingAttention: React.FC = () => {
     const { data: places } = usePlaces();
@@ -42,10 +42,13 @@ const PlacesNeedingAttention: React.FC = () => {
                 <div className="d-flex justify-content-center">
                     <ul className="list-group place-list">
                         {placesNeedingAttention.map(place => (
-                            <li key={place.place_id} className="list-group-item place-item">
-                                <a href={`/check-place/${place.place_id}`} className="place-link">
-                                    {place.place_id} - {place.place_name}
-                                </a>
+                            <li
+                                key={place.place_id}
+                                className="list-group-item place-item"
+                                onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                {place.place_id} - {place.place_name}
                             </li>
                         ))}
                     </ul>
