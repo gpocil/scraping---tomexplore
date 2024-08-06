@@ -62,7 +62,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     }
 
     await page.waitForSelector('div.photo');
-
     console.log('Image container detected');
 
     const targetDivSelector = '.box-photo';
@@ -83,18 +82,25 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
           const loadMoreButton = await page.$('button.pagination-failed-retry');
           if (loadMoreButton) {
             console.log('Clicking "Load More" button');
-            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton); // Modifier le style pour rendre le bouton cliquable
+            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton); // Modify style to make the button clickable
             await loadMoreButton.click();
-            await page.waitForTimeout(823); // Attendre le chargement
+            await page.waitForTimeout(823); // Wait for loading
             attempts++;
-            continue; // Passer à la prochaine tentative sans scroller
+            continue; // Proceed to the next attempt without scrolling
+          }
+
+          const showMorePostsButton = await page.$('button.x1lugfcp');
+          if (showMorePostsButton) {
+            console.log('Clicking "Show more posts" button');
+            await page.evaluate((btn) => btn.click(), showMorePostsButton); // Click "Show more posts" button
+            await page.waitForTimeout(823); // Wait for loading
+            attempts++;
+            continue; // Proceed to the next attempt without scrolling
           }
         }
 
         for (let i = 0; i < 3; i++) {
-          await page.mouse.wheel({
-            deltaY: 1000,
-          });
+          await page.mouse.wheel({ deltaY: 1000 });
           console.log(`Scrolled down ${i + 1} times`);
           await page.waitForTimeout(482);
         }
