@@ -94,7 +94,7 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                         needs_attention: true,
                         folder: id_tomexplore,
                         google_maps_link,
-                        instagram_link: "https://instagram.com/" + instagram_username,
+                        instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
                         wikipedia_link: '',
                         details: errors.toString(),
                         last_modification: new Date()
@@ -118,7 +118,7 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                     checked: false, // Assuming 'done' is a required field, set to false by default
                     folder: id_tomexplore,
                     google_maps_link,
-                    instagram_link: "https://instagram.com/" + instagram_username,
+                    instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
                     wikipedia_link: '',
                     last_modification: new Date()
                 });
@@ -268,7 +268,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                         google_maps_link,
                         unsplash_link: unsplashResult.link,
                         wikipedia_link: wikipediaUrl,
-                        instagram_link: "https://www.instagram.com/" + instagram_username,
+                        instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
                         details: errors.toString(),
                         last_modification: new Date()
                     });
@@ -291,7 +291,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                     folder: id_tomexplore,
                     google_maps_link,
                     unsplash_link: unsplashResult.link,
-                    instagram_link: "https://www.instagram.com/" + instagram_username,
+                    instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
                     wikipedia_link: wikipediaUrl,
                     last_modification: new Date()
 
