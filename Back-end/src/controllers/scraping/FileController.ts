@@ -101,15 +101,27 @@ export async function downloadPhotosBusiness(id_tomexplore: number, instagramIma
 
 interface ImageUrl {
     url: string;
-    license: string;
-    author: string;
+    license?: string;
+    author?: string;
     generatedName: string;
 }
 
-export async function downloadPhotosTouristAttraction(name_en: string, id_tomexplore: number, wikiMediaUrls: { urls: [string, string, string][]; count: number }, unsplashUrls: { urls: [string, string, string][]; count: number } = { urls: [], count: 0 }): Promise<{ downloadDir: string, imageCount: number, imageNames: string[] }> {
+export async function downloadPhotosTouristAttraction(
+    id_tomexplore: number,
+    wikiMediaUrls: { urls: [string, string, string][]; count: number },
+    unsplashUrls: { urls: [string, string, string][]; count: number },
+    instagramImages: { urls: string[], count: number } = { urls: [], count: 0 }
+): Promise<{ downloadDir: string, imageCount: number, imageNames: string[] }> {
     const imageUrls: ImageUrl[] = [
-        ...wikiMediaUrls.urls.map(([url, license, author]) => ({ url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` })),
-        ...unsplashUrls.urls.map(([url, license, author]) => ({ url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` }))
+        ...wikiMediaUrls.urls.map(([url, license, author]) => ({
+            url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+        })),
+        ...unsplashUrls.urls.map(([url]) => ({
+            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+        })),
+        ...instagramImages.urls.map(url => ({
+            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+        }))
     ];
 
     const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
@@ -117,7 +129,7 @@ export async function downloadPhotosTouristAttraction(name_en: string, id_tomexp
     if (imageUrls.length > 0) {
         fs.mkdirSync(downloadDir, { recursive: true });
 
-        const photosWithLicenses: { filename: string; license: string }[] = [];
+        const photosWithLicenses: { filename: string; license?: string }[] = [];
         const imageNames: string[] = [];
 
         await Promise.all(imageUrls.map(async ({ url, license }, index) => {
@@ -133,21 +145,23 @@ export async function downloadPhotosTouristAttraction(name_en: string, id_tomexp
                 }
                 await sharp(imageBuffer).toFile(outputPath);
 
-                // Add the photo and its license to the list
-                photosWithLicenses.push({ filename, license });
+                // Add the photo and its license (if available) to the list
+                if (license) {
+                    photosWithLicenses.push({ filename, license });
+                } else {
+                    photosWithLicenses.push({ filename });
+                }
                 imageNames.push(filename);
             } catch (error) {
                 console.error(`Failed to download image at ${url}:`, error);
             }
         }));
 
-
         console.log('download dir : ' + downloadDir);
         return { downloadDir, imageCount: imageUrls.length, imageNames };
     }
     return { downloadDir: '', imageCount: 0, imageNames: [] };
 }
-
 
 export async function deleteImages(imageIds: number[]): Promise<void> {
     // Include Place model to access the folder property

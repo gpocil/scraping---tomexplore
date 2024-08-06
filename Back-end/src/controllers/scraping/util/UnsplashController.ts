@@ -60,7 +60,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
         });
 
         // Attendre le chargement des images après le défilement
-        await page.waitForTimeout(2000);
+        await page.waitForTimeout(1323);
 
         const imageUrls = await page.evaluate(() => {
             const images: [string, string, string][] = [];

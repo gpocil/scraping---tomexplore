@@ -89,14 +89,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
             continue; // Proceed to the next attempt without scrolling
           }
 
-          const showMorePostsButton = await page.$('button.x1lugfcp');
-          if (showMorePostsButton) {
-            console.log('Clicking "Show more posts" button');
-            await page.evaluate((btn) => btn.click(), showMorePostsButton); // Click "Show more posts" button
-            await page.waitForTimeout(823); // Wait for loading
-            attempts++;
-            continue; // Proceed to the next attempt without scrolling
-          }
         }
 
         for (let i = 0; i < 3; i++) {
