@@ -76,7 +76,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
       let imageUrls: string[] = [];
       let attempts = 0;
-      const maxAttempts = 2;
+      const maxAttempts = 4;
 
       while (attempts < maxAttempts) {
         if (imageUrls.length === 12) {
@@ -85,7 +85,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
             console.log('Clicking "Load More" button');
             await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton); // Modifier le style pour rendre le bouton cliquable
             await loadMoreButton.click();
-            await page.waitForTimeout(2000); // Attendre le chargement
+            await page.waitForTimeout(823); // Attendre le chargement
             attempts++;
             continue; // Passer à la prochaine tentative sans scroller
           }
