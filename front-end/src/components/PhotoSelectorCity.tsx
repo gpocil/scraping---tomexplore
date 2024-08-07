@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './NeedsAttentionModal'; // Import du modal
+import { Spinner } from 'react-bootstrap';
 
 interface PhotoSelectorCityProps {
     places: IPlace[];
@@ -15,18 +16,32 @@ interface PhotoSelectorCityProps {
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
     const navigate = useNavigate();
     const { checkCookie } = useUser();
+    const { updatePlaces } = usePlaces();
     const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
+    const currentPlace = places[currentPlaceIndex];
+    const totalImages = currentPlace?.images?.length || 0;
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isCityComplete, setIsCityComplete] = useState(false);
     const [showModal, setShowModal] = useState(false); // État pour afficher le modal
+    const [showInstagramInput, setShowInstagramInput] = useState(false);
+    const [instagramLink, setInstagramLink] = useState(currentPlace?.instagram_link || '');
+    const [isScraping, setIsScraping] = useState(false);
 
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
         }
     }, [checkCookie, navigate]);
+
+    useEffect(() => {
+        updatePlaces();
+    }, [isScraping]);
+
+    useEffect(() => {
+        setInstagramLink(currentPlace?.instagram_link || '');
+    }, [currentPlaceIndex, currentPlace?.instagram_link]);
 
     const handleNext = () => {
         if (currentPlaceIndex < places.length - 1) {
@@ -132,6 +147,30 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         setIsStepOne(true);
     };
 
+    const generateGoogleSearchUrl = (placeName: string, cityName: string): string => {
+        const query = `${placeName} ${cityName} instagram`.replace(/\s+/g, '+');
+        return `https://www.google.com/search?q=${query}`;
+    };
+
+    const handleInstagramUpdate = async () => {
+        setIsScraping(true);
+        try {
+            const response = await apiClient.post('/front/updateInstagram', {
+                place_id: currentPlace?.place_id,
+                instagram_link: instagramLink
+            });
+
+            if (response.status === 200) {
+                alert('Images Instagram récupérées');
+            }
+        } catch (error) {
+            console.error('Error updating Instagram:', error);
+            alert('Failed to update Instagram');
+        } finally {
+            setIsScraping(false);
+        }
+    };
+
     if (!cityName) {
         return <div>Error: Invalid city name.</div>;
     }
@@ -140,15 +179,12 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         return <div>Error: No places found for the given city.</div>;
     }
 
-    const currentPlace = places[currentPlaceIndex];
-    const totalImages = currentPlace?.images?.length || 0;
-
     if (isCityComplete) {
         return (
             <div className="container mt-5 text-center">
-                <h1>Ville terminée</h1>
+                <h1>Ville terminée 🥂</h1>
                 <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
-                    Accueil
+                    🏠 Accueil
                 </button>
             </div>
         );
@@ -157,37 +193,40 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <h1>PhotoselectorCity</h1>
                 <button className="btn btn-primary" onClick={() => navigate('/')}>
-                    Home
+                    🏠 Accueil
                 </button>
                 <h2>{cityName}</h2>
             </div>
             <h4 className="mb-4">{currentPlace?.place_name}</h4>
+            <span className="mb-3" style={{ fontSize: '1.5em' }}>
+                {currentPlace?.type === 'Business' ? '🍺 Bar/Restaurant' : '🏛️ Attraction touristique'}
+            </span>
+
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <button className="btn btn-secondary" onClick={handlePrev} disabled={currentPlaceIndex === 0}>
-                    Previous
+                    ⬅️ Précédent
                 </button>
                 <div className="text-center">
                     <h4>
                         {currentPlaceIndex + 1} / {places.length}
                     </h4>
                     <h3 className={`mb-4 ${isStepOne ? 'text-danger' : 'text-primary'}`}>
-                        {isStepOne ? 'Supprimer les images' : 'Sélectionner le top 3'}
+                        {isStepOne ? '🗑️ Supprimer les images' : '⭐ Sélectionner le top 3'}
                     </h3>
                 </div>
                 <div className="mt-4">
                     <button className="btn btn-warning mt-3" onClick={handleSetNeedsAttention}>
-                        Problème avec ce lieu ❌
+                        ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
                         selectedImages.length === 0 ? (
                             <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)}>
-                                Aucune image à supprimer
+                                Aucune image à supprimer 👍
                             </button>
                         ) : (
                             <button className="btn btn-danger mt-3" onClick={handleDeleteImages}>
-                                Supprimer les images
+                                Supprimer les images ❌
                             </button>
                         )
                     ) : (
@@ -196,7 +235,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                             onClick={handleSelectTop}
                             disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3}
                         >
-                            Confirmer le Top 3 & Lieu suivant
+                            Confirmer le Top 3 & Lieu suivant ✅
                         </button>
                     )}
                 </div>
@@ -230,15 +269,70 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                             </div>
                         </div>
                     </div>
-                    <div className="col-md-4 d-flex flex-column">
-                        <div className="flex-grow-1 mb-3 w-100" style={{ height: '90%' }}>
+                    <div className="col-md-4 d-flex flex-column" style={{ height: '70vh' }}>
+                        <div className="flex-grow-1 mb-3 w-100" style={{ height: '80%' }}>
                             <div className="embed-responsive embed-responsive-16by9 h-100 w-100">
-                                <iframe
-                                    className="embed-responsive-item h-100 w-100"
-                                    src={currentPlace?.wikipedia_link}
-                                    title="Wikipedia"
-                                    allowFullScreen
-                                />
+                                {currentPlace.type === 'Business' ? (
+                                    currentPlace.instagram_link ? (
+                                        <iframe
+                                            className="embed-responsive-item h-100 w-100"
+                                            src={`${currentPlace.instagram_link}/embed`}
+                                            title="Instagram"
+                                            allowFullScreen
+                                        />
+                                    ) : (
+                                        <div className="h-100 d-flex flex-column align-items-center justify-content-center">
+                                            <h4>🚨 Pas d'Instagram trouvé</h4>
+                                            <button
+                                                className="btn btn-secondary mt-3"
+                                                onClick={() => {
+                                                    const url = generateGoogleSearchUrl(currentPlace.place_name, cityName);
+                                                    window.open(url, '_blank');
+                                                }}
+                                            >
+                                                📷 Rechercher Instagram
+                                            </button>
+                                            <button
+                                                className="btn btn-secondary mt-3"
+                                                onClick={() => setShowInstagramInput(!showInstagramInput)}
+                                            >
+                                                {showInstagramInput ? '❌ Annuler' : '📸 Mettre à jour Instagram'}
+                                            </button>
+                                            {showInstagramInput && (
+                                                <div className="mt-3">
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        value={instagramLink}
+                                                        onChange={(e) => setInstagramLink(e.target.value)}
+                                                        placeholder="Enter new Instagram link"
+                                                    />
+                                                    <button
+                                                        className="btn btn-primary mt-3"
+                                                        onClick={handleInstagramUpdate}
+                                                        disabled={isScraping}
+                                                    >
+                                                        {isScraping ? (
+                                                            <div className="d-flex align-items-center">
+                                                                <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                                                                <span className="ml-2">⚠️ Recherche en cours, patienter !</span>
+                                                            </div>
+                                                        ) : (
+                                                            'Mettre à jour Instagram'
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                ) : (
+                                    <iframe
+                                        className="embed-responsive-item h-100 w-100"
+                                        src={currentPlace?.wikipedia_link}
+                                        title="Wikipedia"
+                                        allowFullScreen
+                                    />
+                                )}
                             </div>
                         </div>
                         <div className="flex-grow-2 w-100" style={{ height: '10%' }}>

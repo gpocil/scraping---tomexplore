@@ -25,6 +25,7 @@ interface PlaceResponse {
     checked: Boolean;
     needs_attention: Boolean | undefined;
     details?: string;
+    type?: string
 }
 
 interface CityResponse {
@@ -117,7 +118,8 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                         })),
                         checked: place.checked,
                         needs_attention: place.needs_attention,
-                        details: place.details
+                        details: place.details,
+                        type: place.type
                     };
 
                     if (!response[checkedStatus][country.name][city.name][place.name_eng]) {

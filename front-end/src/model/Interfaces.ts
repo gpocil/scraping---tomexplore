@@ -13,6 +13,7 @@ export interface IPlace {
     google_maps_link?: string;
     unsplash_link?: string;
     instagram_link?: string;
+    type?: string;
     checked?: boolean;
     needs_attention?: boolean;
     to_be_deleted?: boolean;
