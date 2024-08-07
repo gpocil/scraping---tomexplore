@@ -62,6 +62,10 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
         }
     };
+    const generateGoogleSearchUrl = (placeName: string, cityName: string): string => {
+        const query = `${placeName} ${cityName} instagram`.replace(/\s+/g, '+');
+        return `https://www.google.com/search?q=${query}`;
+    };
 
     const handleDeleteImages = async () => {
         console.log('Deleting images:', selectedImages);
@@ -209,6 +213,13 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
                         📤 Uploader des photos
                     </Button>
+                    <Button className="mb-3 w-100" variant="success" onClick={() => {
+                        const url = generateGoogleSearchUrl(place.place_name, "");
+                        window.open(url, '_blank');
+                    }}>
+                        📷 Rechercher Instagram
+                    </Button>
+
                     <Button className="mb-3 w-100" variant="info" onClick={() => setShowInstagramInput(!showInstagramInput)}>
                         {showInstagramInput ? '❌ Annuler' : '📸 Mettre l\'Instagram à jour'}
                     </Button>
