@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { IResponseStructure, IPlace } from '../model/Interfaces';
 import PhotoSelectorCity from './PhotoSelectorCity';
@@ -17,6 +17,7 @@ const HomePage: React.FC = () => {
     const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
     const [viewChecked, setViewChecked] = useState(false); // New state for toggling view
     const navigate = useNavigate();
+    const location = useLocation(); // Ajout de useLocation
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -31,6 +32,12 @@ const HomePage: React.FC = () => {
     useEffect(() => {
         updatePlaces();
     }, []);
+
+    useEffect(() => {
+        if (location.pathname === '/' || location.pathname === "") {
+            setSelectedPlace(null);
+        }
+    }, [location]);
 
     useEffect(() => {
         if (searchQuery) {

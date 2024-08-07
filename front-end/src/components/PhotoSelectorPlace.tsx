@@ -169,7 +169,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     return (
         <div className="container mt-5" key={updateCounter}>
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <button className="btn btn-primary" onClick={() => navigate('/')}>
+                <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
                     🏠 Accueil
                 </button>
                 <h2>{place.place_name}</h2>

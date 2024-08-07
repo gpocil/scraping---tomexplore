@@ -18,16 +18,17 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const { checkCookie } = useUser();
     const { updatePlaces } = usePlaces();
     const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
-    const currentPlace = places[currentPlaceIndex];
-    const totalImages = currentPlace?.images?.length || 0;
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isCityComplete, setIsCityComplete] = useState(false);
     const [showModal, setShowModal] = useState(false); // État pour afficher le modal
     const [showInstagramInput, setShowInstagramInput] = useState(false);
-    const [instagramLink, setInstagramLink] = useState(currentPlace?.instagram_link || '');
+    const [instagramLink, setInstagramLink] = useState('');
     const [isScraping, setIsScraping] = useState(false);
+
+    const currentPlace = places[currentPlaceIndex];
+    const totalImages = currentPlace?.images?.length || 0;
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -198,9 +199,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 </button>
                 <h2>{cityName}</h2>
             </div>
-            <h4 className="mb-4">{currentPlace?.place_name}</h4>
+            <h4 className="mb-4">{currentPlace?.place_name} - {currentPlace?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
             <span className="mb-3" style={{ fontSize: '1.5em' }}>
-                {currentPlace?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}
             </span>
 
             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -272,7 +272,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                     <div className="col-md-4 d-flex flex-column" style={{ height: '70vh' }}>
                         <div className="flex-grow-1 mb-3 w-100" style={{ height: '80%' }}>
                             <div className="embed-responsive embed-responsive-16by9 h-100 w-100">
-                                {currentPlace.type === 'Business' ? (
+                                {currentPlace?.type === 'Business' ? (
                                     currentPlace.instagram_link ? (
                                         <iframe
                                             className="embed-responsive-item h-100 w-100"
