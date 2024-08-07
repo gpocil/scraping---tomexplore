@@ -200,7 +200,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             </div>
             <h4 className="mb-4">{currentPlace?.place_name}</h4>
             <span className="mb-3" style={{ fontSize: '1.5em' }}>
-                {currentPlace?.type === 'Business' ? '🍺 Bar/Restaurant' : '🏛️ Attraction touristique'}
+                {currentPlace?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}
             </span>
 
             <div className="d-flex justify-content-between align-items-center mb-3">
