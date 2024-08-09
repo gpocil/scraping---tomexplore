@@ -5,6 +5,7 @@ import City from './City';
 class Place extends Model {
     public id_tomexplore!: number;
     public name_eng!: string;
+    public name_original?: string;
     public type!: string;
     public city_id!: number;
     public checked!: boolean;
@@ -29,6 +30,10 @@ Place.init({
     name_eng: {
         type: DataTypes.STRING,
         allowNull: false
+    },
+    name_original: {
+        type: DataTypes.STRING,
+        allowNull: true
     },
     type: {
         type: DataTypes.STRING,

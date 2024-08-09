@@ -17,6 +17,7 @@ interface ImageResponse {
 interface PlaceResponse {
     place_id: number;
     place_name: string;
+    place_name_original?: string;
     wikipedia_link?: string;
     google_maps_link: string;
     instagram_link?: string;
@@ -107,6 +108,7 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                     const placeResponse: PlaceResponse = {
                         place_id: place.id_tomexplore,
                         place_name: place.name_eng,
+                        place_name_original: place.name_original,
                         wikipedia_link: place.wikipedia_link || '',
                         google_maps_link: place.google_maps_link || '',
                         instagram_link: place.instagram_link || '',

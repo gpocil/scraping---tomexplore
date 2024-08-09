@@ -174,7 +174,9 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 </button>
                 <h2>{place.place_name}</h2>
             </div>
-            <h4 className="mb-4">{place.place_name}</h4>
+            <h4 className="mb-4">{place?.place_name} - {place?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
+            <h5 className="mb-4">Nom original : {place?.place_name_original}</h5>
+
             <span className="mb-3" style={{ fontSize: '1.5em' }}>
                 {place?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}
             </span>

@@ -199,6 +199,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
         let unsplashResult: ImageResultTourist = { urls: [], count: 0, link: '' };
         let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
         let wikipediaUrl: string = '';
+        let originalName:string = '';
         let errors: string[] = [];
 
         try {
@@ -216,8 +217,14 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
 
             // Fetch Wikimedia Images
             try {
-                wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
-                wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName } } as Request);
+                originalName = await GoogleController.getOriginalName({ body: { name_eng: name_en, country: countryName } } as Request);
+                if (originalName !== '') { //Recherche avec nom original si possible
+                    wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName } } as Request);
+                    wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName } } as Request);
+                } else {
+                    wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
+                    wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName } } as Request);
+                }
 
                 if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
             } catch (error: any) {
@@ -259,7 +266,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                     place = await Place.create({
                         id_tomexplore,
                         name_eng: name_en,
-                        name_fr,
+                        name_original: originalName !== '' ? originalName : null,
                         type: 'Tourist Attraction',
                         city_id: city.id,
                         checked: false,
@@ -284,7 +291,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                 place = await Place.create({
                     id_tomexplore,
                     name_eng: name_en,
-                    name_fr,
+                    name_original: originalName !== '' ? originalName : null,
                     type: 'Tourist Attraction',
                     city_id: city.id,
                     checked: false,

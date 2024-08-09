@@ -9,6 +9,7 @@ export interface IImage {
 export interface IPlace {
     place_id: number;
     place_name: string;
+    place_name_original?: string;
     wikipedia_link?: string;
     google_maps_link?: string;
     unsplash_link?: string;

@@ -237,6 +237,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 </Col>
                 <Col md={10}>
                     <h1 className="mb-4 text-center">{place.place_name}</h1>
+                    <h5 className="mb-4">Nom original : {place?.place_name_original}</h5>
 
                     {place.details && <h2 className="mb-4 text-center">🚨 {place.details}</h2>}
                     <div className="mb-4 text-center">

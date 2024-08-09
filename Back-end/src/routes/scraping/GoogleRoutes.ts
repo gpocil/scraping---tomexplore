@@ -4,6 +4,8 @@ const router = Router();
 
 router.post('/google', GoogleController.fetchGoogleImgsFromBusinessPage);
 router.post('/google_attributes', GoogleController.fetchGoogleBusinessAttributes);
+router.post('/original_name', GoogleController.getOriginalName);
+
 
 
 

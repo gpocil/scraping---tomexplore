@@ -200,6 +200,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 <h2>{cityName}</h2>
             </div>
             <h4 className="mb-4">{currentPlace?.place_name} - {currentPlace?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
+            <h5 className="mb-4">Nom original : {currentPlace?.place_name_original}</h5>
+
             <span className="mb-3" style={{ fontSize: '1.5em' }}>
             </span>
 

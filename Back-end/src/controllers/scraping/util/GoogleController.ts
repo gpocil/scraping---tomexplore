@@ -1,8 +1,9 @@
 import { Request, Response } from 'express';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { Page } from 'puppeteer';
+import { Browser, Page } from 'puppeteer';
 import * as ProxyController from '../ProxyController';
+import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
@@ -342,4 +343,113 @@ async function scrapeAttributes(page: Page): Promise<{ [key: string]: number }> 
     console.error(`Error scraping attributes: ${scrapeError.message}`);
     throw new Error(`Error scraping attributes: ${scrapeError.message}`);
   }
+}
+
+export async function getOriginalName(req: Request, res?: Response): Promise<string> {
+    let browser: Browser | null = null;
+
+    try {
+        const { name_eng, country } = req.body;
+
+        if (!name_eng || !country) {
+            if (res) {
+                res.status(400).json({ error: "name_eng and country are required in the request body" });
+            }
+            throw new Error("name_eng and country are required in the request body");
+        }
+
+        const searchQuery = `${name_eng}+${country}`;
+        const url = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+
+        const proxy = ProxyController.getRandomProxy();
+        console.log("Using proxy: " + proxy.address);
+
+        browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--start-fullscreen',
+                `--proxy-server=${proxy.address}`,
+            ],
+        });
+        console.log('Browser launched');
+        const page = await browser.newPage();
+        console.log('New page opened');
+
+        await page.authenticate({ username: proxy.username, password: proxy.pw });
+        console.log('Proxy authenticated');
+
+        await page.goto(url, { waitUntil: 'networkidle2' });
+        console.log('Page navigated to URL');
+
+        await handleConsentPage(page);
+        console.log('Consent page handled');
+
+        await page.waitForTimeout(randomTimeout());
+        console.log('Waited for a random timeout');
+
+        let name = await page.evaluate(async () => {
+            const nameElement = document.querySelector('h2.bwoZTb.fontBodyMedium span');
+            if (nameElement) {
+                console.log('h2 element found');
+                return nameElement.textContent?.trim() || '';
+            } else {
+                console.log('h2 element not found, checking for h1');
+                const h1Element = document.querySelector('h1.DUwDvf.lfPIob');
+                if (h1Element) {
+                    console.log('h1 element found');
+                    return h1Element.textContent?.trim() || '';
+                } else {
+                    console.log('h1 element not found, checking for the first <a> with class hfpxzc');
+                    const linkElement = document.querySelectorAll('a.hfpxzc')[0];
+                    if (linkElement) {
+                        console.log('Clicking on the first <a> element with class hfpxzc');
+                        (linkElement as HTMLElement).click();
+                        return ''; // Return empty string for now, will be processed further
+                    } else {
+                        console.log('No suitable <a> element found');
+                        return 'Name not found';
+                    }
+                }
+            }
+        });
+
+        if (!name) {
+            // Wait for the page to load after clicking the link
+            await page.waitForTimeout(randomTimeout());
+            console.log('Waited after clicking the link, trying to extract name again');
+
+            name = await page.evaluate(() => {
+                const h1Element = document.querySelector('h1.DUwDvf.lfPIob');
+                if (h1Element) {
+                    console.log('h1 element found after clicking the link');
+                    return h1Element.textContent?.trim() || '';
+                } else {
+                    console.log('h1 element not found after clicking the link');
+                    return '';
+                }
+            });
+        }
+
+        console.log(`Extracted name: ${name}`);
+
+        if (res) {
+            res.json({ name });
+        }
+
+        return name;
+
+    } catch (error: any) {
+        console.error(`Error fetching original name: ${error.message}`);
+        if (res) {
+            res.status(500).json({ error: `Error fetching original name: ${error.message}` });
+        }
+        throw error;
+    } finally {
+        if (browser) {
+            await browser.close();
+            console.log('Browser closed');
+        }
+    }
 }
