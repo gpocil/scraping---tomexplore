@@ -4,6 +4,7 @@ import Country from '../../models/Country';
 import City from '../../models/City';
 import Place from '../../models/Place';
 import Image from '../../models/Image';
+import Queue from '../../models/Queue';
 import * as FileController from '../scraping/FileController'
 import path from 'path';
 
@@ -342,6 +343,41 @@ export const getAllPlacesNeedingAttention = async (req: Request, res: Response) 
         res.json(response);
     } catch (error) {
         console.error('Error fetching places to be deleted:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const setInQueue = async (req: Request, res: Response) => {
+    const placesToQueue = req.body;
+
+    if (!Array.isArray(placesToQueue) || placesToQueue.length === 0) {
+        return res.status(400).json({ error: 'Input must be a non-empty array' });
+    }
+
+    try {
+        const queueEntries = placesToQueue.map((place: any) => {
+            const type = place.hasOwnProperty('famous') ? 'tourist_attraction' : 'business'; // Set type based on the presence of 'famous'
+
+            return {
+                id_tomexplore: place.id_tomexplore,
+                name_en: place.name_en,
+                name_fr: place.name_fr || '',
+                link_maps: place.link_maps,
+                instagram_username: place.instagram_username || '',
+                address: place.address,
+                city: place.city,
+                country: place.country,
+                famous: place.famous,
+                type: type,
+                processed: false,
+            };
+        });
+
+        await Queue.bulkCreate(queueEntries);
+
+        res.status(201).json({ message: 'Places successfully added to the queue' });
+    } catch (error) {
+        console.error('Error setting places in queue:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };

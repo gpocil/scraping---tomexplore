@@ -53,7 +53,8 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                 {
                     model: Image,
                     as: 'images',
-                    attributes: ['image_name', 'id']
+                    attributes: ['image_name', 'id'],
+                    required: false,
                 },
                 {
                     model: City,

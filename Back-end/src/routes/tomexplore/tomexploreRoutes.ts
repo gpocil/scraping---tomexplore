@@ -375,4 +375,58 @@ router.get('/getAllCheckedPlaces', tomexploreController.getAllCheckedPlaces);
  */
 router.get('/getAllPlacesNeedingAttention', tomexploreController.getAllPlacesNeedingAttention);
 
+
+/**
+ * @swagger
+ * /api/texplore/setInQueue:
+ *   post:
+ *     summary: Add places to the queue
+ *     tags: [Scraping]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: array
+ *             items:
+ *               type: object
+ *               properties:
+ *                 id_tomexplore:
+ *                   type: integer
+ *                   description: Unique identifier of the place
+ *                 name_en:
+ *                   type: string
+ *                   description: English name of the place
+ *                 name_fr:
+ *                   type: string
+ *                   description: French name of the place (optional)
+ *                 famous:
+ *                   type: boolean
+ *                   description: Indicates if the place is famous (optional)
+ *                 link_maps:
+ *                   type: string
+ *                   description: Google Maps link to the place
+ *                 instagram_username:
+ *                   type: string
+ *                   description: Instagram username associated with the place (optional)
+ *                 address:
+ *                   type: string
+ *                   description: Address of the place
+ *                 city:
+ *                   type: string
+ *                   description: City where the place is located
+ *                 country:
+ *                   type: string
+ *                   description: Country where the place is located
+ *     responses:
+ *       201:
+ *         description: Places successfully added to the queue
+ *       400:
+ *         description: Input must be a non-empty array
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/setInQueue', tomexploreController.setInQueue);
+
+
 export default router;

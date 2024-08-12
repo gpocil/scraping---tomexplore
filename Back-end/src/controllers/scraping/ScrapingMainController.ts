@@ -16,13 +16,18 @@ interface ImageResultBusiness {
     error?: string;
 }
 
-export async function getPhotosBusiness(req: Request, res: Response): Promise<void> {
-    const places = req.body; // Supposons que req.body soit un tableau d'objets
+export async function getPhotosBusiness(req?: Request, res?: Response): Promise<any> {
+    const places = req ? req.body : [];
 
     if (!Array.isArray(places) || places.length === 0) {
-        res.status(400).json({ error: 'Expected an array of places' });
-        return;
+        const error = 'Expected an array of places';
+        console.log(error);
+        if (res) {
+            res.status(400).json({ error });
+        }
+        return { error };
     }
+
 
     const tasks = places.map(async (placeData) => {
         const {
@@ -96,11 +101,17 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
                         google_maps_link,
                         instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
                         wikipedia_link: '',
-                        details: errors.toString(),
+                        details: errors.join(', '),
                         last_modification: new Date()
-
+                    });
+                } else {
+                    await place.update({
+                        needs_attention: true,
+                        details: errors.join(', '),
+                        last_modification: new Date()
                     });
                 }
+
                 return { error: 'Failed to fetch images from both Instagram and Google', details: errors, placeData };
             }
 
@@ -156,7 +167,10 @@ export async function getPhotosBusiness(req: Request, res: Response): Promise<vo
     });
 
     const results = await Promise.all(tasks);
-    res.json(results);
+    if (res) {
+        res.json(results);
+    }
+    return results;
 }
 
 
@@ -171,13 +185,18 @@ interface ImageResultTourist {
 
 
 
-export async function getPhotosTouristAttraction(req: Request, res: Response): Promise<void> {
-    const places = req.body;
+export async function getPhotosTouristAttraction(req?: Request, res?: Response): Promise<any> {
+    const places = req ? req.body : [];
 
     if (!Array.isArray(places) || places.length === 0) {
-        res.status(400).json({ error: 'Expected an array of places' });
-        return;
+        const error = 'Expected an array of places';
+        console.log(error);
+        if (res) {
+            res.status(400).json({ error });
+        }
+        return { error };
     }
+
 
     const tasks = places.map(async (placeData) => {
         const {
@@ -358,7 +377,10 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
     });
 
     const results = await Promise.all(tasks);
-    res.json(results);
+    if (res) {
+        res.json(results);
+    }
+    return results;
 }
 
 export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {

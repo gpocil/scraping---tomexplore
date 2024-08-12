@@ -12,6 +12,7 @@ import googleRoutes from './routes/scraping/GoogleRoutes';
 import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
+import QueueRoutes from './routes/scraping/QueueRoutes';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
@@ -59,6 +60,7 @@ app.use('/api/front', frontRoutes);
 const imagesPath = path.join(__dirname, 'temp');
 console.log('imagepath : ' + imagesPath);
 app.use('/images', express.static(imagesPath));
+app.use('/api', QueueRoutes);
 
 //------------------------Auth required---------------------------------
 
