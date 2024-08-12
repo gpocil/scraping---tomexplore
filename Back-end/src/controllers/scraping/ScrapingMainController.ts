@@ -199,7 +199,7 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
         let unsplashResult: ImageResultTourist = { urls: [], count: 0, link: '' };
         let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
         let wikipediaUrl: string = '';
-        let originalName:string = '';
+        let originalName: string = '';
         let errors: string[] = [];
 
         try {
@@ -257,6 +257,16 @@ export async function getPhotosTouristAttraction(req: Request, res: Response): P
                 }
             } else if (famous !== false) {
                 return { error: 'Field "famous" must be "true" or "false"', placeData };
+            }
+
+            //Recherche en anglais SN
+            if (wikiMediaResult.urls.length + unsplashResult.urls.length + instagramImages.urls.length < 10 && originalName) {
+                const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
+                wikiMediaResult.urls = wikiMediaResult.urls.concat(additionalWikiResults.urls);
+                if (famous) {
+                    const additionalUnsplashResults = await UnsplashController.unsplashSearch({ body: { name: originalName } } as Request);
+                    unsplashResult.urls = unsplashResult.urls.concat(additionalUnsplashResults.urls);
+                }
             }
 
             // Check if both calls failed
@@ -416,6 +426,76 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
             downloadDir: result.downloadDir.replace(/\\/g, '/'),
             imageCount: result.imageCount,
             instagramError: instagramImages.error,
+            errors: errors.length > 0 ? errors : undefined,
+            placeData
+        };
+    } catch (error: any) {
+        console.error(`Error downloading photos: ${error.message}`);
+        return { error: `Error downloading photos: ${error.message}`, details: errors, placeData };
+    }
+}
+export async function scrapeWikimediaAfterUpdate(req: Request, res: Response) {
+    const placeData = req.body;
+    const { id_tomexplore, query } = placeData;
+
+    if (!id_tomexplore || !query) {
+        console.log('Missing required fields:', placeData);
+        return { error: 'Missing required fields', placeData };
+    }
+
+    let wikiImages: any = { urls: [], count: 0 };
+    let errors: string[] = [];
+
+    try {
+        if (query && query !== "") {
+            try {
+                console.log(`Fetching Wikimedia images for username: ${query}`);
+                wikiImages = await WikimediaController.wikiMediaSearch({ body: { name: query } } as Request);
+                if (wikiImages.error) errors.push(wikiImages.error);
+            } catch (error: any) {
+                console.error(`Error fetching wikimedia images: ${error.message}`);
+                errors.push(`Error fetching wikimedia images: ${error.message}`);
+                wikiImages.error = `Error fetching wikimedia images: ${error.message}`;
+            }
+        }
+
+        if (wikiImages.urls.length === 0) {
+            console.log('No wikimedia images found:', errors);
+            return { error: 'Failed to fetch images from wikimedia', details: errors, placeData };
+        }
+
+        console.log(`Downloading wikimedia photos for place ID: ${id_tomexplore}`);
+        const result = await FileController.downloadPhotosTouristAttraction(id_tomexplore, wikiImages, { urls: [], count: 0 });
+
+        let place = await Place.findOne({ where: { id_tomexplore } });
+        if (place) {
+            await place.update({
+                last_modification: new Date()
+            });
+        }
+
+        const saveImage = async (url: string, generatedName: string) => {
+            console.log(`Saving image: ${generatedName}`);
+            return Image.create({
+                image_name: generatedName,
+                url,
+                place_id: place!.id_tomexplore
+            });
+        };
+
+        await Promise.all(
+            result.imageNames.map((generatedName, index) => {
+                const url = wikiImages.urls[index];
+                return saveImage(url, generatedName);
+            })
+        );
+
+        console.log(`Downloaded and saved ${result.imageCount} images for place ID: ${id_tomexplore}`);
+
+        return {
+            downloadDir: result.downloadDir.replace(/\\/g, '/'),
+            imageCount: result.imageCount,
+            wikiMediaError: wikiImages.error,
             errors: errors.length > 0 ? errors : undefined,
             placeData
         };

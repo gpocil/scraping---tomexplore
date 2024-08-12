@@ -26,6 +26,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showInstagramInput, setShowInstagramInput] = useState(false);
     const [instagramLink, setInstagramLink] = useState(place.instagram_link || '');
+    const [showWikimediaInput, setShowWikimediaInput] = useState(false); // État pour le bouton Scraper Wikimedia
+    const [wikiQuery, setWikiQuery] = useState('');
     const [isScraping, setIsScraping] = useState(false);
     const [images, setImages] = useState<IImage[]>(place.images || []);
 
@@ -62,9 +64,10 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
         }
     };
+
     const generateGoogleSearchUrl = (placeName: string, cityName: string): string => {
-        const query = `${placeName} ${cityName} instagram`.replace(/\s+/g, '+');
-        return `https://www.google.com/search?q=${query}`;
+        const wikiQuery = `${placeName} ${cityName} instagram`.replace(/\s+/g, '+');
+        return `https://www.google.com/search?q=${wikiQuery}`;
     };
 
     const handleDeleteImages = async () => {
@@ -175,6 +178,27 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
+    const handleWikimediaUpdate = async () => {
+        setIsScraping(true);
+        try {
+            const response = await apiClient.post('/front/updateWikimedia', {
+                place_id: place?.place_id,
+                query: wikiQuery
+            });
+
+            if (response.status === 200) {
+                await updateImages();
+                updatePlaces();
+                alert('Wikimedia updated and images scraped successfully');
+            }
+        } catch (error) {
+            console.error('Error updating Wikimedia:', error);
+            alert('Failed to update Wikimedia');
+        } finally {
+            setIsScraping(false);
+        }
+    };
+
     const updateImages = async () => {
         try {
             const response = await apiClient.get(`/front/${place?.place_id}/images`);
@@ -210,19 +234,6 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)}>
                         {isSettingTop ? '❌ Annuler' : '⭐ Définir top 3 et valider'}
                     </Button>
-                    <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
-                        📤 Uploader des photos
-                    </Button>
-                    <Button className="mb-3 w-100" variant="success" onClick={() => {
-                        const url = generateGoogleSearchUrl(place.place_name, "");
-                        window.open(url, '_blank');
-                    }}>
-                        📷 Rechercher Instagram
-                    </Button>
-
-                    <Button className="mb-3 w-100" variant="info" onClick={() => setShowInstagramInput(!showInstagramInput)}>
-                        {showInstagramInput ? '❌ Annuler' : '📸 Mettre l\'Instagram à jour'}
-                    </Button>
 
                     {isDeleting && (
                         <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0}>
@@ -235,7 +246,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                         </Button>
                     )}
                 </Col>
-                <Col md={10}>
+                <Col md={8}>
                     <h1 className="mb-4 text-center">{place.place_name}</h1>
                     <h5 className="mb-4">Nom original : {place?.place_name_original}</h5>
 
@@ -270,29 +281,6 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                         </Row>
                     </div>
 
-                    {showInstagramInput && (
-                        <Row className="justify-content-center">
-                            <Col xs="auto">
-                                <Form.Group controlId="instagramLink">
-                                    <Form.Label>Instagram Link</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        value={instagramLink}
-                                        onChange={(e) => setInstagramLink(e.target.value)}
-                                        placeholder="Enter new Instagram link"
-                                    />
-                                </Form.Group>
-                                <Button className="mt-3" variant="primary" onClick={handleInstagramUpdate} disabled={isScraping}>
-                                    {isScraping ? (
-                                        <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
-                                    ) : (
-                                        'Mettre à jour Instagram'
-                                    )}
-                                </Button>
-                            </Col>
-                        </Row>
-                    )}
-
                     <Row>
                         {images.map((image, index) => (
                             <Col md={4} key={index} className="mb-4">
@@ -307,6 +295,62 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                             </Col>
                         ))}
                     </Row>
+                </Col>
+                <Col md={2} className="d-flex flex-column align-items-start">
+                    <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
+                        📤 Uploader des photos
+                    </Button>
+                    <Button className="mb-3 w-100" variant="success" onClick={() => {
+                        const url = generateGoogleSearchUrl(place.place_name, "");
+                        window.open(url, '_blank');
+                    }}>
+                        📷 Rechercher Instagram
+                    </Button>
+                    <Button className="mb-3 w-100" variant="info" onClick={() => setShowInstagramInput(!showInstagramInput)}>
+                        {showInstagramInput ? '❌ Annuler' : '📸 Mettre l\'Instagram à jour'}
+                    </Button>
+
+                    {showInstagramInput && (
+                        <Form.Group controlId="instagramLink">
+                            <Form.Label>Instagram Link</Form.Label>
+                            <Form.Control
+                                type="text"
+                                value={instagramLink}
+                                onChange={(e) => setInstagramLink(e.target.value)}
+                                placeholder="Enter new Instagram link"
+                            />
+                            <Button className="mt-3 w-100" variant="primary" onClick={handleInstagramUpdate} disabled={isScraping}>
+                                {isScraping ? (
+                                    <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                                ) : (
+                                    'Mettre à jour Instagram'
+                                )}
+                            </Button>
+                        </Form.Group>
+                    )}
+
+                    <Button className="mb-3 w-100" variant="info" onClick={() => setShowWikimediaInput(!showWikimediaInput)}>
+                        {showWikimediaInput ? '❌ Annuler' : '🌐 Scraper Wikimedia'}
+                    </Button>
+
+                    {showWikimediaInput && (
+                        <Form.Group controlId="wikimediaLink">
+                            <Form.Label>Recherche Wikimedia</Form.Label>
+                            <Form.Control
+                                type="text"
+                                value={wikiQuery}
+                                onChange={(e) => setWikiQuery(e.target.value)}
+                                placeholder="Entrer la recherche wikimedia"
+                            />
+                            <Button className="mt-3 w-100" variant="primary" onClick={handleWikimediaUpdate} disabled={isScraping}>
+                                {isScraping ? (
+                                    <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                                ) : (
+                                    'Mettre à jour Wikimedia'
+                                )}
+                            </Button>
+                        </Form.Group>
+                    )}
                 </Col>
             </Row>
             <UploadPhotosModal

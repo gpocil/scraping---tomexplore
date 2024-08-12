@@ -15,6 +15,8 @@ router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.u
 router.post('/uploadPhotos/:place_id', upload.array('photos'), ImageController.uploadPhotos);
 router.post('/setPlaceToBeDeleted', ImageController.setPlaceToBeDeleted);
 router.post('/updateInstagram', ImageController.updateInstagram);
+router.post('/updateWikimedia', ImageController.updateWikimedia);
+
 
 
 export default router;

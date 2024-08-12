@@ -6,7 +6,7 @@ import Place from '../../models/Place';
 import Image from '../../models/Image';
 import { deleteFolderRecursiveHelper, deleteImages } from '../scraping/FileController';
 import fs from 'fs';
-import { scrapeInstagramAfterUpdate } from '../scraping/ScrapingMainController';
+import * as ScrapingMainController from '../scraping/ScrapingMainController';
 
 interface ImageResponse {
     image_name: string;
@@ -411,7 +411,7 @@ export const updateInstagram = async (req: Request, res: Response) => {
         } as unknown as Response;
 
         console.log(`Starting Instagram scraping for place ID: ${place_id} with username: ${instagram_username}`);
-        const scrapeResult = await scrapeInstagramAfterUpdate(scrapeRequest, scrapeResponse);
+        const scrapeResult = await ScrapingMainController.scrapeInstagramAfterUpdate(scrapeRequest, scrapeResponse);
 
         console.log(`Completed Instagram scraping for place ID: ${place_id}`);
 
@@ -422,3 +422,49 @@ export const updateInstagram = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+
+export const updateWikimedia = async (req: Request, res: Response) => {
+    const { place_id, query } = req.body;
+
+    if (!place_id || !query) {
+        console.log('Missing place_id or query');
+        return res.status(400).json({ error: 'Place ID and query are required' });
+    }
+
+    try {
+        const place = await Place.findByPk(place_id);
+        if (!place) {
+            console.log(`Place not found for ID: ${place_id}`);
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        const scrapeRequest = {
+            body: {
+                id_tomexplore: place.id_tomexplore,
+                query
+            }
+        } as Request;
+
+        const scrapeResponse: any = {
+            json: (data: any) => {
+                console.log('Scrape response data:', data);
+                return data;
+            },
+            status: (statusCode: number) => {
+                console.log('Scrape response status:', statusCode);
+                return scrapeResponse;
+            }
+        } as unknown as Response;
+
+        console.log(`Starting Wikimedia scraping for place ID: ${place_id} with username: ${query}`);
+        const scrapeResult = await ScrapingMainController.scrapeWikimediaAfterUpdate(scrapeRequest, scrapeResponse);
+
+        console.log(`Completed Wikimedia scraping for place ID: ${place_id}`);
+        res.status(200).json({ message: 'Wikimedia images scraped successfully', place, scrapeResult });
+    } catch (error) {
+        console.error('Error updating Wikimedia images:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
