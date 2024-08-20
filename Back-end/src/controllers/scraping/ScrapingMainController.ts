@@ -48,7 +48,7 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
         let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
         let googleImages: ImageResultBusiness = { urls: [], count: 0 };
         let errors: string[] = [];
-        let location_full_address = `${name_en} ${address} ${cityName} ${countryName}`;
+        let location_full_address = `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
         console.log("location full address : " + location_full_address);
 
         try {
