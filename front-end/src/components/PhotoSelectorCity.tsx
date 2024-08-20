@@ -5,7 +5,7 @@ import apiClient from '../util/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
-import NeedsAttentionDetails from './NeedsAttentionModal'; // Import du modal
+import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
 import { Spinner } from 'react-bootstrap';
 
 interface PhotoSelectorCityProps {

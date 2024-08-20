@@ -141,10 +141,11 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
-    const handleDeletePlace = async () => {
+    const handleDeletePlace = async (details: string) => {
         try {
             const response = await apiClient.post('/front/setPlaceToBeDeleted', {
-                place_id: place?.place_id
+                place_id: place?.place_id,
+                details: details
             });
 
             if (response.status === 200) {

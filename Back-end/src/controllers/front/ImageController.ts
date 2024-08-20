@@ -330,7 +330,7 @@ export const uploadPhotos = async (req: Request, res: Response) => {
 
 
 export const setPlaceToBeDeleted = async (req: Request, res: Response) => {
-    const { place_id } = req.body;
+    const { place_id, details } = req.body;
 
     if (!place_id) {
         return res.status(400).json({ error: 'Place ID is required' });
@@ -345,6 +345,7 @@ export const setPlaceToBeDeleted = async (req: Request, res: Response) => {
         place.to_be_deleted = true;
         place.checked = false;
         place.needs_attention = false;
+        place.details = details;
         await place.save();
 
         const images = await Image.findAll({ where: { place_id: place_id } });

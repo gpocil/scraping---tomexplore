@@ -316,6 +316,7 @@ export const getAllPlacesToBeDeleted = async (req: Request, res: Response) => {
         const response = places.map(place => {
             return {
                 place_id: place.id_tomexplore,
+                details: place.details
             };
         });
 

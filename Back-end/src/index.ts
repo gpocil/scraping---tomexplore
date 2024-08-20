@@ -64,6 +64,7 @@ app.use('/api', QueueRoutes);
 
 //------------------------Auth required---------------------------------
 
+app.use(jwtMiddleware);
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);
 app.use('/api/unsplash', unsplashRoutes);
