@@ -41,7 +41,7 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
             country: countryName
         } = placeData;
 
-        if (!id_tomexplore || !countryName || !cityName || !address || !name_en) {
+        if (!id_tomexplore || !countryName || !cityName || !name_en) {
             return { error: 'Missing required fields', placeData };
         }
 
