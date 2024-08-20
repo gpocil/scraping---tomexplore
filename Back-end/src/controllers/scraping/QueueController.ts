@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { Queue } from '../../models';
+import { Queue, Place } from '../../models';
 import * as ScrapingMainController from './ScrapingMainController'
 
 
@@ -83,4 +83,34 @@ const sortQueueByType = (entries: Queue[]) => {
         business: businessEntries,
         tourist_attraction: touristAttractionEntries,
     };
+};
+export const checkProcessedEntries = async (req: Request, res: Response) => {
+    const places: Queue[] = []
+    try {
+        const processedEntries = await Queue.findAll({
+            where: {
+                processed: true,
+            },
+        });
+
+        for (const entry of processedEntries) {
+            const placeExists = await Place.findOne({
+                where: { id_tomexplore: entry.id_tomexplore },
+            });
+
+            if (!placeExists) {
+                await Queue.update(
+                    { processed: false },
+                    { where: { id_tomexplore: entry.id_tomexplore } }
+                );
+                console.log(`Processed entry with ID ${entry.id_tomexplore} reset to false because the corresponding place was not found.`);
+                places.push(entry);
+            }
+        }
+        console.log('Check for processed entries completed.');
+        return res.status(200).json(places);
+    } catch (error) {
+        console.error('Error checking processed entries:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
 };
