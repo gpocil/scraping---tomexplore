@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import cors, { CorsOptions } from 'cors';
 import bodyParser from 'body-parser';
 import path from 'path';
+import https from 'https';
+import fs from 'fs';
 import scrapingMainRoutes from './routes/scraping/ScrapingMainRoutes';
 import InstagramRoutes from './routes/scraping/InstagramRoutes';
 import authRoutes from './routes/security/LoginRoutes';
@@ -23,17 +25,25 @@ import './models';
 const app = express();
 const port = 3000;
 
+// Load SSL certificate and key
+const sslOptions = {
+    key: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/privkey.pem'),
+    cert: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/fullchain.pem')
+};
+
 const allowedOrigins = [
-    'http://localhost:3001',
-    'http://localhost:3001/login',
-    'http://localhost',
-    'http://37.187.35.37:3001',
-    'http://37.187.35.37:3001/login',
-    'http://37.187.35.37',
-    'http://37.187.35.37:3000/api-docs',
-    'http://37.187.35.37:3000',
-    'http://localhost:3000/api-docs',
-    'http://localhost:3000'
+    'https://localhost:3001',
+    'https://localhost:3001/login',
+    'https://localhost',
+    'https://37.187.35.37:3001',
+    'https://37.187.35.37:3001/login',
+    'https://37.187.35.37',
+    'https://37.187.35.37:3000/api-docs',
+    'https://37.187.35.37:3000',
+    'https://localhost:3000/api-docs',
+    'https://localhost:3000',
+    'https://monblogdevoyage.com',
+    'https://monblogdevoyage.com/api-docs'
 ];
 
 const corsOptions: CorsOptions = {
@@ -90,8 +100,8 @@ sequelize.authenticate()
             .then(() => {
                 console.log('Database & tables created!');
 
-                app.listen(port, '0.0.0.0', () => {
-                    console.log(`Server running at http://localhost:${port}/api-docs`);
+                https.createServer(sslOptions, app).listen(port, '0.0.0.0', () => {
+                    console.log(`Server running at https://localhost:${port}/api-docs`);
                 });
             })
             .catch(err => {
