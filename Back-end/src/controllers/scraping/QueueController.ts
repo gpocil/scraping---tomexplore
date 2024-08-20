@@ -15,7 +15,7 @@ export const launchScraping = async (req: Request, res: Response) => {
         const oldestEntries = await getOldestQueueEntries(entriesCount);
 
         if (!oldestEntries) {
-            return res.status(404).json({ message: 'No entries found in the queue.' });
+            return res.status(204).json({ message: 'No entries found in the queue.' });
         }
 
         const sortedEntries = sortQueueByType(oldestEntries);

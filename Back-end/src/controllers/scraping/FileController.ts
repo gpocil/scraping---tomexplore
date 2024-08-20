@@ -111,7 +111,9 @@ export async function downloadPhotosTouristAttraction(
     wikiMediaUrls: { urls: [string, string, string][]; count: number },
     unsplashUrls: { urls: [string, string, string][]; count: number },
     instagramImages: { urls: string[], count: number } = { urls: [], count: 0 }
-): Promise<{ downloadDir: string, imageCount: number, imageNames: string[] }> {
+): Promise<{
+    [x: string]: any; downloadDir: string, imageCount: number, imageNames: string[]
+}> {
     const imageUrls: ImageUrl[] = [
         ...wikiMediaUrls.urls.map(([url, license, author]) => ({
             url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
@@ -192,71 +194,3 @@ interface ImageUrl {
     generatedName: string;
 }
 
-async function getPublicIP(agent?: HttpsProxyAgent<string>): Promise<string> {
-    try {
-        const options = agent ? { httpsAgent: agent } : {};
-        const response = await axios.get('https://api.ipify.org?format=json', options);
-        return response.data.ip;
-    } catch (error) {
-        console.error('Failed to fetch public IP:', error);
-        return 'Unable to fetch IP';
-    }
-}
-
-
-export async function downloadPhotosTest(req: Request, res: Response): Promise<void> {
-    const { id_tomexplore, googleImages } = req.body;
-
-    if (!id_tomexplore || !googleImages) {
-        res.status(400).json({ error: 'Missing required fields' });
-        return;
-    }
-
-    const imageUrls: ImageUrl[] = googleImages.urls.map((url: string) => ({
-        url,
-        generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
-    }));
-
-    const proxy = 'http://brd-customer-hl_dd53869d-zone-datacenter_proxy1:uzrz21c9e4qu@brd.superproxy.io:22225';
-    const agent = new HttpsProxyAgent<string>(proxy);
-
-    // Obtenir et afficher l'adresse IP publique sans proxy
-    const publicIP = await getPublicIP();
-    console.log('Public IP without proxy:', publicIP);
-
-    // Obtenir et afficher l'adresse IP publique avec proxy
-    const publicIPWithProxy = await getPublicIP(agent);
-    console.log('Public IP with proxy:', publicIPWithProxy);
-
-    if (imageUrls.length > 0) {
-        const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
-        fs.mkdirSync(downloadDir, { recursive: true });
-
-        await Promise.all(imageUrls.map(async ({ url, generatedName }: ImageUrl) => {
-            try {
-                const response = await axios.get(url, {
-                    responseType: 'arraybuffer',
-                    httpsAgent: agent
-                });
-                const imageBuffer = Buffer.from(response.data);
-                const outputPath = path.join(downloadDir, generatedName);
-
-                if (fs.existsSync(outputPath)) {
-                    fs.unlinkSync(outputPath);
-                }
-                await sharp(imageBuffer).toFile(outputPath);
-            } catch (error) {
-                console.error(`Failed to download image at ${url}:`, error);
-            }
-        }));
-
-        console.log('Download directory:', downloadDir);
-        res.json({
-            downloadDir,
-            imageCount: imageUrls.length,
-            imageNames: imageUrls.map(({ generatedName }) => generatedName)
-        });
-    } else {
-        res.json({ downloadDir: '', imageCount: 0, imageNames: [] });
-    }
-}

@@ -7,21 +7,28 @@ import './styles/PlacesNeedingAttention.css';
 
 const PlacesNeedingAttention: React.FC = () => {
     const { data: places } = usePlaces();
-    const [placesNeedingAttention, setPlacesNeedingAttention] = useState<IPlace[]>([]);
+    const [businessPlaces, setBusinessPlaces] = useState<IPlace[]>([]);
+    const [touristAttractions, setTouristAttractions] = useState<IPlace[]>([]);
     const navigate = useNavigate();
 
     useEffect(() => {
         const fetchPlacesNeedingAttention = () => {
-            const needingAttention: IPlace[] = [];
+            const business: IPlace[] = [];
+            const tourist: IPlace[] = [];
 
             for (const country of Object.keys(places.needs_attention)) {
                 for (const city of Object.keys(places.needs_attention[country])) {
                     for (const place of Object.values(places.needs_attention[country][city]).flat()) {
-                        needingAttention.push(place);
+                        if (place.type === 'Tourist Attraction') {
+                            tourist.push(place);
+                        } else {
+                            business.push(place);
+                        }
                     }
                 }
             }
-            setPlacesNeedingAttention(needingAttention);
+            setBusinessPlaces(business);
+            setTouristAttractions(tourist);
         };
         fetchPlacesNeedingAttention();
     }, [places]);
@@ -36,22 +43,40 @@ const PlacesNeedingAttention: React.FC = () => {
             <div className="d-flex justify-content-center mb-4">
                 <h1 className="text-center">Lieux nécessitant une attention</h1>
             </div>
-            {placesNeedingAttention.length === 0 ? (
+            {businessPlaces.length === 0 && touristAttractions.length === 0 ? (
                 <p className="text-center">Aucun lieu pour le moment</p>
             ) : (
-                <div className="d-flex justify-content-center">
-                    <ul className="list-group place-list">
-                        {placesNeedingAttention.map(place => (
-                            <li
-                                key={place.place_id}
-                                className="list-group-item place-item"
-                                onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                {place.place_id} - {place.place_name}
-                            </li>
-                        ))}
-                    </ul>
+                <div className="row">
+                    <div className="col-md-6">
+                        <h2 className="text-center">Business</h2>
+                        <ul className="list-group place-list">
+                            {businessPlaces.map(place => (
+                                <li
+                                    key={place.place_id}
+                                    className="list-group-item place-item"
+                                    onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {place.place_id} - {place.place_name}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="col-md-6">
+                        <h2 className="text-center">Tourist Attraction</h2>
+                        <ul className="list-group place-list">
+                            {touristAttractions.map(place => (
+                                <li
+                                    key={place.place_id}
+                                    className="list-group-item place-item"
+                                    onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {place.place_id} - {place.place_name}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
             )}
         </div>

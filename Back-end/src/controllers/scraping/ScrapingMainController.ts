@@ -456,6 +456,10 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
         return { error: `Error downloading photos: ${error.message}`, details: errors, placeData };
     }
 }
+
+
+
+
 export async function scrapeWikimediaAfterUpdate(req: Request, res: Response) {
     const placeData = req.body;
     const { id_tomexplore, query } = placeData;
@@ -496,21 +500,42 @@ export async function scrapeWikimediaAfterUpdate(req: Request, res: Response) {
             });
         }
 
-        const saveImage = async (url: string, generatedName: string) => {
-            console.log(`Saving image: ${generatedName}`);
+        const saveImage = async (source: string, author: string | null, license: string | null, generatedName: string) => {
             return Image.create({
                 image_name: generatedName,
-                url,
+                original_url: source,
+                author: author || null,
+                license: license || null,
                 place_id: place!.id_tomexplore
             });
         };
 
         await Promise.all(
             result.imageNames.map((generatedName, index) => {
-                const url = wikiImages.urls[index];
-                return saveImage(url, generatedName);
+                let author: string | null = null;
+                let license: string | null = null;
+
+                if (index < wikiImages.urls.length) {
+                    author = wikiImages.urls[index]?.[1] || null;
+                    license = wikiImages.urls[index]?.[2] || null;
+                }
+
+                console.log('Saving image:', {
+                    generatedName,
+                    author,
+                    license
+                });
+
+                return saveImage(
+                    wikiImages.urls[index]?.[0],
+                    author,
+                    license,
+                    generatedName
+                );
             })
         );
+
+
 
         console.log(`Downloaded and saved ${result.imageCount} images for place ID: ${id_tomexplore}`);
 

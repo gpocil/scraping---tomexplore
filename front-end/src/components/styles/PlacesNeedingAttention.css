@@ -1,6 +1,13 @@
 .place-list {
-    width: 50%;
-    /* Reduce the width of the list container */
+    width: 100%;
+    /* Use full width to avoid uneven spacing */
+    padding: 0;
+    /* Remove default padding for better alignment */
+    list-style-type: none;
+    /* Remove bullets */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .place-item {
@@ -11,6 +18,10 @@
     padding: 15px;
     transition: transform 0.2s, background-color 0.2s;
     text-align: center;
+    width: 90%;
+    /* Ensure items are centered and uniformly sized */
+    max-width: 600px;
+    /* Set a maximum width for larger screens */
 }
 
 .place-item:hover {
@@ -22,13 +33,14 @@
     font-size: 1.2rem;
     font-weight: 500;
     color: #343a40;
-    /* Dark grey/black color */
     text-decoration: none;
     transition: color 0.2s;
+    display: block;
+    /* Make the entire item clickable */
+    width: 100%;
 }
 
 .place-link:hover {
     color: #212529;
-    /* Slightly darker grey */
     text-decoration: none;
 }

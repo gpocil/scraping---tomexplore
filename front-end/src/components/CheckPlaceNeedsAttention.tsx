@@ -225,30 +225,31 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         <Container className="mt-5">
             <Row>
                 <Col md={2} className="d-flex flex-column align-items-start">
-                    <Button className="mb-3 w-100" variant="primary" onClick={handleBackClick}>
+                    <Button className="mb-3 w-100" variant="primary" onClick={handleBackClick} disabled={isScraping}>
                         🔙 Retour
                     </Button>
-                    <Button className="mb-3 w-100" variant="danger" onClick={() => setIsDeleting(!isDeleting)}>
+                    <Button className="mb-3 w-100" variant="danger" onClick={() => setIsDeleting(!isDeleting)} disabled={isScraping}>
                         {isDeleting ? '❌ Annuler' : '🗑️ Supprimer photos'}
                     </Button>
-                    <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)}>
+                    <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)} disabled={isScraping}>
                         {isSettingTop ? '❌ Annuler' : '⭐ Définir top 3 et valider'}
                     </Button>
 
                     {isDeleting && (
-                        <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0}>
+                        <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0 || isScraping} >
                             🗑️ Confirmer suppression
                         </Button>
                     )}
                     {isSettingTop && (
-                        <Button className="mb-3 w-100" variant="primary" onClick={handleSetTopImages} disabled={topImages.length !== 3}>
+                        <Button className="mb-3 w-100" variant="primary" onClick={handleSetTopImages} disabled={topImages.length !== 3 || isScraping}>
                             ⭐ Confirmer top 3
                         </Button>
                     )}
                 </Col>
                 <Col md={8}>
-                    <h1 className="mb-4 text-center">{place.place_name}</h1>
-                    <h5 className="mb-4">Nom original : {place?.place_name_original}</h5>
+                    <h4 className="mb-4">{place?.place_name} - {place?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
+                    <h5 className="mb-4">{place?.place_name_original ? "Nom orginal : " + place?.place_name_original : ""}</h5>
+
 
                     {place.details && <h2 className="mb-4 text-center">🚨 {place.details}</h2>}
                     <div className="mb-4 text-center">
@@ -274,7 +275,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                         )}
                         <Row className="justify-content-center">
                             <Col xs="auto">
-                                <Button className="mb-3" variant="danger" onClick={() => setShowDeleteModal(true)}>
+                                <Button className="mb-3" variant="danger" onClick={() => setShowDeleteModal(true)} disabled={isScraping}>
                                     🗑️ Supprimer le lieu
                                 </Button>
                             </Col>
@@ -297,16 +298,16 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     </Row>
                 </Col>
                 <Col md={2} className="d-flex flex-column align-items-start">
-                    <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)}>
+                    <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)} disabled={isScraping}>
                         📤 Uploader des photos
                     </Button>
-                    <Button className="mb-3 w-100" variant="success" onClick={() => {
+                    <Button className="mb-3 w-100" variant="success" disabled={isScraping} onClick={() => {
                         const url = generateGoogleSearchUrl(place.place_name, "");
                         window.open(url, '_blank');
                     }}>
                         📷 Rechercher Instagram
                     </Button>
-                    <Button className="mb-3 w-100" variant="info" onClick={() => setShowInstagramInput(!showInstagramInput)}>
+                    <Button className="mb-3 w-100" variant="info" disabled={isScraping} onClick={() => setShowInstagramInput(!showInstagramInput)}>
                         {showInstagramInput ? '❌ Annuler' : '📸 Mettre l\'Instagram à jour'}
                     </Button>
 
@@ -329,7 +330,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                         </Form.Group>
                     )}
 
-                    <Button className="mb-3 w-100" variant="info" onClick={() => setShowWikimediaInput(!showWikimediaInput)}>
+                    <Button className="mb-3 w-100" variant="info" disabled={isScraping} onClick={() => setShowWikimediaInput(!showWikimediaInput)}>
                         {showWikimediaInput ? '❌ Annuler' : '🌐 Scraper Wikimedia'}
                     </Button>
 
