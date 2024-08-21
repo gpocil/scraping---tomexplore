@@ -31,52 +31,55 @@ const sslOptions = {
     cert: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/fullchain.pem')
 };
 
-const allowedOrigins = [
-    'https://localhost:3001',
-    'https://localhost:3001/login',
-    'https://localhost',
-    'https://37.187.35.37:3001',
-    'https://37.187.35.37:3001/login',
-    'https://37.187.35.37',
-    'https://37.187.35.37:3000/api-docs',
-    'https://37.187.35.37:3000',
-    'https://localhost:3000/api-docs',
-    'https://localhost:3000',
-    'https://monblogdevoyage.com',
-    'https://monblogdevoyage.com/api-docs',
-    'http://localhost:3001',
-    'http://localhost:3001/login',
-    'http://localhost',
-    'http://37.187.35.37:3001',
-    'http://37.187.35.37:3001/login',
-    'http://37.187.35.37',
-    'http://37.187.35.37:3000/api-docs',
-    'http://37.187.35.37:3000',
-    'http://localhost:3000/api-docs',
-    'http://localhost:3000',
-    'http://monblogdevoyage.com',
-    'http://monblogdevoyage.com/api-docs',
-    '149.202.90.176',
-    'https://tomexplore.com',
-    'https://www.tomexplore.com'
-];
-console.log('Lancement CORS');
+// const allowedOrigins = [
+//     'https://localhost:3001',
+//     'https://localhost:3001/login',
+//     'https://localhost',
+//     'https://37.187.35.37:3001',
+//     'https://37.187.35.37:3001/login',
+//     'https://37.187.35.37',
+//     'https://37.187.35.37:3000/api-docs',
+//     'https://37.187.35.37:3000',
+//     'https://localhost:3000/api-docs',
+//     'https://localhost:3000',
+//     'https://monblogdevoyage.com',
+//     'https://monblogdevoyage.com/api-docs',
+//     'http://localhost:3001',
+//     'http://localhost:3001/login',
+//     'http://localhost',
+//     'http://37.187.35.37:3001',
+//     'http://37.187.35.37:3001/login',
+//     'http://37.187.35.37',
+//     'http://37.187.35.37:3000/api-docs',
+//     'http://37.187.35.37:3000',
+//     'http://localhost:3000/api-docs',
+//     'http://localhost:3000',
+//     'http://monblogdevoyage.com',
+//     'http://monblogdevoyage.com/api-docs',
+//     '149.202.90.176',
+//     'https://tomexplore.com',
+//     'https://www.tomexplore.com'
+// ];
+// console.log('Lancement CORS'); 
 
-const corsOptions: CorsOptions = {
-    origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-        console.log('Origin:', origin); // Ajoutez cette ligne pour le débogage
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.log('Blocked by CORS:', origin); // Et cette ligne pour le débogage
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
-};
-app.use(cors(corsOptions));
+// const corsOptions: CorsOptions = {
+//     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+//         console.log('Origin:', origin); // Ajoutez cette ligne pour le débogage
+//         if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+//             callback(null, true);
+//         } else {
+//             console.log('Blocked by CORS:', origin); // Et cette ligne pour le débogage
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     },
+//     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+//     credentials: true,
+//     allowedHeaders: ['Content-Type', 'Authorization']
+// };
+
+
+
+app.use(cors());
 
 app.use(bodyParser.json());
 const specs = swaggerJsdoc(swaggerOptions);
