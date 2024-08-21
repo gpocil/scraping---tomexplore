@@ -76,10 +76,6 @@ const corsOptions: CorsOptions = {
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 };
-
-app.use(cors(corsOptions));
-
-
 app.use(cors(corsOptions));
 
 app.use(bodyParser.json());
