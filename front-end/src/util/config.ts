@@ -1,6 +1,6 @@
 const config = {
     apiBaseUrlDev: 'http://localhost:3000/api',
-    apiBaseUrlProd: 'http://monblogdevoyage.com/api',
+    apiBaseUrlProd: 'http://localhost:3000/api',
     dev: false
 };
 
