@@ -60,6 +60,7 @@ const allowedOrigins = [
     'https://tomexplore.com',
     'https://www.tomexplore.com'
 ];
+console.log('Lancement CORS');
 
 const corsOptions: CorsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
