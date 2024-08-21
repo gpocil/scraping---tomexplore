@@ -63,9 +63,11 @@ const allowedOrigins = [
 
 const corsOptions: CorsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
+        console.log('Origin:', origin); // Ajoutez cette ligne pour le débogage
         if (!origin || allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
+            console.log('Blocked by CORS:', origin); // Et cette ligne pour le débogage
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -73,6 +75,9 @@ const corsOptions: CorsOptions = {
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 };
+
+app.use(cors(corsOptions));
+
 
 app.use(cors(corsOptions));
 
