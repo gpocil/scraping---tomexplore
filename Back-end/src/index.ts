@@ -80,6 +80,7 @@ const sslOptions = {
 
 
 app.use(cors());
+console.log('CORS middleware is now applied to all origins.');
 
 app.use(bodyParser.json());
 const specs = swaggerJsdoc(swaggerOptions);
