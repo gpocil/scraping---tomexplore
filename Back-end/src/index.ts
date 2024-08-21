@@ -43,7 +43,19 @@ const allowedOrigins = [
     'https://localhost:3000/api-docs',
     'https://localhost:3000',
     'https://monblogdevoyage.com',
-    'https://monblogdevoyage.com/api-docs'
+    'https://monblogdevoyage.com/api-docs',
+    'http://localhost:3001',
+    'http://localhost:3001/login',
+    'http://localhost',
+    'http://37.187.35.37:3001',
+    'http://37.187.35.37:3001/login',
+    'http://37.187.35.37',
+    'http://37.187.35.37:3000/api-docs',
+    'http://37.187.35.37:3000',
+    'http://localhost:3000/api-docs',
+    'http://localhost:3000',
+    'http://monblogdevoyage.com',
+    'http://monblogdevoyage.com/api-docs'
 ];
 
 const corsOptions: CorsOptions = {
