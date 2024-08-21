@@ -55,7 +55,10 @@ const allowedOrigins = [
     'http://localhost:3000/api-docs',
     'http://localhost:3000',
     'http://monblogdevoyage.com',
-    'http://monblogdevoyage.com/api-docs'
+    'http://monblogdevoyage.com/api-docs',
+    '149.202.90.176',
+    'https://tomexplore.com',
+    'https://www.tomexplore.com'
 ];
 
 const corsOptions: CorsOptions = {
