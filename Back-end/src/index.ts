@@ -42,7 +42,7 @@ app.use('/images', express.static(imagesPath));
 app.use('/api', QueueRoutes);
 
 // Routes nécessitant l'authentification
-app.use(jwtMiddleware);
+// app.use(jwtMiddleware);
 app.use('/api/texplore', scrapingMainRoutes);
 app.use('/api/texplore', texploreRoutes);
 app.use('/api/unsplash', unsplashRoutes);
