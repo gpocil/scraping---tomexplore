@@ -53,7 +53,7 @@ app.use('/api', fileRoutes);
 app.use('/api', googleRoutes);
 
 // Servir les fichiers statiques de l'application React
-app.use(express.static(path.join(__dirname, 'front-end/build')));
+app.use(express.static(path.join(__dirname, '../../front-end/build')));
 
 // Catch-all pour toutes les autres routes
 app.get('*', (req, res) => {
