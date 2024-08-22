@@ -11,7 +11,7 @@ if (config.dev === true) {
     });
 } else {
     sequelize = new Sequelize('scraping', 'scraping', 'XQaGAwX3pHQ3', {
-        host: 'localhost',
+        host: '127.0.0.1',
         port: 3306,
         dialect: 'mysql'
     });

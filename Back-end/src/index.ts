@@ -23,9 +23,6 @@ import './models';
 const app = express();
 const port = 3000;
 
-// Configuration CORS, si nécessaire
-// const allowedOrigins = [...]; // Garde cette partie si tu veux restreindre les origines
-// const corsOptions: CorsOptions = { origin: allowedOrigins, ... };
 
 app.use(cors()); // Applique CORS à toutes les origines par défaut
 console.log('CORS middleware is now applied to all origins.');
