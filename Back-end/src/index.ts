@@ -25,7 +25,6 @@ import './models';
 const app = express();
 const port = 3000;
 
-// Commenter la partie sur le chargement du certificat SSL
 // const sslOptions = {
 //     key: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/privkey.pem'),
 //     cert: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/fullchain.pem')
