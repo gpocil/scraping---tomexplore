@@ -73,12 +73,13 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         }
 
         const urls = await scrapeImages(page);
-        console.log(urls);
+        const urlsWhithoutDoubles = checkDuplicateURLs(urls.urls);
+        console.log(urlsWhithoutDoubles);
 
         await browser.close();
 
         if (res) {
-            res.status(200).json(urls);
+            res.status(200).json(urlsWhithoutDoubles);
         }
 
         return urls;
@@ -177,7 +178,6 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                 });
 
                 console.log(`Author and License for image ${index + 1}: ${authorText}, ${licenseLink}`);
-                const uniqueImageUrls = new Set<string>();
 
                 const imageUrl = await page.evaluate(() => {
                     const imageElement = document.querySelector('div.sdms-quick-view__thumbnail-wrapper img.sdms-quick-view__thumbnail') as HTMLImageElement;
@@ -190,14 +190,8 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                                 url = url.trim();
                                 // Remplace "640px" par "1600px"
                                 const modifiedUrl = url.replace('640px', '1600px').split(' ')[0];
-
-                                // Vérifie si l'URL modifiée est déjà dans le Set global
-                                if (!uniqueImageUrls.has(modifiedUrl)) {
-                                    uniqueImageUrls.add(modifiedUrl); // Ajoute l'URL modifiée au Set global
-                                    urlsSet.add(modifiedUrl); // Ajoute l'URL modifiée au Set local pour traitement
-                                }
+                                urlsSet.add(modifiedUrl);
                             }
-                            // Retourne la première URL unique trouvée (ou un tableau si nécessaire)
                             return urlsSet.size > 0 ? Array.from(urlsSet)[0] : '';
                         }
                     }
@@ -233,4 +227,18 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
         console.error(`Error during image scraping: ${error.message}`);
         throw new Error(`Error during image scraping: ${error.message}`);
     }
+}
+function checkDuplicateURLs(urls: [string, string, string][]): [string, string, string][] {
+    const uniqueUrls: [string, string, string][] = [];
+
+    for (let i = 0; i < urls.length; i++) {
+        const [url, author, license] = urls[i];
+        const isDuplicate = uniqueUrls.some(([u]) => u === url);
+
+        if (!isDuplicate) {
+            uniqueUrls.push([url, author, license]);
+        }
+    }
+
+    return uniqueUrls;
 }
