@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { Queue, Place } from '../../models';
+import { Queue, Place, Country, City } from '../../models';
 import * as ScrapingMainController from './ScrapingMainController'
 
 
@@ -18,12 +18,15 @@ export const launchScraping = async (req: Request, res: Response) => {
             return res.status(204).json({ message: 'No entries found in the queue.' });
         }
 
+        // Création des villes et pays avant le scraping
+        await createCitiesAndCountries(oldestEntries);
+
         const sortedEntries = sortQueueByType(oldestEntries);
         const businessEntries = sortedEntries.business;
         const touristAttractionEntries = sortedEntries.tourist_attraction;
 
         try {
-            await Promise.all([//Permet de faire tourner simultanément les 2
+            await Promise.all([
                 ScrapingMainController.getPhotosBusiness({ body: businessEntries } as Request),
                 ScrapingMainController.getPhotosTouristAttraction({ body: touristAttractionEntries } as Request)
             ]);
@@ -52,6 +55,25 @@ export const launchScraping = async (req: Request, res: Response) => {
     } catch (error) {
         console.error('Error launching scraping:', error);
         return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+const createCitiesAndCountries = async (entries: Queue[]) => {
+    const cityCountryPairs = entries.map(entry => ({
+        city: entry.city,
+        country: entry.country,
+    }));
+
+    for (const { city, country } of cityCountryPairs) {
+        let countryRecord = await Country.findOne({ where: { name: country } });
+        if (!countryRecord) {
+            countryRecord = await Country.create({ name: country });
+        }
+
+        let cityRecord = await City.findOne({ where: { name: city, country_id: countryRecord.id } });
+        if (!cityRecord) {
+            await City.create({ name: city, country_id: countryRecord.id });
+        }
     }
 };
 

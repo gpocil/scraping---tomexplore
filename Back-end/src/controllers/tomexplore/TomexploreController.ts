@@ -7,6 +7,7 @@ import Image from '../../models/Image';
 import Queue from '../../models/Queue';
 import * as FileController from '../scraping/FileController'
 import path from 'path';
+import sequelize from '../../sequelize';
 
 export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
     const cityName = req.params.cityName;
@@ -63,8 +64,8 @@ export const getCheckedPlacesByCity = async (req: Request, res: Response) => {
                 city_name: city ? city.name : '',
                 country_name: country ? country.name : '',
                 ...(place.instagram_updated && { instagram_link: place.instagram_link }),
-                instagram_updated: place.instagram_updated
-
+                instagram_updated: place.instagram_updated,
+                ...(place.name_original && { name_original: place.name_original })
             };
         });
 
@@ -129,7 +130,9 @@ export const getAllCheckedPlaces = async (req: Request, res: Response) => {
                 city_name: city ? city.name : '',
                 country_name: country ? country.name : '',
                 ...(place.instagram_updated && { instagram_link: place.instagram_link }),
-                instagram_updated: place.instagram_updated
+                instagram_updated: place.instagram_updated,
+                ...(place.name_original && { name_original: place.name_original })
+
 
             };
         });
@@ -170,6 +173,7 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
             wikipedia_link: place.wikipedia_link || '',
             google_maps_link: place.google_maps_link || '',
             folder: place.folder,
+            ...(place.name_original && { name_original: place.name_original }),
             ...(place.instagram_updated && { instagram_link: place.instagram_link }),
             instagram_updated: place.instagram_updated,
             images: images.map((image: { image_name: string; author: string; license: string; top: number; original_url: string }) => ({
@@ -178,7 +182,8 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
                 author: image.author,
                 license: image.license,
                 top: image.top,
-                original_url: image.original_url
+                original_url: image.original_url,
+
             }))
         };
 
@@ -356,25 +361,55 @@ export const setInQueue = async (req: Request, res: Response) => {
     }
 
     try {
-        const queueEntries = placesToQueue.map((place: any) => {
-            const type = place.hasOwnProperty('famous') ? 'tourist_attraction' : 'business'; // Set type based on the presence of 'famous'
+        for (const place of placesToQueue) {
+            const type = place.hasOwnProperty('famous') ? 'tourist_attraction' : 'business';
 
-            return {
-                id_tomexplore: place.id_tomexplore,
-                name_en: place.name_en,
-                name_fr: place.name_fr || '',
-                link_maps: place.link_maps,
-                instagram_username: place.instagram_username || '',
-                address: place.address,
-                city: place.city,
-                country: place.country,
-                famous: place.famous,
-                type: type,
-                processed: false,
-            };
-        });
+            // Find or create the country
+            const [country] = await Country.findOrCreate({
+                where: { name: place.country.trim() },
+                defaults: { name: place.country.trim() }
+            });
 
-        await Queue.bulkCreate(queueEntries);
+            // Find or create the city
+            const [city] = await City.findOrCreate({
+                where: { name: place.city.trim(), country_id: country.id },
+                defaults: { name: place.city.trim(), country_id: country.id }
+            });
+
+            // Check if the entry already exists in the queue
+            const existingEntry = await Queue.findOne({ where: { id_tomexplore: place.id_tomexplore } });
+
+            if (!existingEntry) {
+                // If no entry exists, create a new one
+                await Queue.create({
+                    id_tomexplore: place.id_tomexplore,
+                    name_en: place.name_en,
+                    name_fr: place.name_fr || '',
+                    link_maps: place.link_maps,
+                    instagram_username: place.instagram_username || '',
+                    address: place.address,
+                    city: place.city,
+                    country: place.country,
+                    famous: place.famous,
+                    type: type,
+                    processed: false,
+                });
+            } else {
+                // Optionally, update the existing entry if necessary
+                await existingEntry.update({
+                    name_en: place.name_en,
+                    name_fr: place.name_fr || '',
+                    link_maps: place.link_maps,
+                    instagram_username: place.instagram_username || '',
+                    address: place.address,
+                    city: place.city,
+                    country: place.country,
+                    famous: place.famous,
+                    type: type,
+                    processed: false,
+                });
+            }
+        }
 
         res.status(201).json({ message: 'Places successfully added to the queue' });
     } catch (error) {
