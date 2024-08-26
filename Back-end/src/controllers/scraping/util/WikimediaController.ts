@@ -73,13 +73,14 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         }
 
         const urls = await scrapeImages(page);
-        const urlsWhithoutDoubles = checkDuplicateURLs(urls.urls);
-        console.log(urlsWhithoutDoubles);
+        const urlsWithoutDoubles = checkDuplicateURLs(urls.urls); // Passez `urls.urls` à `checkDuplicateURLs`
+        console.log(urlsWithoutDoubles);
+
 
         await browser.close();
 
         if (res) {
-            res.status(200).json(urlsWhithoutDoubles);
+            res.status(200).json(urlsWithoutDoubles);
         }
 
         return urls;
@@ -228,17 +229,14 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
         throw new Error(`Error during image scraping: ${error.message}`);
     }
 }
-function checkDuplicateURLs(urls: [string, string, string][]): [string, string, string][] {
-    const uniqueUrls: [string, string, string][] = [];
+function checkDuplicateURLs(results: [string, string, string][]): [string, string, string][] {
+    const uniqueUrls = new Map<string, [string, string, string]>();
 
-    for (let i = 0; i < urls.length; i++) {
-        const [url, author, license] = urls[i];
-        const isDuplicate = uniqueUrls.some(([u]) => u === url);
-
-        if (!isDuplicate) {
-            uniqueUrls.push([url, author, license]);
+    for (const [url, author, license] of results) {
+        if (!uniqueUrls.has(url)) {
+            uniqueUrls.set(url, [url, author, license]);
         }
     }
 
-    return uniqueUrls;
+    return Array.from(uniqueUrls.values());
 }
