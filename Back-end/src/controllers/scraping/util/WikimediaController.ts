@@ -177,6 +177,8 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                 });
 
                 console.log(`Author and License for image ${index + 1}: ${authorText}, ${licenseLink}`);
+                const uniqueImageUrls = new Set<string>();
+
                 const imageUrl = await page.evaluate(() => {
                     const imageElement = document.querySelector('div.sdms-quick-view__thumbnail-wrapper img.sdms-quick-view__thumbnail') as HTMLImageElement;
                     if (imageElement) {
@@ -184,23 +186,23 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                         if (srcset) {
                             const urlsSet = new Set<string>();
                             const urls = srcset.split(',');
-                            const uniqueUrls: string[] = [];
-
                             for (let url of urls) {
                                 url = url.trim();
+                                // Remplace "640px" par "1600px"
                                 const modifiedUrl = url.replace('640px', '1600px').split(' ')[0];
-                                if (!urlsSet.has(modifiedUrl)) {
-                                    urlsSet.add(modifiedUrl);
-                                    uniqueUrls.push(modifiedUrl);
+
+                                // Vérifie si l'URL modifiée est déjà dans le Set global
+                                if (!uniqueImageUrls.has(modifiedUrl)) {
+                                    uniqueImageUrls.add(modifiedUrl); // Ajoute l'URL modifiée au Set global
+                                    urlsSet.add(modifiedUrl); // Ajoute l'URL modifiée au Set local pour traitement
                                 }
                             }
-
-                            return uniqueUrls.length > 0 ? uniqueUrls[0] : '';
+                            // Retourne la première URL unique trouvée (ou un tableau si nécessaire)
+                            return urlsSet.size > 0 ? Array.from(urlsSet)[0] : '';
                         }
                     }
                     return '';
                 });
-
 
                 console.log(`Image URL for image ${index + 1}: ${imageUrl}`);
 
