@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 // Charger les variables d'environnement à partir du fichier .env
 dotenv.config();
 
-// Extraire les valeurs des variables d'environnement
+// Extraire les IPs des proxy des variables d'environnement
 const proxyList = process.env.PROXY_LIST ? process.env.PROXY_LIST.split(',') : [];
 const username = process.env.PROXY_USERNAME || '';
 const pw = process.env.PROXY_PASSWORD || '';

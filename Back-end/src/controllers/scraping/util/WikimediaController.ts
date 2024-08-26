@@ -180,7 +180,13 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
 
                 const imageUrl = await page.evaluate(() => {
                     const imageElement = document.querySelector('div.sdms-quick-view__thumbnail-wrapper img.sdms-quick-view__thumbnail') as HTMLImageElement;
+
                     if (imageElement) {
+                        const src = imageElement.src;
+                        if (src) {
+                            return src;
+                        }
+
                         const srcset = imageElement.getAttribute('srcset');
                         if (srcset) {
                             const urls = srcset.split(',');
@@ -192,8 +198,10 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                             }
                         }
                     }
+
                     return '';
                 });
+
 
                 console.log(`Image URL for image ${index + 1}: ${imageUrl}`);
 
