@@ -362,8 +362,8 @@ export const setInQueue = async (req: Request, res: Response) => {
 
     try {
         for (const place of placesToQueue) {
-            const type = 'famous' in place ? 'tourist_attraction' : 'business';
-
+            const type = place.famous === true || place.famous === false ? 'tourist_attraction' : 'business';
+            console.log('type : ' + type);
             // Find or create the country
             const [country] = await Country.findOrCreate({
                 where: { name: place.country.trim() },
@@ -380,7 +380,9 @@ export const setInQueue = async (req: Request, res: Response) => {
             const existingEntry = await Queue.findOne({ where: { id_tomexplore: place.id_tomexplore } });
 
             if (!existingEntry) {
-                // If no entry exists, create a new one
+                console.log(`Type being set for place ID ${place.id_tomexplore}: ${type}`);
+                console.log(`Famous ${place.id_tomexplore}: ${place.famous}`);
+
                 await Queue.create({
                     id_tomexplore: place.id_tomexplore,
                     name_en: place.name_en,
@@ -395,7 +397,7 @@ export const setInQueue = async (req: Request, res: Response) => {
                     processed: false,
                 });
             } else {
-                // Optionally, update the existing entry if necessary
+                console.log(`Type being set for place ID ${place.id_tomexplore}: ${type}`);
                 await existingEntry.update({
                     name_en: place.name_en,
                     name_fr: place.name_fr || '',

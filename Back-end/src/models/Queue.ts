@@ -75,15 +75,8 @@ Queue.init(
     {
         sequelize,
         tableName: 'queue',
-        timestamps: true,
-        hooks: {
-            beforeCreate: (queue: Queue) => {
-                queue.type = queue.famous ? 'tourist_attraction' : 'business';
-            },
-            beforeUpdate: (queue: Queue) => {
-                queue.type = queue.famous ? 'tourist_attraction' : 'business';
-            }
-        }
+        timestamps: true
+
     }
 );
 
