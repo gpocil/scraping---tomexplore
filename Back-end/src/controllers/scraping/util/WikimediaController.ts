@@ -177,19 +177,25 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                 });
 
                 console.log(`Author and License for image ${index + 1}: ${authorText}, ${licenseLink}`);
-
                 const imageUrl = await page.evaluate(() => {
                     const imageElement = document.querySelector('div.sdms-quick-view__thumbnail-wrapper img.sdms-quick-view__thumbnail') as HTMLImageElement;
                     if (imageElement) {
                         const srcset = imageElement.getAttribute('srcset');
                         if (srcset) {
+                            const urlsSet = new Set<string>();
                             const urls = srcset.split(',');
+                            const uniqueUrls: string[] = [];
+
                             for (let url of urls) {
                                 url = url.trim();
-                                if (url.includes('640px')) {
-                                    return url.replace('640px', '1600px').split(' ')[0]; // Remplace "640px" par "1600px"
+                                const modifiedUrl = url.replace('640px', '1600px').split(' ')[0];
+                                if (!urlsSet.has(modifiedUrl)) {
+                                    urlsSet.add(modifiedUrl);
+                                    uniqueUrls.push(modifiedUrl);
                                 }
                             }
+
+                            return uniqueUrls.length > 0 ? uniqueUrls[0] : '';
                         }
                     }
                     return '';
