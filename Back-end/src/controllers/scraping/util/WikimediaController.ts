@@ -186,14 +186,15 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                             const urls = srcset.split(',');
                             for (let url of urls) {
                                 url = url.trim();
-                                if (url.endsWith('640w')) {
-                                    return url.split(' ')[0];
+                                if (url.includes('640px')) {
+                                    return url.replace('640px', '1600px').split(' ')[0]; // Remplace "640px" par "1600px"
                                 }
                             }
                         }
                     }
                     return '';
                 });
+
 
                 console.log(`Image URL for image ${index + 1}: ${imageUrl}`);
 
