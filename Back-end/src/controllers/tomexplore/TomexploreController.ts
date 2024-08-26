@@ -362,7 +362,7 @@ export const setInQueue = async (req: Request, res: Response) => {
 
     try {
         for (const place of placesToQueue) {
-            const type = place.hasOwnProperty('famous') ? 'tourist_attraction' : 'business';
+            const type = 'famous' in place ? 'tourist_attraction' : 'business';
 
             // Find or create the country
             const [country] = await Country.findOrCreate({
