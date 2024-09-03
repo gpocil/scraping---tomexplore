@@ -73,17 +73,22 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         }
 
         const urls = await scrapeImages(page);
-        const urlsWithoutDoubles = checkDuplicateURLs(urls.urls); // Passez `urls.urls` à `checkDuplicateURLs`
-        console.log(urlsWithoutDoubles);
+        const urlsWithoutDoubles = checkDuplicateURLs(urls.urls); // Pass only the 'urls' array
 
+        const result = {
+            urls: urlsWithoutDoubles,
+            count: urlsWithoutDoubles.length,
+        };
+        console.log(result);
 
         await browser.close();
 
         if (res) {
-            res.status(200).json(urlsWithoutDoubles);
+            res.status(200).json(result);
         }
 
-        return urls;
+        return result;
+
     } catch (error: any) {
         console.error(`Error during search process: ${error.message}`);
         if (browser) {
@@ -96,6 +101,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return { urls: [], count: 0, error: errorMessage };
     }
 }
+
 
 export async function scrapeImages(page: Page): Promise<{ urls: [string, string, string][], count: number }> {
     console.log('Collecting image links...');
