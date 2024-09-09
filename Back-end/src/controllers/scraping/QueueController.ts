@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import { Queue, Place, Country, City } from '../../models';
 import * as ScrapingMainController from './ScrapingMainController'
+import { Op } from 'sequelize';
 
 
 export const launchScraping = async (req: Request, res: Response) => {
@@ -133,6 +134,53 @@ export const checkProcessedEntries = async (req: Request, res: Response) => {
         return res.status(200).json(places);
     } catch (error) {
         console.error('Error checking processed entries:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const checkAndResetErrorPlaces = async (req: Request, res: Response) => {
+    try {
+        const errorPlaces = await Place.findAll({
+            where: {
+                details: {
+                    [Op.like]: '%Navigation timeout of 30000 ms exceeded%'
+                }
+            }
+        });
+
+        if (errorPlaces.length === 0) {
+            return res.status(204).json({ message: 'No places found with the specified errors.' });
+        }
+
+        const errorPlaceIds = errorPlaces.map(place => place.id_tomexplore);
+
+        await Queue.update(
+            { processed: false },
+            {
+                where: {
+                    id_tomexplore: {
+                        [Op.in]: errorPlaceIds
+                    }
+                }
+            }
+        );
+
+        await Place.destroy({
+            where: {
+                id_tomexplore: {
+                    [Op.in]: errorPlaceIds
+                }
+            }
+        });
+
+        console.log(`Processed entries reset and places with errors deleted: ${errorPlaceIds.length} entries.`);
+
+        return res.status(200).json({
+            message: `${errorPlaceIds.length} places with errors were processed and deleted.`, errorPlaces
+        });
+
+    } catch (error) {
+        console.error('Error processing places with errors:', error);
         return res.status(500).json({ error: 'Internal server error' });
     }
 };
