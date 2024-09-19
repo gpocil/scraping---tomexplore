@@ -266,10 +266,10 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 try {
                     originalName = await GoogleController.getOriginalName({ body: { name_eng: name_en, country: countryName } } as Request);
                     if (originalName !== '') { // Recherche avec nom original si possible
-                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName } } as Request);
+                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName, city: cityName } } as Request);
                         wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName } } as Request);
                     } else {
-                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
+                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en, city: cityName } } as Request);
                         wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName } } as Request);
                     }
 
@@ -308,10 +308,10 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
 
                 // Recherche en anglais SN
                 if (wikiMediaResult.urls.length + unsplashResult.urls.length + instagramImages.urls.length < 10 && originalName) {
-                    const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: name_en } } as Request);
+                    const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: name_en, city: cityName } } as Request);
                     wikiMediaResult.urls = wikiMediaResult.urls.concat(additionalWikiResults.urls);
                     if (famous) {
-                        const additionalUnsplashResults = await UnsplashController.unsplashSearch({ body: { name: originalName } } as Request);
+                        const additionalUnsplashResults = await UnsplashController.unsplashSearch({ body: { name: originalName, city: cityName } } as Request);
                         unsplashResult.urls = unsplashResult.urls.concat(additionalUnsplashResults.urls);
                     }
                 }

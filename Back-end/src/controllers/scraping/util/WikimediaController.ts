@@ -18,7 +18,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return { urls: [], count: 0, error };
     }
 
-    const searchTerm = encodeURIComponent(name);
+    const searchTerm = encodeURIComponent(name + " " + req?.body.city);
 
     let browser;
     try {
@@ -196,7 +196,7 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
                             for (let url of urls) {
                                 url = url.trim();
                                 // Remplace "640px" par "1600px"
-                                const modifiedUrl = url.replace('640px', '1600px').split(' ')[0];
+                                const modifiedUrl = url.replace('640px', '1000px').split(' ')[0];
                                 urlsSet.add(modifiedUrl);
                             }
                             return urlsSet.size > 0 ? Array.from(urlsSet)[0] : '';

@@ -99,18 +99,22 @@ const HomePage: React.FC = () => {
                 uniqueCountries.add(country);
                 for (const city of Object.keys(places[status][country])) {
                     uniqueCities.add(`${country}-${city}`);
+
+                    const placesInCity = Object.values(places[status][country][city] || {}).flat();
+
                     if (status === 'checked') {
-                        totalPlacesChecked += Object.keys(places[status][country][city]).length;
+                        totalPlacesChecked += placesInCity.length;
                     } else if (status === 'unchecked') {
-                        totalPlacesUnchecked += Object.keys(places[status][country][city]).length;
+                        totalPlacesUnchecked += placesInCity.length;
                     } else if (status === 'needs_attention') {
-                        totalPlacesNeedsAttention += Object.keys(places[status][country][city]).length;
+                        totalPlacesNeedsAttention += placesInCity.length;
                     } else if (status === 'to_be_deleted') {
-                        totalPlacesToBeDeleted += Object.keys(places[status][country][city]).length;
+                        totalPlacesToBeDeleted += placesInCity.length;
                     }
                 }
             }
         });
+
 
         return {
             totalCountries: uniqueCountries.size,

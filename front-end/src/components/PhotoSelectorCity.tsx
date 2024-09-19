@@ -184,7 +184,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         return (
             <div className="container mt-5 text-center">
                 <h1>Ville terminée 🥂</h1>
-                <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
+                <button className="btn btn-primary mt-3" onClick={() => navigate('/')} disabled={isScraping}>
                     🏠 Accueil
                 </button>
             </div>
@@ -194,7 +194,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <button className="btn btn-primary" onClick={() => navigate('/')}>
+                <button className="btn btn-primary" onClick={() => navigate('/')} disabled={isScraping}>
                     🏠 Accueil
                 </button>
                 <h2>{cityName}</h2>
@@ -206,7 +206,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             </span>
 
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentPlaceIndex === 0}>
+                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentPlaceIndex === 0 || isScraping} >
                     ⬅️ Précédent
                 </button>
                 <div className="text-center">
@@ -218,16 +218,16 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                     </h3>
                 </div>
                 <div className="mt-4">
-                    <button className="btn btn-warning mt-3" onClick={handleSetNeedsAttention}>
+                    <button className="btn btn-warning mt-3" onClick={handleSetNeedsAttention} disabled={isScraping}>
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
                         selectedImages.length === 0 ? (
-                            <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)}>
+                            <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
                                 Aucune image à supprimer 👍
                             </button>
                         ) : (
-                            <button className="btn btn-danger mt-3" onClick={handleDeleteImages}>
+                            <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
                                 Supprimer les images ❌
                             </button>
                         )
@@ -235,7 +235,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         <button
                             className="btn btn-primary mt-3"
                             onClick={handleSelectTop}
-                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3}
+                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3 || isScraping}
                         >
                             Confirmer le Top 3 & Lieu suivant ✅
                         </button>
@@ -291,12 +291,14 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                                                     const url = generateGoogleSearchUrl(currentPlace.place_name, cityName);
                                                     window.open(url, '_blank');
                                                 }}
+                                                disabled={isScraping}
                                             >
                                                 📷 Rechercher Instagram
                                             </button>
                                             <button
                                                 className="btn btn-secondary mt-3"
                                                 onClick={() => setShowInstagramInput(!showInstagramInput)}
+                                                disabled={isScraping}
                                             >
                                                 {showInstagramInput ? '❌ Annuler' : '📸 Mettre à jour Instagram'}
                                             </button>
@@ -312,7 +314,6 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                                                     <button
                                                         className="btn btn-primary mt-3"
                                                         onClick={handleInstagramUpdate}
-                                                        disabled={isScraping}
                                                     >
                                                         {isScraping ? (
                                                             <div className="d-flex align-items-center">
