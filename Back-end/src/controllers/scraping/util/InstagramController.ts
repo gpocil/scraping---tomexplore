@@ -82,11 +82,11 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
           const loadMoreButton = await page.$('button.pagination-failed-retry');
           if (loadMoreButton) {
             console.log('Clicking "Load More" button');
-            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton); // Modify style to make the button clickable
+            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton);
             await loadMoreButton.click();
-            await page.waitForTimeout(823); // Wait for loading
+            await page.waitForTimeout(823);
             attempts++;
-            continue; // Proceed to the next attempt without scrolling
+            continue;
           }
 
         }
@@ -100,8 +100,11 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
         imageUrls = await page.evaluate(() => {
           const imgs = Array.from(document.querySelectorAll('div.photo img'));
-          return imgs.map(img => (img as HTMLImageElement).src);
+          return imgs
+            .filter(img => !(img as HTMLImageElement).alt.includes('©'))
+            .map(img => (img as HTMLImageElement).src);
         });
+
 
         console.log(`Found ${imageUrls.length} image URLs after scrolling`);
         attempts++;

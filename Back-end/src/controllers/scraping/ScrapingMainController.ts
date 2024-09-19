@@ -489,6 +489,77 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
     }
 }
 
+export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
+    const placeData = req.body;
+    const { id_tomexplore, name_en, address, cityName, countryName } = placeData;
+
+    if (!id_tomexplore) {
+        console.log('Missing required fields:', placeData);
+        return { error: 'Missing required fields', placeData };
+    }
+
+    let googleMapsImages: any = { urls: [], count: 0 };
+    let errors: string[] = [];
+    let location_full_address = `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
+
+    try {
+        try {
+            googleMapsImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
+            if (googleMapsImages.error) errors.push(googleMapsImages.error);
+        } catch (error: any) {
+            console.error(`Error fetching Google Maps images: ${error.message}`);
+            errors.push(`Error fetching Google Maps images: ${error.message}`);
+            googleMapsImages.error = `Error fetching Google Maps images: ${error.message}`;
+        }
+
+
+        if (googleMapsImages.urls.length === 0) {
+            console.log('No Google Maps images found:', errors);
+            return { error: 'Failed to fetch images from Google Maps', details: errors, placeData };
+        }
+
+        console.log(`Downloading Google Maps photos for place ID: ${id_tomexplore}`);
+        const result = await FileController.downloadPhotosBusiness(id_tomexplore, googleMapsImages, { urls: [], count: 0 });
+
+        let place = await Place.findOne({ where: { id_tomexplore } });
+        if (place) {
+            await place.update({
+                google_maps_link: `https://www.google.com/maps/search/?api=1&query=${location_full_address}`,
+                last_modification: new Date()
+            });
+            console.log(`Updated place with new Google Maps link: ${place.id_tomexplore}`);
+        }
+
+        const saveImage = async (url: string, generatedName: string) => {
+            console.log(`Saving image: ${generatedName}`);
+            return Image.create({
+                image_name: generatedName,
+                url,
+                place_id: place!.id_tomexplore
+            });
+        };
+
+        await Promise.all(
+            result.imageNames.map((generatedName, index) => {
+                const url = googleMapsImages.urls[index];
+                return saveImage(url, generatedName);
+            })
+        );
+
+        console.log(`Downloaded and saved ${result.imageCount} images for place ID: ${id_tomexplore}`);
+
+        return {
+            downloadDir: result.downloadDir.replace(/\\/g, '/'),
+            imageCount: result.imageCount,
+            googleMapsError: googleMapsImages.error,
+            errors: errors.length > 0 ? errors : undefined,
+            placeData
+        };
+    } catch (error: any) {
+        console.error(`Error downloading photos: ${error.message}`);
+        return { error: `Error downloading photos: ${error.message}`, details: errors, placeData };
+    }
+}
 
 
 

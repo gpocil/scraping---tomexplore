@@ -69,6 +69,25 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         const wikiQuery = `${placeName} ${cityName} instagram`.replace(/\s+/g, '+');
         return `https://www.google.com/search?q=${wikiQuery}`;
     };
+    const handleGoogleRescrape = async () => {
+        setIsScraping(true);
+        try {
+            const response = await apiClient.post('/front/updateGoogle', {
+                place_id: place?.place_id
+            });
+
+            if (response.status === 200) {
+                await updateImages(); // Update images from Google scraping
+                updatePlaces(); // Refresh the places list
+                alert('Google Images rescraped successfully');
+            }
+        } catch (error) {
+            console.error('Error scraping Google images:', error);
+            alert('Failed to rescrape Google images');
+        } finally {
+            setIsScraping(false);
+        }
+    };
 
     const handleDeleteImages = async () => {
         console.log('Deleting images:', selectedImages);
@@ -310,6 +329,18 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     </Button>
                     <Button className="mb-3 w-100" variant="info" disabled={isScraping} onClick={() => setShowInstagramInput(!showInstagramInput)}>
                         {showInstagramInput ? '❌ Annuler' : '📸 Mettre l\'Instagram à jour'}
+                    </Button>
+                    <Button
+                        className="mb-3 w-100"
+                        variant="info"
+                        onClick={handleGoogleRescrape}
+                        disabled={isScraping}
+                    >
+                        {isScraping ? (
+                            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                        ) : (
+                            '🌍 Rescraper images Google'
+                        )}
                     </Button>
 
                     {showInstagramInput && (

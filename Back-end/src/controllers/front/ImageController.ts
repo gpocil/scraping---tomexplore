@@ -470,3 +470,49 @@ export const updateWikimedia = async (req: Request, res: Response) => {
     }
 };
 
+
+
+export const updateGoogleMaps = async (req: Request, res: Response) => {
+    const { place_id } = req.body;
+
+    if (!place_id) {
+        console.log('Missing place_id or query');
+        return res.status(400).json({ error: 'Place ID and query are required' });
+    }
+
+    try {
+        const place = await Place.findByPk(place_id);
+        if (!place) {
+            console.log(`Place not found for ID: ${place_id}`);
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        const scrapeRequest = {
+            body: {
+                id_tomexplore: place.id_tomexplore,
+
+            }
+        } as Request;
+
+        const scrapeResponse: any = {
+            json: (data: any) => {
+                console.log('Scrape response data:', data);
+                return data;
+            },
+            status: (statusCode: number) => {
+                console.log('Scrape response status:', statusCode);
+                return scrapeResponse;
+            }
+        } as unknown as Response;
+
+        console.log(`Starting Google maps scraping for place ID: ${place_id}`);
+        const scrapeResult = await ScrapingMainController.scrapeGoogleMapsAfterUpdate(scrapeRequest, scrapeResponse);
+
+        console.log(`Completed Google maps scraping for place ID: ${place_id}`);
+        res.status(200).json({ message: 'Google maps images scraped successfully', place, scrapeResult });
+    } catch (error) {
+        console.error('Error updating Google maps images:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
