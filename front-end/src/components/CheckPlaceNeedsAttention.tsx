@@ -16,7 +16,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const navigate = useNavigate();
     const location = useLocation();
     const place = (location.state as { place: IPlace }).place;
-    const { updatePlaces } = usePlaces();
+    const { updateSinglePlace } = usePlaces();
 
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -41,6 +41,13 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     useEffect(() => {
         setImages(place.images);
     }, [place.images]);
+
+
+    const totalImages = place?.images?.length || 0;
+
+    const remainingImagesCount = (): number => {
+        return totalImages - selectedImages.length;
+    };
 
     const handleImageClick = (image: IImage) => {
         console.log('Image clicked:', image);
@@ -77,8 +84,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
-                await updateImages(); // Update images from Google scraping
-                updatePlaces(); // Refresh the places list
+                await updateImages();
+                updateSinglePlace(place.place_id);
                 alert('Google Images rescraped successfully');
             }
         } catch (error) {
@@ -103,7 +110,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 setImages(prevImages => prevImages.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                 ));
-                updatePlaces();
+                updateSinglePlace(place.place_id);
             }
         } catch (error) {
             console.error('Error deleting images:', error);
@@ -123,7 +130,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             if (response.status === 200) {
                 setTopImages([]);
                 place.checked = true;
-                updatePlaces();
+                updateSinglePlace(place.place_id);
                 handleBackClick();
             }
         } catch (error) {
@@ -151,7 +158,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
             console.log('Upload response:', response);
             if (response.status === 200) {
-                updatePlaces();
+                updateSinglePlace(place.place_id);
                 alert('Photos uploaded successfully');
             }
         } catch (error) {
@@ -168,7 +175,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
-                updatePlaces();
+                updateSinglePlace(place.place_id);
                 handleBackClick();
             }
         } catch (error) {
@@ -187,7 +194,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updatePlaces();
+                updateSinglePlace(place.place_id);
                 alert('Instagram updated and images scraped successfully');
             }
         } catch (error) {
@@ -208,7 +215,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updatePlaces();
+                updateSinglePlace(place.place_id);
                 alert('Wikimedia updated and images scraped successfully');
             }
         } catch (error) {
@@ -251,7 +258,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     <Button className="mb-3 w-100" variant="danger" onClick={() => setIsDeleting(!isDeleting)} disabled={isScraping}>
                         {isDeleting ? '❌ Annuler' : '🗑️ Supprimer photos'}
                     </Button>
-                    <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)} disabled={isScraping}>
+                    <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)} disabled={isScraping || remainingImagesCount() >= 15}>
                         {isSettingTop ? '❌ Annuler' : '⭐ Définir top 3 et valider'}
                     </Button>
 
@@ -361,10 +368,12 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                             </Button>
                         </Form.Group>
                     )}
+                    {place.type == "Tourist Attraction" && (
+                        <Button className="mb-3 w-100" variant="info" disabled={isScraping} onClick={() => setShowWikimediaInput(!showWikimediaInput)}>
+                            {showWikimediaInput ? '❌ Annuler' : '🌐 Scraper Wikimedia'}
+                        </Button>
+                    )}
 
-                    <Button className="mb-3 w-100" variant="info" disabled={isScraping} onClick={() => setShowWikimediaInput(!showWikimediaInput)}>
-                        {showWikimediaInput ? '❌ Annuler' : '🌐 Scraper Wikimedia'}
-                    </Button>
 
                     {showWikimediaInput && (
                         <Form.Group controlId="wikimediaLink">

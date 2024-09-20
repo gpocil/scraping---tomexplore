@@ -9,6 +9,7 @@ const PlacesNeedingAttention: React.FC = () => {
     const { data: places } = usePlaces();
     const [businessPlaces, setBusinessPlaces] = useState<IPlace[]>([]);
     const [touristAttractions, setTouristAttractions] = useState<IPlace[]>([]);
+    const { updatePlaces } = usePlaces();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -32,6 +33,8 @@ const PlacesNeedingAttention: React.FC = () => {
         };
         fetchPlacesNeedingAttention();
     }, [places]);
+
+
 
     return (
         <div className="container mt-5">

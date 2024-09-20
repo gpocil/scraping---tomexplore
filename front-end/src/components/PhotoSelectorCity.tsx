@@ -40,6 +40,10 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         updatePlaces();
     }, [isScraping]);
 
+    const remainingImagesCount = (): number => {
+        return totalImages - selectedImages.length;
+    };
+
     useEffect(() => {
         setInstagramLink(currentPlace?.instagram_link || '');
     }, [currentPlaceIndex, currentPlace?.instagram_link]);
@@ -96,7 +100,9 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                     );
                 }
-                setIsStepOne(false);
+                if (remainingImagesCount() <= 15) {
+                    setIsStepOne(false);
+                }
             }
         } catch (error) {
             console.error('Error deleting images:', error);
@@ -222,13 +228,24 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
-                        selectedImages.length === 0 ? (
+                        totalImages > 15 ? (
+                            <div className="mt-3">
+                                <p className="text-danger">
+                                    Il reste {remainingImagesCount() - 15} photo(s) à supprimer avant de continuer.
+                                </p>
+                                {selectedImages.length > 0 ? (
+                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
+                                        Supprimer les images ❌
+                                    </button>
+                                ) : (
+                                    <button className="btn btn-primary mt-3" disabled>
+                                        Sélectionnez des images à supprimer
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
                             <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
                                 Aucune image à supprimer 👍
-                            </button>
-                        ) : (
-                            <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
-                                Supprimer les images ❌
                             </button>
                         )
                     ) : (
@@ -241,6 +258,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         </button>
                     )}
                 </div>
+
             </div>
 
             <div className="card">

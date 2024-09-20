@@ -15,7 +15,7 @@ interface PhotoSelectorPlaceProps {
 
 const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComplete }) => {
     const navigate = useNavigate();
-    const { updatePlaces } = usePlaces();
+    const { updateSinglePlace } = usePlaces();
     const { checkCookie } = useUser();
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -37,9 +37,13 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         setInstagramLink(place?.instagram_link || '');
     }, [place]);
 
+    const remainingImagesCount = (): number => {
+        return totalImages - selectedImages.length;
+    };
+
     useEffect(() => {
         if (!isScraping) {
-            updatePlaces(); // Mettre à jour les places une fois le scraping terminé
+            updateSinglePlace(place.place_id); // Mettre à jour les places une fois le scraping terminé
             setUpdateCounter((prevCounter) => prevCounter + 1); // Incrémenter le compteur pour forcer la mise à jour
         }
     }, [isScraping]);
@@ -78,7 +82,9 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 place.images = place.images.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                 );
-                setIsStepOne(false);
+                if (remainingImagesCount() <= 15) {
+                    setIsStepOne(false);
+                }
             }
         } catch (error) {
             console.error('Error deleting images:', error);
@@ -149,7 +155,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     };
 
     if (isPlaceComplete) {
-        updatePlaces();
+        updateSinglePlace(place.place_id);
         return (
             <div className="container mt-5 text-center">
                 <h1>Lieu terminé 🥂</h1>
@@ -192,22 +198,33 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
-                        selectedImages.length === 0 ? (
-                            <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)}>
-                                Aucune image à supprimer 👍
-                            </button>
+                        totalImages > 15 ? (
+                            <div className="mt-3">
+                                <p className="text-danger">
+                                    Il reste {remainingImagesCount() - 15} photo(s) à supprimer avant de continuer.
+                                </p>
+                                {selectedImages.length > 0 ? (
+                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
+                                        Supprimer les images ❌
+                                    </button>
+                                ) : (
+                                    <button className="btn btn-primary mt-3" disabled>
+                                        Sélectionnez des images à supprimer
+                                    </button>
+                                )}
+                            </div>
                         ) : (
-                            <button className="btn btn-danger mt-3" onClick={handleDeleteImages}>
-                                Supprimer les images ❌
+                            <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
+                                Aucune image à supprimer 👍
                             </button>
                         )
                     ) : (
                         <button
                             className="btn btn-primary mt-3"
                             onClick={handleSelectTop}
-                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3}
+                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3 || isScraping}
                         >
-                            Confirmer le Top 3 ✅
+                            Confirmer le Top 3 & Lieu suivant ✅
                         </button>
                     )}
                 </div>

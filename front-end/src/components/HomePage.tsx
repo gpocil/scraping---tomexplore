@@ -25,9 +25,9 @@ const HomePage: React.FC = () => {
         }
     }, [checkCookie, navigate]);
 
-    useEffect(() => {
-        updatePlaces();
-    }, [navigate]);
+    // useEffect(() => {
+    //     updatePlaces();
+    // }, [navigate]);
 
     useEffect(() => {
         updatePlaces();
