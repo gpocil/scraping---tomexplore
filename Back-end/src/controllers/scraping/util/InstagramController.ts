@@ -80,16 +80,36 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       while (attempts < maxAttempts) {
         if (imageUrls.length === 12) {
           const loadMoreButton = await page.$('button.pagination-failed-retry');
+
           if (loadMoreButton) {
             console.log('Clicking "Load More" button');
-            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton);
-            await loadMoreButton.click();
+
+            await page.evaluate((btn) => {
+              btn.style.display = 'block';
+              btn.scrollIntoView();
+            }, loadMoreButton);
+
+            await page.waitForTimeout(500);
+
+            const isVisible = await page.evaluate((btn) => {
+              const rect = btn.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0 && rect.top >= 0;
+            }, loadMoreButton);
+
+            if (isVisible) {
+              await loadMoreButton.click();
+              console.log('Button clicked');
+            } else {
+              console.log('Button is not visible, skipping click');
+            }
+
             await page.waitForTimeout(823);
             attempts++;
             continue;
           }
-
         }
+
+
 
         for (let i = 0; i < 3; i++) {
           await page.mouse.wheel({ deltaY: 1000 });
