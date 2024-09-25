@@ -7,6 +7,7 @@ import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
 import { Spinner } from 'react-bootstrap';
+import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 
 interface PhotoSelectorCityProps {
     places: IPlace[];
@@ -17,18 +18,19 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const navigate = useNavigate();
     const { checkCookie } = useUser();
     const { updatePlaces } = usePlaces();
-    const [currentPlaceIndex, setCurrentPlaceIndex] = useState(0);
+    const [currentPlaceId, setCurrentPlaceId] = useState(places[0]?.place_id);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isCityComplete, setIsCityComplete] = useState(false);
-    const [showModal, setShowModal] = useState(false); // État pour afficher le modal
+    const [showModal, setShowModal] = useState(false);
     const [showInstagramInput, setShowInstagramInput] = useState(false);
     const [instagramLink, setInstagramLink] = useState('');
     const [isScraping, setIsScraping] = useState(false);
 
-    const currentPlace = places[currentPlaceIndex];
+    const currentPlace = places.find((place) => place.place_id === currentPlaceId);
     const totalImages = currentPlace?.images?.length || 0;
+    const user = useUser().user;
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -37,20 +39,53 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     }, [checkCookie, navigate]);
 
     useEffect(() => {
-        updatePlaces();
+        if (!isScraping) {
+            updatePlaces();
+        }
     }, [isScraping]);
+
+    // useEffect to adjust currentPlaceId when places change
+    useEffect(() => {
+        const currentPlaceExists = places.some((place) => place.place_id === currentPlaceId);
+        if (!currentPlaceExists) {
+            if (places.length > 0) {
+                setCurrentPlaceId(places[0].place_id);
+            } else {
+                setIsCityComplete(true);
+            }
+        }
+    }, [places, currentPlaceId]);
 
     const remainingImagesCount = (): number => {
         return totalImages - selectedImages.length;
     };
 
     useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (currentPlace) {
+                updatePlaceAbort(currentPlace.place_id);
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [currentPlace]);
+
+    useEffect(() => {
         setInstagramLink(currentPlace?.instagram_link || '');
-    }, [currentPlaceIndex, currentPlace?.instagram_link]);
+    }, [currentPlace?.instagram_link]);
+
+    useEffect(() => {
+        if (user && currentPlace) {
+            updatePlaceStart(currentPlace.place_id, user?.userId);
+        }
+    }, [currentPlace, user]);
 
     const handleNext = () => {
-        if (currentPlaceIndex < places.length - 1) {
-            setCurrentPlaceIndex((prevIndex) => prevIndex + 1);
+        const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
+        if (currentIndex < places.length - 1) {
+            setCurrentPlaceId(places[currentIndex + 1].place_id);
             resetSelection();
         } else {
             setIsCityComplete(true);
@@ -58,8 +93,10 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handlePrev = () => {
-        if (currentPlaceIndex > 0) {
-            setCurrentPlaceIndex((prevIndex) => prevIndex - 1);
+        const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
+        if (currentIndex > 0) {
+            updatePlaceAbort(currentPlaceId);
+            setCurrentPlaceId(places[currentIndex - 1].place_id);
             resetSelection();
         }
     };
@@ -116,7 +153,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 imageIds: topImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
-            if (response.status === 200) {
+            if (response.status === 200 && currentPlace) {
+                updatePlaceEnd(currentPlace.place_id);
                 setTopImages([]);
                 setIsStepOne(true);
                 handleNext();
@@ -128,6 +166,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleSetNeedsAttention = () => {
+        updatePlaceAbort(currentPlaceId);
         setShowModal(true);
     };
 
@@ -197,12 +236,23 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         );
     }
 
+    const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
+
     return (
         <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
-                <button className="btn btn-primary" onClick={() => navigate('/')} disabled={isScraping}>
+                <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                        updatePlaceAbort(currentPlaceId);
+                        navigate('/');
+                    }}
+                    disabled={isScraping}
+                >
                     🏠 Accueil
+
                 </button>
+
                 <h2>{cityName}</h2>
             </div>
             <h4 className="mb-4">{currentPlace?.place_name} - {currentPlace?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
@@ -212,12 +262,12 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             </span>
 
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentPlaceIndex === 0 || isScraping} >
+                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentIndex === 0 || isScraping} >
                     ⬅️ Précédent
                 </button>
                 <div className="text-center">
                     <h4>
-                        {currentPlaceIndex + 1} / {places.length}
+                        {currentIndex + 1} / {places.length}
                     </h4>
                     <h3 className={`mb-4 ${isStepOne ? 'text-danger' : 'text-primary'}`}>
                         {isStepOne ? '🗑️ Supprimer les images' : '⭐ Sélectionner le top 3'}

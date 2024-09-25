@@ -7,6 +7,7 @@ import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
 import { Spinner } from 'react-bootstrap';
+import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 
 interface PhotoSelectorPlaceProps {
     place: IPlace;
@@ -26,6 +27,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     const [instagramLink, setInstagramLink] = useState(place?.instagram_link || '');
     const [isScraping, setIsScraping] = useState(false);
     const [updateCounter, setUpdateCounter] = useState(0); // Compteur pour forcer la mise à jour
+    const user = useUser().user;
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -42,11 +44,29 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     };
 
     useEffect(() => {
+        if (user) {
+            updatePlaceStart(place.place_id, user?.userId)
+        }
+    }, []);
+
+    useEffect(() => {
         if (!isScraping) {
             updateSinglePlace(place.place_id); // Mettre à jour les places une fois le scraping terminé
             setUpdateCounter((prevCounter) => prevCounter + 1); // Incrémenter le compteur pour forcer la mise à jour
         }
     }, [isScraping]);
+
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (place) {
+                updatePlaceAbort(place.place_id);
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [place]);
 
     const handleImageClick = (image: IImage) => {
         if (isStepOne) {
@@ -93,6 +113,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     };
 
     const handleSetNeedsAttention = () => {
+        updatePlaceAbort(place.place_id);
         setShowModal(true);
     };
 
@@ -120,6 +141,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 place_id: place?.place_id
             });
             if (response.status === 200) {
+                updatePlaceEnd(place.place_id);
                 setTopImages([]);
                 setIsStepOne(true);
                 setIsPlaceComplete(true);
@@ -159,8 +181,16 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         return (
             <div className="container mt-5 text-center">
                 <h1>Lieu terminé 🥂</h1>
-                <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
+                <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                        updatePlaceAbort(place.place_id);
+                        navigate('/');
+                    }}
+                    disabled={isScraping}
+                >
                     🏠 Accueil
+
                 </button>
             </div>
         );

@@ -48,7 +48,7 @@ export const loginUser = [
                 return res.status(401).json({ error: 'Invalid login or password' });
             }
 
-            res.json({ login: true });
+            res.json({ login: user.login, userId: user.id, admin: user.admin });
         } catch (error) {
             console.error('Error logging in user:', error);
             res.status(500).json({ error: 'Internal server error' });

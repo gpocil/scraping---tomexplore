@@ -7,6 +7,8 @@ import DeletePlaceModal from './modals/DeletePlaceModal';
 import { Button, Container, Row, Col, Form, Spinner } from 'react-bootstrap';
 import './styles/CheckPlaceNeedsAttention.css';
 import { usePlaces } from '../context/PlacesContext';
+import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
+import { useUser } from '../context/UserContext';
 
 interface CheckPlaceNeedsAttentionProps {
     place: IPlace;
@@ -30,6 +32,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const [wikiQuery, setWikiQuery] = useState('');
     const [isScraping, setIsScraping] = useState(false);
     const [images, setImages] = useState<IImage[]>(place.images || []);
+    const user = useUser().user;
 
     useEffect(() => {
         console.log('Component mounted');
@@ -42,6 +45,24 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         setImages(place.images);
     }, [place.images]);
 
+    useEffect(() => {
+        if (user) {
+            updatePlaceStart(place.place_id, user?.userId)
+        }
+    }, []);
+
+
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (place) {
+                updatePlaceAbort(place.place_id);
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [place]);
 
     const totalImages = place?.images?.length || 0;
 
@@ -128,6 +149,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             console.log('Set top images response:', response);
 
             if (response.status === 200) {
+                updatePlaceEnd(place.place_id);
                 setTopImages([]);
                 place.checked = true;
                 updateSinglePlace(place.place_id);
@@ -175,6 +197,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
+                updatePlaceEnd(place.place_id);
                 updateSinglePlace(place.place_id);
                 handleBackClick();
             }
@@ -252,7 +275,10 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         <Container className="mt-5">
             <Row>
                 <Col md={2} className="d-flex flex-column align-items-start">
-                    <Button className="mb-3 w-100" variant="primary" onClick={handleBackClick} disabled={isScraping}>
+                    <Button className="mb-3 w-100" variant="primary" onClick={() => {
+                        updatePlaceAbort(place.place_id);
+                        navigate('/');
+                    }} disabled={isScraping}>
                         🔙 Retour
                     </Button>
                     <Button className="mb-3 w-100" variant="danger" onClick={() => setIsDeleting(!isDeleting)} disabled={isScraping}>

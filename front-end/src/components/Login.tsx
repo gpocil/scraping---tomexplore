@@ -23,10 +23,12 @@ const Login: React.FC = () => {
 
         try {
             const response = await apiClient.post('/front/login', { login, password });
-            if (response.data.login) {
-                setUser({ login });
-                // Set a cookie to keep the user logged in for 2 hours
-                Cookies.set('user', login, { expires: 1 / 12 }); // 2 hours = 1/12 of a day
+
+            const { login: userLogin, userId: userId, admin: admin } = response.data;
+
+            if (userLogin && userId) {
+                setUser({ login: userLogin, userId: userId, admin: admin });
+                Cookies.set('user', JSON.stringify({ login: userLogin, userId: userId, admin: admin }), { expires: 1 / 12 }); // 2h
                 navigate('/');
             } else {
                 setError('Invalid login or password');
@@ -35,6 +37,8 @@ const Login: React.FC = () => {
             setError('Error logging in');
         }
     };
+
+
 
     return (
         <div className="d-flex justify-content-center align-items-center vh-100">

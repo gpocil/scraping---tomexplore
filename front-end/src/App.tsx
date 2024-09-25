@@ -7,7 +7,9 @@ import Login from './components/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import PlacesNeedingAttention from './components/PlacesNeedingAttention';
 import CheckPlaceNeedsAttention from './components/CheckPlaceNeedsAttention';
+import AdminCheckPlace from './components/AdminCheckPlace'; // Importer AdminCheckPlace
 import { IPlace } from './model/Interfaces';
+import Admin from './components/Admin';
 
 const App: React.FC = () => {
   return (
@@ -25,8 +27,11 @@ const App: React.FC = () => {
                     <Route path="/city/:countryName/:cityName" element={<HomePage />} />
                     <Route path="/place/:place_id" element={<HomePage />} />
                     <Route path="/places-needing-attention" element={<PlacesNeedingAttention />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin/check-place/:placeId" element={<AdminCheckPlace />} />
+
                     <Route
-                      path="/check-place/:placeId"
+                      path="/check-place-with-state/:placeId"
                       element={
                         <CheckPlaceNeedsAttentionWrapper />
                       }

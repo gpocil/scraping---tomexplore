@@ -15,19 +15,16 @@ const HomePage: React.FC = () => {
     const { countryName, cityName } = useParams<{ countryName: string; cityName: string; }>();
     const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
     const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
-    const [viewChecked, setViewChecked] = useState(false); // New state for toggling view
+    const [viewChecked, setViewChecked] = useState(false);
     const navigate = useNavigate();
-    const location = useLocation(); // Ajout de useLocation
+    const location = useLocation();
+    const user = useUser().user; // Access the user object
 
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
         }
     }, [checkCookie, navigate]);
-
-    // useEffect(() => {
-    //     updatePlaces();
-    // }, [navigate]);
 
     useEffect(() => {
         updatePlaces();
@@ -115,7 +112,6 @@ const HomePage: React.FC = () => {
             }
         });
 
-
         return {
             totalCountries: uniqueCountries.size,
             totalCities: uniqueCities.size,
@@ -170,6 +166,16 @@ const HomePage: React.FC = () => {
                     🚨 Lieux nécessitant une attention
                 </button>
             </div>
+
+            {/* Admin button (only visible to admins) */}
+            {user?.admin && (
+                <div className="d-flex justify-content-center mb-4">
+                    <button className="btn btn-secondary" onClick={() => navigate('/admin')}>
+                        Espace administrateur
+                    </button>
+                </div>
+            )}
+
             <div className="d-flex justify-content-center">
                 <ul className="list-group mb-4 w-50">
                     <li className="list-group-item">

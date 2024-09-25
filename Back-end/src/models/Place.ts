@@ -1,6 +1,8 @@
-import { Model, DataTypes, DateDataType } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
 import sequelize from '../sequelize';
 import City from './City';
+import User from './User';
+import DailyRedactorStats from './DailyRedactorStats';
 
 class Place extends Model {
     public id_tomexplore!: number;
@@ -19,6 +21,9 @@ class Place extends Model {
     public details?: string;
     public last_modification!: Date;
     public instagram_updated?: boolean;
+    public timestamp_start?: Date;
+    public timestamp_end?: Date;
+    public redactor_id?: number;
 }
 
 Place.init({
@@ -79,7 +84,6 @@ Place.init({
     unsplash_link: {
         type: DataTypes.STRING
     },
-
     google_maps_link: {
         type: DataTypes.STRING
     },
@@ -88,17 +92,66 @@ Place.init({
     },
     details: {
         type: DataTypes.STRING
-
     },
     last_modification: {
         type: DataTypes.DATE,
         allowNull: false
+    },
+    timestamp_start: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
+    timestamp_end: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
+    redactor_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     sequelize,
     modelName: 'Place',
     timestamps: false
 });
+
+Place.afterUpdate(async (place, options) => {
+    if (place.timestamp_end && place.redactor_id) {
+        const redactorId = place.redactor_id;
+        const startTime = new Date(place.timestamp_start!).getTime();
+        const endTime = new Date(place.timestamp_end).getTime();
+        const timeSpent = (endTime - startTime) / 1000;
+
+        //User
+        const user = await User.findByPk(redactorId);
+        if (user) {
+            user.total_places += 1;
+            user.total_time_spent += timeSpent;
+            user.avg_time_per_place = user.total_time_spent / user.total_places;
+            await user.save();
+        }
+
+        //  DailyRedactorStats
+        const today = new Date().toISOString().slice(0, 10);
+        const dailyStats = await DailyRedactorStats.findOne({ where: { redactor_id: redactorId, day: today } });
+        if (dailyStats) {
+            dailyStats.total_places += 1;
+            dailyStats.total_time_spent += timeSpent;
+            dailyStats.avg_time_per_place = dailyStats.total_time_spent / dailyStats.total_places;
+            await dailyStats.save();
+        } else {
+
+            await DailyRedactorStats.create({
+                redactor_id: redactorId,
+                day: today,
+                total_places: 1,
+                total_time_spent: timeSpent,
+                avg_time_per_place: timeSpent,
+            });
+        }
+    }
+});
+
 
 Place.belongsTo(City, { foreignKey: 'city_id', as: 'associatedCity' });
 

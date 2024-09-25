@@ -1,55 +1,49 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../sequelize';
 
-class User extends Model {
+class DailyRedactorStats extends Model {
     public id!: number;
-    public login!: string;
-    public password!: string;
-    public admin!: boolean;
+    public redactor_id!: number;
+    public day!: Date;
     public total_places!: number;
     public total_time_spent!: number;
     public avg_time_per_place!: number;
 }
 
-User.init({
+DailyRedactorStats.init({
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
     },
-    login: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true
-    },
-    password: {
-        type: DataTypes.STRING,
+    redactor_id: {
+        type: DataTypes.INTEGER,
         allowNull: false
     },
-    admin: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false,
+    day: {
+        type: DataTypes.DATEONLY,
         allowNull: false
     },
     total_places: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0
+        allowNull: false
     },
     total_time_spent: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0 //  seconds
+        allowNull: false
     },
     avg_time_per_place: {
         type: DataTypes.FLOAT,
-        allowNull: false,
-        defaultValue: 0 //  seconds
-    }
+        allowNull: false
+    },
+
 }, {
     sequelize,
-    modelName: 'User',
-    timestamps: false
+    modelName: 'RedactorStats',
+    timestamps: false,
+    tableName: 'redactor_stats'
 });
 
-export default User;
+
+
+export default DailyRedactorStats;

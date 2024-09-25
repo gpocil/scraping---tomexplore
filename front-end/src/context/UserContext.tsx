@@ -3,6 +3,8 @@ import Cookies from 'js-cookie';
 
 interface User {
     login: string;
+    userId: number;
+    admin: boolean;
 }
 
 interface UserContextType {
@@ -18,14 +20,33 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         const storedUser = Cookies.get('user');
+
         if (storedUser) {
-            setUser({ login: storedUser });
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                if (parsedUser && parsedUser.login && parsedUser.userId) {
+                    setUser({ login: parsedUser.login, userId: parsedUser.userId, admin: parsedUser.admin });
+                }
+            } catch (error) {
+                console.error('Error parsing user cookie', error);
+            }
         }
     }, []);
 
     const checkCookie = () => {
         const storedUser = Cookies.get('user');
-        return !!storedUser;
+
+        if (storedUser) {
+            try {
+                const parsedUser = JSON.parse(storedUser);
+                return !!(parsedUser && parsedUser.login && parsedUser.userId);
+            } catch (error) {
+                console.error('Error parsing user cookie', error);
+                return false;
+            }
+        }
+
+        return false;
     };
 
     return (
