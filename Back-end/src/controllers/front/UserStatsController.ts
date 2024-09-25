@@ -125,7 +125,7 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
                     where: {
                         redactor_id: user.id
                     },
-                    attributes: ['id', 'redactor_id', 'day', 'total_places', 'total_time_spent', 'avg_time_per_place']
+                    attributes: ['id', 'redactor_id', 'day', 'total_places', 'total_time_spent', 'avg_time_per_place', 'places_needing_att']
                 });
 
                 const verifiedPlaces = await Place.findAll({
