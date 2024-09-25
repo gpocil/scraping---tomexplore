@@ -10,7 +10,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 const HomePage: React.FC = () => {
     const { data: places, updatePlaces } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void };
     const [searchQuery, setSearchQuery] = useState('');
-    const { checkCookie } = useUser();
+    const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
     const { countryName, cityName } = useParams<{ countryName: string; cityName: string; }>();
     const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
@@ -155,6 +155,16 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="container mt-5">
+            <button
+                className="btn btn-danger"
+                onClick={() => {
+                    setUser(null);
+                    document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                }}
+            >
+                Déconnexion
+            </button>
+
             <h1 className="mb-4 text-center">{viewChecked ? 'Lieux traités ✅' : 'Lieux à traiter ❌'}</h1>
             <div className="d-flex justify-content-center mb-4">
                 <button className="btn btn-primary" onClick={() => setViewChecked(!viewChecked)}>
