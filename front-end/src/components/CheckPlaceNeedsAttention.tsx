@@ -18,7 +18,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const navigate = useNavigate();
     const location = useLocation();
     const place = (location.state as { place: IPlace }).place;
-    const { updateSinglePlace } = usePlaces();
+    const { updatePlaces } = usePlaces();
 
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -106,7 +106,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updateSinglePlace(place.place_id);
+                updatePlaces();
                 alert('Google Images rescraped successfully');
             }
         } catch (error) {
@@ -131,7 +131,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 setImages(prevImages => prevImages.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                 ));
-                updateSinglePlace(place.place_id);
+                updatePlaces();
             }
         } catch (error) {
             console.error('Error deleting images:', error);
@@ -152,7 +152,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 updatePlaceEnd(place.place_id);
                 setTopImages([]);
                 place.checked = true;
-                updateSinglePlace(place.place_id);
+                updatePlaces();
                 handleBackClick();
             }
         } catch (error) {
@@ -180,7 +180,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
             console.log('Upload response:', response);
             if (response.status === 200) {
-                updateSinglePlace(place.place_id);
+                updatePlaces();
                 alert('Photos uploaded successfully');
             }
         } catch (error) {
@@ -198,7 +198,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 updatePlaceEnd(place.place_id);
-                updateSinglePlace(place.place_id);
+                updatePlaces();
                 handleBackClick();
             }
         } catch (error) {
@@ -217,7 +217,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updateSinglePlace(place.place_id);
+                updatePlaces();
                 alert('Instagram updated and images scraped successfully');
             }
         } catch (error) {
@@ -238,7 +238,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updateSinglePlace(place.place_id);
+                updatePlaces();
                 alert('Wikimedia updated and images scraped successfully');
             }
         } catch (error) {
