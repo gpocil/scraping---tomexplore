@@ -43,6 +43,17 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     });
     console.log(`Navigated to Instagram page of ${username}`);
 
+    const reloadButton = await page.$('div[role="button"][tabindex="0"]');
+
+    if (reloadButton) {
+      await reloadButton.click();
+      console.log('Clicked "Reload page" button');
+      await page.waitForTimeout(5000); // Attendre que la page se recharge
+    } else {
+      console.log('"Reload page" button not found, proceeding.');
+    }
+
+
     // Check if the page is available or 404
     const pageNotFound = await page.evaluate(() => {
       return document.body.textContent?.includes("Sorry, this page isn't available.") ||
@@ -59,6 +70,17 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       await browser.close();
       console.log('Browser closed');
       return { urls: [], count: 0, error };
+    }
+
+    // Directly check if the "Close" button exists, and close it using aria-label="Close"
+    const closeButton = await page.$('svg[aria-label="Close"]');
+
+    if (closeButton) {
+      await closeButton.click();
+      console.log('Closed login popup');
+      await page.waitForTimeout(821); // Wait for popup to close and page to stabilize
+    } else {
+      console.log('Close button not found, proceeding without closing popup');
     }
 
     let imageUrls: string[] = [];
