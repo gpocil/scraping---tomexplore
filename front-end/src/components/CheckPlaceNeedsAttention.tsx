@@ -45,11 +45,15 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         setImages(place.images);
     }, [place.images]);
 
+
     useEffect(() => {
         if (user) {
             updatePlaceStart(place.place_id, user?.userId)
         }
     }, []);
+    const imagesToDeleteCount = (): number => {
+        return totalImages > 15 ? totalImages - 15 : 0;
+    };
 
 
     useEffect(() => {
@@ -64,7 +68,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         };
     }, [place]);
 
-    const totalImages = place?.images?.length || 0;
+    const totalImages = images.length || 0;
 
     const remainingImagesCount = (): number => {
         return totalImages - selectedImages.length;
@@ -133,6 +137,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 ));
                 updatePlaces();
             }
+
         } catch (error) {
             console.error('Error deleting images:', error);
             alert('Failed to delete images');
@@ -207,18 +212,19 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
+
     const handleInstagramUpdate = async () => {
         setIsScraping(true);
         try {
             const response = await apiClient.post('/front/updateInstagram', {
-                place_id: place?.place_id,
+                place_id: place.place_id,
                 instagram_link: instagramLink
             });
 
             if (response.status === 200) {
                 await updateImages();
                 updatePlaces();
-                alert('Instagram updated and images scraped successfully');
+                alert('Images Instagram récupérées');
             }
         } catch (error) {
             console.error('Error updating Instagram:', error);
@@ -227,6 +233,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             setIsScraping(false);
         }
     };
+
+
 
     const handleWikimediaUpdate = async () => {
         setIsScraping(true);
@@ -284,15 +292,28 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     <Button className="mb-3 w-100" variant="danger" onClick={() => setIsDeleting(!isDeleting)} disabled={isScraping}>
                         {isDeleting ? '❌ Annuler' : '🗑️ Supprimer photos'}
                     </Button>
-                    <Button className="mb-3 w-100" variant="primary" onClick={() => setIsSettingTop(!isSettingTop)} disabled={isScraping || remainingImagesCount() >= 15}>
+                    <Button
+                        className="mb-3 w-100"
+                        variant="primary"
+                        onClick={() => setIsSettingTop(!isSettingTop)}
+                        disabled={isScraping || imagesToDeleteCount() > 0}
+                    >
                         {isSettingTop ? '❌ Annuler' : '⭐ Définir top 3 et valider'}
                     </Button>
+
 
                     {isDeleting && (
                         <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0 || isScraping} >
                             🗑️ Confirmer suppression
                         </Button>
+
                     )}
+                    {imagesToDeleteCount() > 0 && (
+                        <p className="text-danger mb-3">
+                            Il reste {imagesToDeleteCount()} photo(s) à supprimer avant de continuer.
+                        </p>
+                    )}
+
                     {isSettingTop && (
                         <Button className="mb-3 w-100" variant="primary" onClick={handleSetTopImages} disabled={topImages.length !== 3 || isScraping}>
                             ⭐ Confirmer top 3
@@ -349,6 +370,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                             </Col>
                         ))}
                     </Row>
+
                 </Col>
                 <Col md={2} className="d-flex flex-column align-items-start">
                     <Button className="mb-3 w-100" variant="success" onClick={() => setShowUploadModal(true)} disabled={isScraping}>
