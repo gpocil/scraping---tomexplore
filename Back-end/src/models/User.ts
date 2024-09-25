@@ -7,6 +7,7 @@ class User extends Model {
     public password!: string;
     public admin!: boolean;
     public total_places!: number;
+    public places_needing_att_checked!: number;
     public total_time_spent!: number;
     public avg_time_per_place!: number;
 }
@@ -32,6 +33,11 @@ User.init({
         allowNull: false
     },
     total_places: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+    },
+    places_needing_att_checked: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0

@@ -221,14 +221,12 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
     }
 
     try {
-        // Update the top attributes for the given images
         await updateTopAttributes(imageIds, place_id);
 
-        // Update the place to set checked to true
         const place = await Place.findByPk(place_id);
         if (place) {
             place.checked = true;
-            place.needs_attention = false;
+            // place.needs_attention = false;
             place.last_modification = new Date();
             await place.save();
             console.log(`Place with ID ${place_id} set to checked.`);

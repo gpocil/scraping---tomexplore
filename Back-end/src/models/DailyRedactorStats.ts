@@ -6,6 +6,7 @@ class DailyRedactorStats extends Model {
     public redactor_id!: number;
     public day!: Date;
     public total_places!: number;
+    public places_needing_att!: number;
     public total_time_spent!: number;
     public avg_time_per_place!: number;
 }
@@ -25,6 +26,10 @@ DailyRedactorStats.init({
         allowNull: false
     },
     total_places: {
+        type: DataTypes.INTEGER,
+        allowNull: false
+    },
+    places_needing_att: {
         type: DataTypes.INTEGER,
         allowNull: false
     },

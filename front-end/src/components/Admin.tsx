@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../util/apiClient';
 import { Accordion, Badge, Card, ListGroup, Spinner, Alert } from 'react-bootstrap';
 import { usePlaces } from '../context/PlacesContext';
-import { IPlace } from '../model/Interfaces';
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +10,7 @@ interface VerifiedPlace {
     name_eng: string;
     timestamp_start: string;
     timestamp_end: string;
+    needs_attention: boolean;
 }
 
 interface DailyStats {
@@ -18,6 +18,7 @@ interface DailyStats {
     redactor_id: number;
     day: string;
     total_places: number;
+    places_needing_att: number;
     total_time_spent: number;
     avg_time_per_place: number;
     verifiedPlaces: VerifiedPlace[];
@@ -28,6 +29,7 @@ interface UserInfo {
     login: string;
     total_places: number;
     total_time_spent: number;
+    places_needing_att_checked: number;
     avg_time_per_place: number;
     dailyStats: DailyStats[];
     verifiedPlaces: VerifiedPlace[];
@@ -132,8 +134,10 @@ const Admin: React.FC = () => {
                             <Accordion.Header>
                                 <h2><b>{user.login}</b></h2>
                                 <Badge bg="primary" pill>Total Places: {user.total_places}</Badge>{' '}
+                                <Badge bg="info" pill>Places needing attention: {user.places_needing_att_checked}</Badge>{' '}
                                 <Badge bg="success" pill>Time Spent: {user.total_time_spent} sec</Badge>{' '}
                                 <Badge bg="info" pill>Avg Time per Place: {user.avg_time_per_place.toFixed(2)} sec</Badge>
+
                             </Accordion.Header>
                             <Accordion.Body>
                                 <h4>Daily Stats</h4>
@@ -142,7 +146,7 @@ const Admin: React.FC = () => {
                                         user.dailyStats.map((day, dayIndex) => (
                                             <Accordion.Item eventKey={`day-${userIndex}-${dayIndex}`} key={day.id}>
                                                 <Accordion.Header>
-                                                    {day.day} - Total places: {day.total_places}, Time spent: {day.total_time_spent} sec, Avg. time per place: {day.avg_time_per_place.toFixed(2)} sec
+                                                    {day.day} - Total places: {day.total_places}, Places needing attention : {day.places_needing_att}, Time spent: {day.total_time_spent} sec, Avg. time per place: {day.avg_time_per_place.toFixed(2)} sec
                                                 </Accordion.Header>
                                                 <Accordion.Body>
                                                     <Card>
@@ -153,14 +157,20 @@ const Admin: React.FC = () => {
                                                                     <ListGroup.Item
                                                                         key={place.id_tomexplore}
                                                                         action
-                                                                        onClick={() => handlePlaceClick(place)} // Rendre chaque item cliquable pour ouvrir dans un nouvel onglet
+                                                                        onClick={() => handlePlaceClick(place)}
                                                                     >
                                                                         <h5>
                                                                             {place.name_eng}{' '}
-                                                                            <Badge bg="secondary">
+                                                                            {place.needs_attention == true && (
+                                                                                <Badge bg="warning" className="ml-2">
+                                                                                    ⚠️
+                                                                                </Badge>
+                                                                            )}
+                                                                            <Badge bg="secondary" className="ml-2">
                                                                                 ID: {place.id_tomexplore}
                                                                             </Badge>
                                                                         </h5>
+
                                                                         <div>
                                                                             <Badge bg="info">Start: {new Date(place.timestamp_start).toLocaleString()}</Badge>{' '}
                                                                             <Badge bg="danger">End: {new Date(place.timestamp_end).toLocaleString()}</Badge>

@@ -115,8 +115,11 @@ Place.init({
     timestamps: false
 });
 
+
+
 Place.afterUpdate(async (place, options) => {
     if (place.timestamp_end && place.redactor_id) {
+        console.log('entrée');
         const redactorId = place.redactor_id;
         const startTime = new Date(place.timestamp_start!).getTime();
         const endTime = new Date(place.timestamp_end).getTime();
@@ -125,6 +128,9 @@ Place.afterUpdate(async (place, options) => {
         //User
         const user = await User.findByPk(redactorId);
         if (user) {
+            if (place.needs_attention == true) {
+                user.places_needing_att_checked += 1;
+            }
             user.total_places += 1;
             user.total_time_spent += timeSpent;
             user.avg_time_per_place = user.total_time_spent / user.total_places;
@@ -135,20 +141,45 @@ Place.afterUpdate(async (place, options) => {
         const today = new Date().toISOString().slice(0, 10);
         const dailyStats = await DailyRedactorStats.findOne({ where: { redactor_id: redactorId, day: today } });
         if (dailyStats) {
+            console.log('dailystats');
+            if (place.needs_attention == true) {
+                console.log('attention true');
+                dailyStats.places_needing_att += 1;
+            }
             dailyStats.total_places += 1;
             dailyStats.total_time_spent += timeSpent;
             dailyStats.avg_time_per_place = dailyStats.total_time_spent / dailyStats.total_places;
+
             await dailyStats.save();
         } else {
+            if (place.needs_attention == true) {
+                console.log('attention true');
 
-            await DailyRedactorStats.create({
-                redactor_id: redactorId,
-                day: today,
-                total_places: 1,
-                total_time_spent: timeSpent,
-                avg_time_per_place: timeSpent,
-            });
+                await DailyRedactorStats.create({
+                    redactor_id: redactorId,
+                    day: today,
+                    places_needing_att: 1,
+                    total_places: 1,
+                    total_time_spent: timeSpent,
+                    avg_time_per_place: timeSpent,
+                });
+            }
+            else {
+                console.log('attention false');
+
+                await DailyRedactorStats.create({
+                    redactor_id: redactorId,
+                    day: today,
+                    total_places: 1,
+                    places_needing_att: 0,
+                    total_time_spent: timeSpent,
+                    avg_time_per_place: timeSpent,
+                });
+            }
+
         }
+        place.needs_attention = false;
+
     }
 });
 

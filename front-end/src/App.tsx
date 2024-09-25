@@ -31,7 +31,7 @@ const App: React.FC = () => {
                     <Route path="/admin/check-place/:placeId" element={<AdminCheckPlace />} />
 
                     <Route
-                      path="/check-place-with-state/:placeId"
+                      path="/check-place/:placeId"
                       element={
                         <CheckPlaceNeedsAttentionWrapper />
                       }

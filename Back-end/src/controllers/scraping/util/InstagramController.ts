@@ -63,7 +63,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
     let imageUrls: string[] = [];
     let attempts = 0;
-    const maxAttempts = 5;
+    const maxAttempts = 3;
 
     // Adjusted selector for images wrapped in '._aagv' div
     const imageSelector = 'div._aagv img';
