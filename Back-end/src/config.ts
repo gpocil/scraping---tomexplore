@@ -5,5 +5,5 @@ dotenv.config();
 export const config = {
     apiKey: process.env.API_KEY || '',
     jwtSecret: process.env.JWT_SECRET || '',
-    dev: process.env.DEV === 'false'
+    dev: process.env.DEV === 'true'
 };
