@@ -19,11 +19,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     return { urls: [], count: 0, error };
   }
 
-  // Create a directory to store screenshots if it doesn't exist
-  const screenshotsDir = path.join(__dirname, 'screenshots');
-  if (!fs.existsSync(screenshotsDir)) {
-    fs.mkdirSync(screenshotsDir);
-  }
 
   let browser;
   try {
@@ -51,20 +46,16 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     });
     console.log('Viewport set to 1920x1080');
 
-    // Take a screenshot after opening the page
-    await page.screenshot({ path: path.join(screenshotsDir, '1_new_page_opened.png') });
 
     await page.authenticate({ username: proxy.username, password: proxy.pw });
     console.log('Proxy authenticated');
 
-    await page.screenshot({ path: path.join(screenshotsDir, '2_proxy_authenticated.png') });
 
     await page.goto(`https://www.picuki.com/profile/${username}/`, {
       waitUntil: 'networkidle2',
     });
     console.log(`Navigated to picuki page of ${username}`);
 
-    await page.screenshot({ path: path.join(screenshotsDir, '3_navigated_to_picuki.png') });
 
     const pageNotFound = await page.evaluate(() => {
       return document.body.textContent?.includes("Sorry, this page isn't available.") ||
@@ -75,7 +66,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     if (pageNotFound) {
       const error = "No Instagram account found, check spelling";
       console.log(error);
-      await page.screenshot({ path: path.join(screenshotsDir, '4_page_not_found.png') });
 
       if (res) {
         res.status(500).json({ error });
@@ -88,19 +78,16 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     await page.waitForSelector('div.photo');
     console.log('Image container detected');
 
-    await page.screenshot({ path: path.join(screenshotsDir, '5_image_container_detected.png') });
 
     const targetDivSelector = '.box-photo';
     await page.waitForSelector(targetDivSelector);
     const targetDiv = await page.$(targetDivSelector);
     console.log('Target div detected');
 
-    await page.screenshot({ path: path.join(screenshotsDir, '6_target_div_detected.png') });
 
     if (targetDiv) {
       await targetDiv.hover();
       console.log('Hovered over the target div');
-      await page.screenshot({ path: path.join(screenshotsDir, '7_hovered_target_div.png') });
 
       let imageUrls: string[] = [];
       let attempts = 0;
@@ -112,7 +99,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
 
           if (loadMoreButton) {
             console.log('Clicking "Load More" button');
-            await page.screenshot({ path: path.join(screenshotsDir, '8_before_click_load_more.png') });
 
             await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton);
             await loadMoreButton.click();
@@ -127,10 +113,9 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
             for (let i = 0; i < 3; i++) {
               await page.mouse.wheel({ deltaY: 1000 });
               console.log(`Scrolled down ${i + 1} times after clicking "Load More" button`);
-              await page.waitForTimeout(1000); // Adding delay between scrolls
+              await page.waitForTimeout(742);
             }
 
-            await page.screenshot({ path: path.join(screenshotsDir, `9_scrolled_down_attempt_${attempts + 1}.png`) });
 
             const isVisible = await page.evaluate((btn) => {
               const rect = btn.getBoundingClientRect();
@@ -165,7 +150,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         });
 
         console.log(`Found ${imageUrls.length} image URLs after scrolling`);
-        await page.screenshot({ path: path.join(screenshotsDir, `10_images_found_attempt_${attempts + 1}.png`) });
         attempts++;
       }
 
@@ -178,14 +162,12 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         res.json(result);
       }
 
-      await page.screenshot({ path: path.join(screenshotsDir, '11_final_screenshot.png') });
       await browser.close();
       console.log('Browser closed');
       return result;
     } else {
       const error = 'Target div not found';
       console.log(error);
-      await page.screenshot({ path: path.join(screenshotsDir, '12_target_div_not_found.png') });
 
       if (res) {
         res.status(500).json({ error });
