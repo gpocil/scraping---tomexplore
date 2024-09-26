@@ -223,7 +223,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updatePlaces();
+                await updatePlaces();
                 alert('Images Instagram récupérées');
             }
         } catch (error) {
