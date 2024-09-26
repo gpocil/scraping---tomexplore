@@ -2,12 +2,10 @@ import { Request, Response } from 'express';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as ProxyController from '../ProxyController';
-
+import path from 'path';
 puppeteer.use(StealthPlugin());
-
 export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
   const username = req ? req.body.username as string : '';
-
   if (!username) {
     const error = 'Username is required';
     console.log(error);
@@ -16,14 +14,12 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     }
     return { urls: [], count: 0, error };
   }
-
   let browser;
   try {
     const proxy = ProxyController.getRandomProxy();
     console.log("Using proxy: " + proxy.address);
-
     browser = await puppeteer.launch({
-      headless: "new",
+      headless: false,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -34,61 +30,17 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     console.log('Browser launched');
     const page = await browser.newPage();
     console.log('New page opened');
-
     await page.authenticate({ username: proxy.username, password: proxy.pw });
     console.log('Proxy authenticated');
-
-    await page.goto(`https://www.instagram.com/${username}/`, {
+    await page.goto(`https://www.picuki.com/profile/${username}/`, {
       waitUntil: 'networkidle2',
     });
-    console.log(`Navigated to Instagram page of ${username}`);
-
-    const maxReloadAttempts = 5; // Maximum reload attempts
-    let reloadAttempts = 0;
-    let contentFound = false;
-
-    // Repeat the process of checking the "Reload page" button and waiting for content
-    while (reloadAttempts < maxReloadAttempts && !contentFound) {
-      const reloadButton = await page.$('div[role="button"][tabindex="0"]');
-
-      if (reloadButton) {
-        await reloadButton.click();
-        console.log(`Clicked "Reload page" button (Attempt ${reloadAttempts + 1})`);
-        await page.waitForTimeout(7000); // Wait for the page to reload
-
-        // Check for the appearance of the images container
-        const contentPresent = await page.$('div._aagw');
-
-        if (contentPresent) {
-          console.log('Content found, proceeding with image extraction');
-          contentFound = true;
-        } else {
-          console.log('Content not found, checking for reload button again');
-          reloadAttempts++;
-        }
-      } else {
-        console.log('"Reload page" button not found after multiple attempts');
-        break;
-      }
-    }
-
-    if (!contentFound) {
-      const error = "Failed to load content after multiple reload attempts";
-      console.log(error);
-      if (res) {
-        res.status(500).json({ error });
-      }
-      await browser.close();
-      return { urls: [], count: 0, error };
-    }
-
-    // Check if the page is available or 404
+    console.log(`Navigated to picuki page of ${username}`);
     const pageNotFound = await page.evaluate(() => {
       return document.body.textContent?.includes("Sorry, this page isn't available.") ||
         document.querySelector('h1')?.textContent === '404' ||
         false;
     });
-
     if (pageNotFound) {
       const error = "No Instagram account found, check spelling";
       console.log(error);
@@ -96,80 +48,98 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         res.status(500).json({ error });
       }
       await browser.close();
+      console.log('Browser closed');
       return { urls: [], count: 0, error };
     }
+    await page.waitForSelector('div.photo');
+    console.log('Image container detected');
+    const targetDivSelector = '.box-photo';
+    await page.waitForSelector(targetDivSelector);
+    const targetDiv = await page.$(targetDivSelector);
+    console.log('Target div detected');
+    if (targetDiv) {
+      await targetDiv.hover();
+      console.log('Hovered over the target div');
+      let imageUrls: string[] = [];
+      let attempts = 0;
+      const maxAttempts = 4;
+      while (attempts < maxAttempts) {
+        if (imageUrls.length === 12) {
+          const loadMoreButton = await page.$('button.pagination-failed-retry');
 
-    // Directly check if the "Close" button exists, and close it using aria-label="Close"
-    const closeButton = await page.$('svg[aria-label="Close"]');
+          if (loadMoreButton) {
+            console.log('Clicking "Load More" button');
+            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton);
+            await loadMoreButton.click();
 
-    if (closeButton) {
-      await closeButton.click();
-      console.log('Closed login popup');
-      await page.waitForTimeout(1000); // Wait for popup to close and page to stabilize
-    } else {
-      console.log('Close button not found, proceeding without closing popup');
-    }
+            await page.evaluate((btn) => {
+              btn.style.display = 'block';
+              btn.scrollIntoView();
+            }, loadMoreButton);
 
-    let imageUrls: string[] = [];
-    let attempts = 0;
-    const maxAttempts = 3;
-    const imageSelector = 'div._aagv img';
+            await page.waitForTimeout(500);
 
-    while (attempts < maxAttempts) {
-      // Scroll down to load more images
-      for (let i = 0; i < 3; i++) {
-        await page.mouse.wheel({ deltaY: 1000 });
-        console.log(`Scrolled down ${i + 1} times`);
-        await page.waitForTimeout(1000);
-      }
+            const isVisible = await page.evaluate((btn) => {
+              const rect = btn.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0 && rect.top >= 0;
+            }, loadMoreButton);
 
-      // Click "Show more posts" button if present
-      const showMoreButton = await page.evaluate(() => {
-        const buttons = Array.from(document.querySelectorAll('button'));
-        const showMoreBtn = buttons.find(btn => btn.textContent?.includes("Show more posts"));
-        if (showMoreBtn) {
-          (showMoreBtn as HTMLElement).click();
-          return true;
+            if (isVisible) {
+              await loadMoreButton.click();
+              console.log('Button clicked');
+            } else {
+              console.log('Button is not visible, skipping click');
+            }
+
+            await page.waitForTimeout(823);
+            attempts++;
+            continue;
+          }
+
         }
-        return false;
-      });
 
-      if (showMoreButton) {
-        console.log("Clicked 'Show more posts' button");
-        await page.waitForTimeout(2000);
-      } else {
-        console.log("'Show more posts' button not found");
+
+
+        for (let i = 0; i < 3; i++) {
+          await page.mouse.wheel({ deltaY: 1000 });
+          console.log(`Scrolled down ${i + 1} times`);
+          await page.waitForTimeout(482);
+        }
+        await page.waitForTimeout(1682);
+        imageUrls = await page.evaluate(() => {
+          const imgs = Array.from(document.querySelectorAll('div.photo img'));
+          return imgs
+            .filter(img => !(img as HTMLImageElement).alt.includes('©'))
+            .map(img => (img as HTMLImageElement).src);
+        });
+        console.log(`Found ${imageUrls.length} image URLs after scrolling`);
+        attempts++;
       }
-
-      // Wait for images to load after scrolling
-      await page.waitForSelector(imageSelector, { timeout: 10000 }); // Increased timeout
-
-      const newImageUrls = await page.evaluate(() => {
-        const imgs = Array.from(document.querySelectorAll('div._aagv img'));
-        return imgs.map(img => (img as HTMLImageElement).src); // Cast to HTMLImageElement
-      });
-
-      imageUrls = [...new Set([...imageUrls, ...newImageUrls])]; // Keep unique URLs
-      console.log(`Found ${imageUrls.length} image URLs after scrolling`);
-
-      if (newImageUrls.length === 0) break; // Stop if no more new images are found
-      attempts++;
+      const result = {
+        urls: imageUrls,
+        count: imageUrls.length,
+      };
+      if (res) {
+        res.json(result);
+      }
+      await browser.close();
+      console.log('Browser closed');
+      return result;
+    } else {
+      const error = 'Target div not found';
+      console.log(error);
+      if (res) {
+        res.status(500).json({ error });
+      }
+      await browser.close();
+      console.log('Browser closed');
+      return { urls: [], count: 0, error };
     }
-
-    const result = {
-      urls: imageUrls,
-      count: imageUrls.length,
-    };
-    if (res) {
-      res.json(result);
-    }
-    await browser.close();
-    console.log('Browser closed');
-    return result;
   } catch (error: any) {
     console.error(`Error fetching Instagram images: ${error.message}`);
     if (browser) {
       await browser.close();
+      console.log('Browser closed');
     }
     if (res) {
       res.status(500).json({ error: error.message });

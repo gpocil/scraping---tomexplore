@@ -137,7 +137,6 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 ));
                 updatePlaces();
             }
-
         } catch (error) {
             console.error('Error deleting images:', error);
             alert('Failed to delete images');
@@ -216,6 +215,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const handleInstagramUpdate = async () => {
         setIsScraping(true);
         try {
+            console.log(instagramLink);
             const response = await apiClient.post('/front/updateInstagram', {
                 place_id: place.place_id,
                 instagram_link: instagramLink
@@ -223,7 +223,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                await updatePlaces();
+                updatePlaces();
                 alert('Images Instagram récupérées');
             }
         } catch (error) {
