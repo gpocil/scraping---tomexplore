@@ -54,7 +54,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
       if (reloadButton) {
         await reloadButton.click();
         console.log(`Clicked "Reload page" button (Attempt ${reloadAttempts + 1})`);
-        await page.waitForTimeout(3000); // Wait for the page to reload
+        await page.waitForTimeout(7000); // Wait for the page to reload
 
         // Check for the appearance of the images container
         const contentPresent = await page.$('div._aagw');
