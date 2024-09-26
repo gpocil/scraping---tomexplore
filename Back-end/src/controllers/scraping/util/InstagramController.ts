@@ -43,16 +43,36 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     });
     console.log(`Navigated to Instagram page of ${username}`);
 
-    const reloadButton = await page.$('div[role="button"][tabindex="0"]');
+    let reloadButtonFound = false;
+    const maxReloadAttempts = 5; // Maximum number of times to try reloading
+    let reloadAttempts = 0;
 
-    if (reloadButton) {
-      await reloadButton.click();
-      console.log('Clicked "Reload page" button');
-      await page.waitForTimeout(5000); // Attendre que la page se recharge
-    } else {
-      console.log('"Reload page" button not found, proceeding.');
+    // Try clicking the "Reload page" button multiple times
+    while (reloadAttempts < maxReloadAttempts) {
+      const reloadButton = await page.$('div[role="button"][tabindex="0"]');
+      if (reloadButton) {
+        await reloadButton.click();
+        console.log(`Clicked "Reload page" button (Attempt ${reloadAttempts + 1})`);
+        await page.waitForTimeout(2000); // Wait for the page to reload
+        reloadButtonFound = true;
+      } else {
+        console.log('"Reload page" button not found');
+        break;
+      }
+
+      // Check if content is present after each reload attempt
+      const contentPresent = await page.$('div._aagw');
+      if (contentPresent) {
+        console.log('Content found, stopping reload attempts');
+        break;
+      }
+
+      reloadAttempts++;
     }
 
+    if (!reloadButtonFound) {
+      console.log('"Reload page" button was not found after multiple attempts');
+    }
 
     // Check if the page is available or 404
     const pageNotFound = await page.evaluate(() => {

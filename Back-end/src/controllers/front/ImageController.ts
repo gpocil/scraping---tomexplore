@@ -388,14 +388,13 @@ export const updateInstagram = async (req: Request, res: Response) => {
 
         console.log(`Updated Instagram link for place ID: ${place_id}`);
 
-        // Appeler scrapeInstagramAfterUpdate pour récupérer les nouvelles images Instagram
         const usernameMatch = instagram_link.match(/(?:http[s]?:\/\/)?(?:www\.)?instagram\.com\/([^\/\?\&]+)/);
         const instagram_username = usernameMatch ? usernameMatch[1] : '';
 
         const scrapeRequest = {
             body: {
                 id_tomexplore: place.id_tomexplore,
-                instagram_username // Utiliser le nom d'utilisateur extrait
+                instagram_username
             }
         } as Request;
 
@@ -415,7 +414,6 @@ export const updateInstagram = async (req: Request, res: Response) => {
 
         console.log(`Completed Instagram scraping for place ID: ${place_id}`);
 
-        // Envoyer la réponse seulement après l'appel de scrapeInstagramAfterUpdate
         res.status(200).json({ message: 'Instagram link updated successfully', place, scrapeResult });
     } catch (error) {
         console.error('Error updating Instagram link:', error);

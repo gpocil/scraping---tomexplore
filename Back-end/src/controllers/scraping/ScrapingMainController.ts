@@ -457,12 +457,14 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
             console.log(`Updated place with new Instagram link: ${place.id_tomexplore}`);
         }
 
-        const saveImage = async (url: string, generatedName: string) => {
+        const saveImage = async (url: string, generatedName: string, source: string) => {
             console.log(`Saving image: ${generatedName}`);
             return Image.create({
                 image_name: generatedName,
                 url,
-                place_id: place!.id_tomexplore
+                original_url: source,
+                place_id: place!.id_tomexplore,
+
             });
         };
 
@@ -470,7 +472,7 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
             result.imageNames.map((generatedName, index) => {
                 const source = 'Instagram';
                 const url = instagramImages.urls[index];
-                return saveImage(url, generatedName);
+                return saveImage(url, generatedName, source);
             })
         );
 
