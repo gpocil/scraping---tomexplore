@@ -32,28 +32,12 @@ const PlacesNeedingAttention: React.FC = () => {
         fetchPlacesNeedingAttention();
     }, [places]);
 
-
-    useEffect(() => {
-        const fetchPlacesNeedingAttention = () => {
-            const business: IPlace[] = [];
-            const tourist: IPlace[] = [];
-
-            for (const country of Object.keys(places.needs_attention)) {
-                for (const city of Object.keys(places.needs_attention[country])) {
-                    for (const place of Object.values(places.needs_attention[country][city]).flat()) {
-                        if (place.type === 'Tourist Attraction') {
-                            tourist.push(place);
-                        } else {
-                            business.push(place);
-                        }
-                    }
-                }
-            }
-            setBusinessPlaces(business);
-            setTouristAttractions(tourist);
-        };
-        fetchPlacesNeedingAttention();
-    }, []);
+    const getPlaceClass = (details: string | undefined) => {
+        if (details && details.toLowerCase().includes('fermé')) {
+            return 'text-danger';  // Ligne rouge si le lieu est fermé
+        }
+        return 'text-secondary';  // Ligne grise par défaut
+    };
 
     return (
         <div className="container mt-5">
@@ -75,7 +59,7 @@ const PlacesNeedingAttention: React.FC = () => {
                             {businessPlaces.map(place => (
                                 <li
                                     key={place.place_id}
-                                    className="list-group-item place-item"
+                                    className={`list-group-item place-item ${getPlaceClass(place.details)}`}
                                     onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
                                     style={{ cursor: 'pointer' }}
                                 >
@@ -90,7 +74,7 @@ const PlacesNeedingAttention: React.FC = () => {
                             {touristAttractions.map(place => (
                                 <li
                                     key={place.place_id}
-                                    className="list-group-item place-item"
+                                    className={`list-group-item place-item ${getPlaceClass(place.details)}`}
                                     onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
                                     style={{ cursor: 'pointer' }}
                                 >
