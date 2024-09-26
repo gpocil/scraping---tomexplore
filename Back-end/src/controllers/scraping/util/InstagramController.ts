@@ -78,7 +78,11 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
             }, loadMoreButton);
 
             await page.waitForTimeout(500);
-
+            for (let i = 0; i < 3; i++) {
+              await page.mouse.wheel({ deltaY: 1000 });
+              console.log(`Scrolled down ${i + 1} times after clicking "Load More" button`);
+              await page.waitForTimeout(1000); // Adding delay between scrolls
+            }
             const isVisible = await page.evaluate((btn) => {
               const rect = btn.getBoundingClientRect();
               return rect.width > 0 && rect.height > 0 && rect.top >= 0;
