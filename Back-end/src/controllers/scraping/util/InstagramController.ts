@@ -19,7 +19,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     const proxy = ProxyController.getRandomProxy();
     console.log("Using proxy: " + proxy.address);
     browser = await puppeteer.launch({
-      headless: false,
+      headless: "new",
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
