@@ -4,12 +4,15 @@ import { IPlace } from '../model/Interfaces';
 import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/PlacesNeedingAttention.css';
+import { useUser } from '../context/UserContext';
 
 const PlacesNeedingAttention: React.FC = () => {
     const { data: places } = usePlaces();
     const [businessPlaces, setBusinessPlaces] = useState<IPlace[]>([]);
     const [touristAttractions, setTouristAttractions] = useState<IPlace[]>([]);
     const navigate = useNavigate();
+    const { user } = useUser();
+
 
     useEffect(() => {
         const fetchPlacesNeedingAttention = () => {
@@ -18,10 +21,14 @@ const PlacesNeedingAttention: React.FC = () => {
             for (const country of Object.keys(places.needs_attention)) {
                 for (const city of Object.keys(places.needs_attention[country])) {
                     for (const place of Object.values(places.needs_attention[country][city]).flat()) {
-                        if (place.type === 'Tourist Attraction') {
-                            tourist.push(place);
-                        } else {
-                            business.push(place);
+                        // Ne pas ajouter les lieux fermés si l'utilisateur n'est pas admin
+                        const isClosed = place.details && place.details.toLowerCase().includes('fermé');
+                        if (!isClosed || user?.admin) {
+                            if (place.type === 'Tourist Attraction') {
+                                tourist.push(place);
+                            } else {
+                                business.push(place);
+                            }
                         }
                     }
                 }
