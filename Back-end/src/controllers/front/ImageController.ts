@@ -166,16 +166,20 @@ export const getImagesByPlaceId = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'No images found for this place' });
         }
 
-        // Créer les URLs des images
-        const imageUrls = images.map((image: Image) => `https://monblogdevoyage.com/images/${folderName}/${image.image_name}`);
-        console.log(`Image URLs for place ID ${placeId}: ${JSON.stringify(imageUrls)}`);
+        // Créer les URLs des images avec les ID
+        const imageData = images.map((image: Image) => ({
+            id: image.id,  // Ajoute l'ID de l'image
+            url: `https://monblogdevoyage.com/images/${folderName}/${image.image_name}`
+        }));
+        console.log(`Image data for place ID ${placeId}: ${JSON.stringify(imageData)}`);
 
-        res.json(imageUrls);
+        res.json(imageData);
     } catch (error) {
         console.error('Error fetching images:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 
 export const deleteImagesUser = async (req: Request, res: Response) => {

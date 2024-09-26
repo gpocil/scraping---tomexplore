@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
 
     useEffect(() => {
         updatePlaces();
-    }, []);
+    }, [location.pathname]);
 
     useEffect(() => {
         if (location.pathname === '/' || location.pathname === "") {

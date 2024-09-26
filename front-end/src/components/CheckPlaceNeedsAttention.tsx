@@ -28,7 +28,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showInstagramInput, setShowInstagramInput] = useState(false);
     const [instagramLink, setInstagramLink] = useState(place.instagram_link || '');
-    const [showWikimediaInput, setShowWikimediaInput] = useState(false); // État pour le bouton Scraper Wikimedia
+    const [showWikimediaInput, setShowWikimediaInput] = useState(false);
     const [wikiQuery, setWikiQuery] = useState('');
     const [isScraping, setIsScraping] = useState(false);
     const [images, setImages] = useState<IImage[]>(place.images || []);
@@ -120,28 +120,31 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             setIsScraping(false);
         }
     };
+    useEffect(() => {
+        updateImages();
+    }, [place]);
 
     const handleDeleteImages = async () => {
-        console.log('Deleting images:', selectedImages);
         try {
             const response = await apiClient.post('/front/deleteImages', {
                 imageIds: selectedImages.map((image) => image.id),
                 place_id: place?.place_id
             });
-            console.log('Delete images response:', response);
 
             if (response.status === 200) {
-                setSelectedImages([]);
-                setImages(prevImages => prevImages.filter(
+                const remainingImages = images.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
-                ));
-                updatePlaces();
+                );
+
+                setImages(remainingImages);
+                setSelectedImages([]);
             }
         } catch (error) {
             console.error('Error deleting images:', error);
             alert('Failed to delete images');
         }
     };
+
 
     const handleSetTopImages = async () => {
         console.log('Setting top images:', topImages);
@@ -222,8 +225,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
+                await updatePlaces();
                 await updateImages();
-                updatePlaces();
                 alert('Images Instagram récupérées');
             }
         } catch (error) {
@@ -257,22 +260,29 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
+
     const updateImages = async () => {
         try {
             const response = await apiClient.get(`/front/${place?.place_id}/images`);
             console.log('Update images response:', response);
+
             if (response.status === 200) {
-                const newImages = response.data.map((url: string, index: number) => ({
-                    id: index,
-                    image_name: url.split('/').pop() || `image_${index}`,
-                    url: url
-                }));
+                const newImages = response.data.map((image: { id: number, image_name: string, url: string }) => {
+                    return {
+                        id: image.id,
+                        image_name: image.image_name,
+                        url: image.url
+                    };
+                });
+
                 setImages(newImages);
             }
         } catch (error) {
             console.error('Error updating images:', error);
         }
     };
+
+
 
     const handleBackClick = () => {
         console.log('Navigating back');
@@ -285,7 +295,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 <Col md={2} className="d-flex flex-column align-items-start">
                     <Button className="mb-3 w-100" variant="primary" onClick={() => {
                         updatePlaceAbort(place.place_id);
-                        navigate('/');
+                        navigate('/places-needing-attention');
                     }} disabled={isScraping}>
                         🔙 Retour
                     </Button>

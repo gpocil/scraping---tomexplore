@@ -9,8 +9,29 @@ const PlacesNeedingAttention: React.FC = () => {
     const { data: places } = usePlaces();
     const [businessPlaces, setBusinessPlaces] = useState<IPlace[]>([]);
     const [touristAttractions, setTouristAttractions] = useState<IPlace[]>([]);
-    const { updatePlaces } = usePlaces();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchPlacesNeedingAttention = () => {
+            const business: IPlace[] = [];
+            const tourist: IPlace[] = [];
+            for (const country of Object.keys(places.needs_attention)) {
+                for (const city of Object.keys(places.needs_attention[country])) {
+                    for (const place of Object.values(places.needs_attention[country][city]).flat()) {
+                        if (place.type === 'Tourist Attraction') {
+                            tourist.push(place);
+                        } else {
+                            business.push(place);
+                        }
+                    }
+                }
+            }
+            setBusinessPlaces(business);
+            setTouristAttractions(tourist);
+        };
+        fetchPlacesNeedingAttention();
+    }, [places]);
+
 
     useEffect(() => {
         const fetchPlacesNeedingAttention = () => {
@@ -32,9 +53,7 @@ const PlacesNeedingAttention: React.FC = () => {
             setTouristAttractions(tourist);
         };
         fetchPlacesNeedingAttention();
-    }, [places]);
-
-
+    }, []);
 
     return (
         <div className="container mt-5">
