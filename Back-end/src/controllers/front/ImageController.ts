@@ -354,24 +354,29 @@ export const setPlaceToBeDeleted = async (req: Request, res: Response) => {
         await place.save();
 
         const images = await Image.findAll({ where: { place_id: place_id } });
-        const imageIds = images.map(image => image.id);
+        if (images.length > 0) {
+            const imageIds = images.map(image => image.id);
 
-        await deleteImages(imageIds);
+            await deleteImages(imageIds);
 
-        const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
-        if (fs.existsSync(folderPath)) {
-            deleteFolderRecursiveHelper(folderPath);
-            console.log('Dossier supprimé');
+            const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
+            if (fs.existsSync(folderPath)) {
+                deleteFolderRecursiveHelper(folderPath);
+                console.log('Dossier supprimé');
+            } else {
+                console.log('Dossier non trouvé : ' + folderPath);
+            }
+        } else {
+            console.log('Aucune image trouvée pour le lieu, uniquement le lieu sera supprimé.');
         }
-        else {
-            console.log('dossier non trouvé ' + folderPath);
-        }
-        res.status(200).json({ message: 'Place set to be deleted and all associated images removed' });
+
+        res.status(200).json({ message: 'Place set to be deleted. Images removed if present.' });
     } catch (error) {
         console.error('Error setting place to be deleted:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 
 export const updateInstagram = async (req: Request, res: Response) => {
