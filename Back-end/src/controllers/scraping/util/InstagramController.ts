@@ -43,35 +43,43 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     });
     console.log(`Navigated to Instagram page of ${username}`);
 
-    let reloadButtonFound = false;
-    const maxReloadAttempts = 5; // Maximum number of times to try reloading
+    const maxReloadAttempts = 5; // Maximum reload attempts
     let reloadAttempts = 0;
+    let contentFound = false;
 
-    // Try clicking the "Reload page" button multiple times
-    while (reloadAttempts < maxReloadAttempts) {
+    // Repeat the process of checking the "Reload page" button and waiting for content
+    while (reloadAttempts < maxReloadAttempts && !contentFound) {
       const reloadButton = await page.$('div[role="button"][tabindex="0"]');
+
       if (reloadButton) {
         await reloadButton.click();
         console.log(`Clicked "Reload page" button (Attempt ${reloadAttempts + 1})`);
-        await page.waitForTimeout(2000); // Wait for the page to reload
-        reloadButtonFound = true;
+        await page.waitForTimeout(3000); // Wait for the page to reload
+
+        // Check for the appearance of the images container
+        const contentPresent = await page.$('div._aagw');
+
+        if (contentPresent) {
+          console.log('Content found, proceeding with image extraction');
+          contentFound = true;
+        } else {
+          console.log('Content not found, checking for reload button again');
+          reloadAttempts++;
+        }
       } else {
-        console.log('"Reload page" button not found');
+        console.log('"Reload page" button not found after multiple attempts');
         break;
       }
-
-      // Check if content is present after each reload attempt
-      const contentPresent = await page.$('div._aagw');
-      if (contentPresent) {
-        console.log('Content found, stopping reload attempts');
-        break;
-      }
-
-      reloadAttempts++;
     }
 
-    if (!reloadButtonFound) {
-      console.log('"Reload page" button was not found after multiple attempts');
+    if (!contentFound) {
+      const error = "Failed to load content after multiple reload attempts";
+      console.log(error);
+      if (res) {
+        res.status(500).json({ error });
+      }
+      await browser.close();
+      return { urls: [], count: 0, error };
     }
 
     // Check if the page is available or 404
@@ -88,7 +96,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         res.status(500).json({ error });
       }
       await browser.close();
-      console.log('Browser closed');
       return { urls: [], count: 0, error };
     }
 
@@ -98,7 +105,7 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     if (closeButton) {
       await closeButton.click();
       console.log('Closed login popup');
-      await page.waitForTimeout(821); // Wait for popup to close and page to stabilize
+      await page.waitForTimeout(1000); // Wait for popup to close and page to stabilize
     } else {
       console.log('Close button not found, proceeding without closing popup');
     }
@@ -106,8 +113,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     let imageUrls: string[] = [];
     let attempts = 0;
     const maxAttempts = 3;
-
-    // Adjusted selector for images wrapped in '._aagv' div
     const imageSelector = 'div._aagv img';
 
     while (attempts < maxAttempts) {
@@ -124,20 +129,20 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
         const showMoreBtn = buttons.find(btn => btn.textContent?.includes("Show more posts"));
         if (showMoreBtn) {
           (showMoreBtn as HTMLElement).click();
-          return true; // Click was successful
+          return true;
         }
-        return false; // No button found
+        return false;
       });
 
       if (showMoreButton) {
         console.log("Clicked 'Show more posts' button");
-        await page.waitForTimeout(2000); // Wait for more posts to load
+        await page.waitForTimeout(2000);
       } else {
         console.log("'Show more posts' button not found");
       }
 
       // Wait for images to load after scrolling
-      await page.waitForSelector(imageSelector, { timeout: 3000 });
+      await page.waitForSelector(imageSelector, { timeout: 10000 }); // Increased timeout
 
       const newImageUrls = await page.evaluate(() => {
         const imgs = Array.from(document.querySelectorAll('div._aagv img'));
@@ -165,7 +170,6 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     console.error(`Error fetching Instagram images: ${error.message}`);
     if (browser) {
       await browser.close();
-      console.log('Browser closed');
     }
     if (res) {
       res.status(500).json({ error: error.message });
