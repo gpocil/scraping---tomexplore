@@ -44,6 +44,13 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     const page = await browser.newPage();
     console.log('New page opened');
 
+    // Set the viewport to a larger resolution
+    await page.setViewport({
+      width: 1920,  // Increase the width
+      height: 1080, // Increase the height
+    });
+    console.log('Viewport set to 1920x1080');
+
     // Take a screenshot after opening the page
     await page.screenshot({ path: path.join(screenshotsDir, '1_new_page_opened.png') });
 
