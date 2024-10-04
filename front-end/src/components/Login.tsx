@@ -8,7 +8,6 @@ import Cookies from 'js-cookie';
 import { usePlaces } from '../context/PlacesContext';
 
 const Login: React.FC = () => {
-    const { updatePlaces, } = usePlaces();
 
     const [login, setLogin] = useState('');
     const [password, setPassword] = useState('');
@@ -16,9 +15,6 @@ const Login: React.FC = () => {
     const navigate = useNavigate();
     const { setUser } = useUser();
 
-    useEffect(() => {
-        updatePlaces();
-    }, []);
 
     const handleLogin = async (event: React.FormEvent) => {
         event.preventDefault();

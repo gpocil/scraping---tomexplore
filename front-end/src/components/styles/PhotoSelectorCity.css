@@ -26,4 +26,10 @@
 .image-container.selected-top .selected-overlay {
     background-color: rgba(0, 0, 255, 0.5);
     /* Blue highlight */
+
+
+}
+
+.image-container {
+    background-color: gray;
 }

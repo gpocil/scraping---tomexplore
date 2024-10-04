@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
-import { IResponseStructure, IPlace } from '../model/Interfaces';
+import { IPlace } from '../model/Interfaces';
 import PhotoSelectorCity from './PhotoSelectorCity';
 import PhotoSelectorPlace from './PhotoSelectorPlace';
 import { useUser } from '../context/UserContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const HomePage: React.FC = () => {
-    const { data: places, loading } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void, loading: boolean };
+    const { data: places, updatePlaces } = usePlaces()
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
@@ -24,6 +24,7 @@ const HomePage: React.FC = () => {
         if (!checkCookie()) {
             navigate('/login');
         }
+
     }, [checkCookie, navigate]);
 
 
@@ -143,10 +144,6 @@ const HomePage: React.FC = () => {
 
     const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention, totalPlacesToBeDeleted } = getTotalCounts();
 
-    if (loading) {
-        return <div className="container mt-5 text-center">Chargement des données...</div>; // Show loading message
-    }
-
     if (selectedPlace) {
         return <PhotoSelectorPlace place={selectedPlace} onComplete={handlePlaceComplete} />;
     }
@@ -154,6 +151,7 @@ const HomePage: React.FC = () => {
     if (countryName && cityName && selectedCityPlaces.length > 0) {
         return <PhotoSelectorCity places={selectedCityPlaces} cityName={cityName} />;
     }
+
     return (
         <div className="container mt-5">
             <button
