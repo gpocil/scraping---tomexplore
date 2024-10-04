@@ -8,7 +8,7 @@ import { useUser } from '../context/UserContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const HomePage: React.FC = () => {
-    const { data: places, updatePlaces, loading } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void, loading: boolean };
+    const { data: places, loading } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void, loading: boolean };
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
@@ -26,9 +26,7 @@ const HomePage: React.FC = () => {
         }
     }, [checkCookie, navigate]);
 
-    useEffect(() => {
-        updatePlaces();
-    }, [location.pathname]);
+
 
     useEffect(() => {
         if (location.pathname === '/' || location.pathname === "") {

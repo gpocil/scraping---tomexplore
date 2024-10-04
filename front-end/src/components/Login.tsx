@@ -5,13 +5,20 @@ import { useUser } from '../context/UserContext';
 import apiClient from '../util/apiClient';
 import validator from 'validator';
 import Cookies from 'js-cookie';
+import { usePlaces } from '../context/PlacesContext';
 
 const Login: React.FC = () => {
+    const { updatePlaces, } = usePlaces();
+
     const [login, setLogin] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const { setUser } = useUser();
+
+    useEffect(() => {
+        updatePlaces();
+    }, [location.pathname]);
 
     const handleLogin = async (event: React.FormEvent) => {
         event.preventDefault();
