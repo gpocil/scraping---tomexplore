@@ -341,7 +341,11 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     <h5 className="mb-4">{place?.place_name_original ? "Nom orginal : " + place?.place_name_original : ""}</h5>
 
 
-                    {place.details && <h2 className="mb-4 text-center">🚨 {place.details}</h2>}
+                    {place.details && (
+                        <h2 className="mb-4 text-center">
+                            🚨 {place.details.includes("Photos du propriétaire") ? "Pas de photos du propriétaire trouvées sur Maps" : place.details}
+                        </h2>
+                    )}
                     <div className="mb-4 text-center">
                         {place.wikipedia_link && (
                             <a className="btn btn-secondary mx-2 mb-2" href={place.wikipedia_link} target="_blank" rel="noopener noreferrer">
