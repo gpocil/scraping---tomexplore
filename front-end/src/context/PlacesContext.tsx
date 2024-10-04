@@ -9,6 +9,7 @@ interface PlaceContextType {
     updatePlaces: () => void;
     findPlaceById: (placeId: number) => IPlace | undefined;
     updateSinglePlace: (placeId: number) => Promise<void>;
+    handleLogout: () => Promise<void>; // Ajoute la fonction de déconnexion
 }
 
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
@@ -32,6 +33,11 @@ async function saveToIndexedDB(data: IResponseStructure) {
 async function getFromIndexedDB(): Promise<IResponseStructure | null> {
     const db = await initDB();
     return db.get(storeName, 'placesData');
+}
+
+async function clearIndexedDB() {
+    const db = await initDB();
+    await db.delete(storeName, 'placesData'); // Supprime placesData
 }
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
@@ -111,8 +117,25 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
             .catch((error) => console.error('Error fetching images for place:', error));
     };
 
+    // Ajoute une fonction pour la déconnexion
+    const handleLogout = async () => {
+        await clearIndexedDB();  // Supprime le cache de IndexedDB
+    };
+
+    // Supprime placesData lors de la fermeture de l'onglet ou du navigateur
+    useEffect(() => {
+        const handleBeforeUnload = async () => {
+            await clearIndexedDB();
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
+
     return (
-        <PlaceContext.Provider value={{ data, loading, updatePlaces, findPlaceById, updateSinglePlace }}>
+        <PlaceContext.Provider value={{ data, loading, updatePlaces, findPlaceById, updateSinglePlace, handleLogout }}>
             {children}
         </PlaceContext.Provider>
     );
