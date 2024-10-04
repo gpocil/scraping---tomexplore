@@ -5,7 +5,7 @@ import apiClient from '../util/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
-import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
+import NeedsAttentionDetails from './modals/NeedsAttentionModal';
 import { Spinner } from 'react-bootstrap';
 import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 
@@ -53,9 +53,11 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 setIsCityComplete(true);
             }
         }
+        console.log('Current place exists:', currentPlaceExists);
     }, [places, currentPlaceId]);
 
     const remainingImagesCount = (): number => {
+        console.log('Calculating remaining images:', totalImages - selectedImages.length);
         return totalImages - selectedImages.length;
     };
 
@@ -73,16 +75,19 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         setInstagramLink(currentPlace?.instagram_link || '');
+        console.log('Instagram link set:', currentPlace?.instagram_link || '');
     }, [currentPlace?.instagram_link]);
 
     useEffect(() => {
         if (user && currentPlace) {
             updatePlaceStart(currentPlace.place_id, user?.userId);
         }
+        console.log('Started updating place:', currentPlace?.place_id);
     }, [currentPlace, user]);
 
     const handleNext = () => {
         const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
+        console.log('Handle next - current index:', currentIndex);
         if (currentIndex < places.length - 1) {
             setCurrentPlaceId(places[currentIndex + 1].place_id);
             resetSelection();
@@ -93,6 +98,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const handlePrev = () => {
         const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
+        console.log('Handle prev - current index:', currentIndex);
         if (currentIndex > 0) {
             updatePlaceAbort(currentPlaceId);
             setCurrentPlaceId(places[currentIndex - 1].place_id);
@@ -101,35 +107,38 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleImageClick = (image: IImage) => {
+        console.log('Image clicked:', image);
         if (isStepOne) {
             setSelectedImages((prevSelectedImages) => {
                 const isSelected = prevSelectedImages.some((img) => img.id === image.id);
-                if (isSelected) {
-                    return prevSelectedImages.filter((img) => img.id !== image.id);
-                } else {
-                    return [...prevSelectedImages, image];
-                }
+                const newSelectedImages = isSelected
+                    ? prevSelectedImages.filter((img) => img.id !== image.id)
+                    : [...prevSelectedImages, image];
+                console.log('Selected images updated:', newSelectedImages);
+                return newSelectedImages;
             });
         } else {
             setTopImages((prevTopImages) => {
                 const isSelected = prevTopImages.some((img) => img.id === image.id);
-                if (isSelected) {
-                    return prevTopImages.filter((img) => img.id !== image.id);
-                } else {
-                    return prevTopImages.length < 3 ? [...prevTopImages, image] : prevTopImages;
-                }
+                const newTopImages = isSelected
+                    ? prevTopImages.filter((img) => img.id !== image.id)
+                    : prevTopImages.length < 3 ? [...prevTopImages, image] : prevTopImages;
+                console.log('Top images updated:', newTopImages);
+                return newTopImages;
             });
         }
     };
 
     const handleDeleteImages = async () => {
         try {
+            console.log('Deleting selected images:', selectedImages.map((image) => image.id));
             const response = await apiClient.post('/front/deleteImages', {
                 imageIds: selectedImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
 
             if (response.status === 200) {
+                console.log('Images deleted successfully');
                 setSelectedImages([]);
                 if (currentPlace) {
                     currentPlace.images = currentPlace.images.filter(
@@ -139,6 +148,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 if (remainingImagesCount() <= 15) {
                     setIsStepOne(false);
                 }
+                console.log('Updated place images after deletion:', currentPlace?.images);
                 await updateSinglePlace(currentPlace?.place_id!);  // Update place in cache and state
             }
         } catch (error) {
@@ -149,11 +159,13 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const handleSelectTop = async () => {
         try {
+            console.log('Selecting top images:', topImages.map((image) => image.id));
             const response = await apiClient.post('/front/setTop', {
                 imageIds: topImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
             if (response.status === 200 && currentPlace) {
+                console.log('Top images set successfully');
                 updatePlaceEnd(currentPlace.place_id);
                 setTopImages([]);
                 setIsStepOne(true);
@@ -167,17 +179,20 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleSetNeedsAttention = () => {
+        console.log('Setting needs attention for place:', currentPlaceId);
         updatePlaceAbort(currentPlaceId);
         setShowModal(true);
     };
 
     const handleModalSubmit = async (details: string) => {
         try {
+            console.log('Setting place needs attention details:', details);
             const response = await apiClient.put('/front/setNeedsAttention', {
                 place_id: currentPlace?.place_id,
                 details: details
             });
             if (response.status === 200) {
+                console.log('Needs attention set successfully');
                 await updateSinglePlace(currentPlace?.place_id!);  // Update place in cache and state
                 handleNext();
             }
@@ -190,6 +205,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const resetSelection = () => {
+        console.log('Resetting image selections');
         setSelectedImages([]);
         setTopImages([]);
         setIsStepOne(true);
@@ -197,18 +213,21 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const generateGoogleSearchUrl = (placeName: string, cityName: string): string => {
         const query = `${placeName} ${cityName} instagram`.replace(/\s+/g, '+');
+        console.log('Generated Google search URL:', query);
         return `https://www.google.com/search?q=${query}`;
     };
 
     const handleInstagramUpdate = async () => {
         setIsScraping(true);
         try {
+            console.log('Updating Instagram link:', instagramLink);
             const response = await apiClient.post('/front/updateInstagram', {
                 place_id: currentPlace?.place_id,
                 instagram_link: instagramLink
             });
 
             if (response.status === 200) {
+                console.log('Instagram updated successfully');
                 alert('Images Instagram récupérées');
                 await updateSinglePlace(currentPlace?.place_id!); // Update place in cache and state
             }
@@ -229,6 +248,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     }
 
     if (isCityComplete) {
+        console.log('City is complete, returning to home.');
         return (
             <div className="container mt-5 text-center">
                 <h1>Ville terminée 🥂</h1>
@@ -240,6 +260,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     }
 
     const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
+    console.log('Current place index:', currentIndex);
 
     return (
         <div className="container mt-5">
@@ -387,6 +408,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                                                     <button
                                                         className="btn btn-primary mt-3"
                                                         onClick={handleInstagramUpdate}
+                                                        disabled={isScraping}
                                                     >
                                                         {isScraping ? (
                                                             <div className="d-flex align-items-center">
