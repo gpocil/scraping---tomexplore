@@ -1,42 +1,53 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { usePlaces } from '../context/PlacesContext';
-import { IPlace } from '../model/Interfaces';
 import { Spinner } from 'react-bootstrap';
+import apiClient from '../util/apiClient';
+
+interface ImageResponse {
+    image_name: string;
+    id: number;
+    url: string;
+}
+
+interface PlaceResponse {
+    place_id: number;
+    place_name: string;
+    place_name_original?: string;
+    wikipedia_link?: string;
+    google_maps_link: string;
+    instagram_link?: string;
+    images: ImageResponse[];
+    type?: string;
+}
 
 const AdminCheckPlace: React.FC = () => {
     const { placeId } = useParams<{ placeId: string }>();
-    const { findPlaceById } = usePlaces();
     const navigate = useNavigate();
-    const [place, setPlace] = useState<IPlace | null>(null);
+    const [place, setPlace] = useState<PlaceResponse | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
 
     useEffect(() => {
-        console.log('Place ID from URL:', placeId);
-
         if (!placeId) {
             console.warn('No place ID found in URL, redirecting to admin');
             navigate('/admin');
             return;
         }
 
-        // Ajouter un délai de 1 seconde avant de chercher la place
-        const timeoutId = setTimeout(() => {
-            const foundPlace = findPlaceById(Number(placeId));
-            console.log('Found place from context:', foundPlace);
-
-            if (foundPlace) {
-                setPlace(foundPlace);
-            } else {
-                console.error('Place not found in context');
+        const fetchPlaceData = async () => {
+            try {
+                const response = await apiClient.get<PlaceResponse>(`front/getPlaceById/${placeId}`);
+                console.log(response.data);
+                setPlace(response.data);
+            } catch (error) {
+                console.error('Error fetching place:', error);
                 navigate('/admin');
+            } finally {
+                setLoading(false);
             }
+        };
 
-            setLoading(false);
-        }, 1000);
-
-        return () => clearTimeout(timeoutId);
-    }, [placeId, findPlaceById, navigate]);
+        fetchPlaceData();
+    }, [placeId, navigate]);
 
     if (loading) {
         return (

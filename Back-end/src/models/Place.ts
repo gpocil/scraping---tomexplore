@@ -3,6 +3,7 @@ import sequelize from '../sequelize';
 import City from './City';
 import User from './User';
 import DailyRedactorStats from './DailyRedactorStats';
+import Image from './Image';
 
 class Place extends Model {
     public id_tomexplore!: number;
@@ -118,17 +119,16 @@ Place.init({
 
 
 Place.afterUpdate(async (place, options) => {
-    if (place.timestamp_end && place.redactor_id) {
-        console.log('entrée');
+    if (place.timestamp_end && place.timestamp_start && place.redactor_id) {
         const redactorId = place.redactor_id;
-        const startTime = new Date(place.timestamp_start!).getTime();
+        const startTime = new Date(place.timestamp_start).getTime();
         const endTime = new Date(place.timestamp_end).getTime();
         const timeSpent = (endTime - startTime) / 1000;
 
-        //User
+        // Mise à jour des statistiques de l'utilisateur
         const user = await User.findByPk(redactorId);
         if (user) {
-            if (place.needs_attention == true) {
+            if (place.needs_attention) {
                 user.places_needing_att_checked += 1;
             }
             user.total_places += 1;
@@ -137,53 +137,39 @@ Place.afterUpdate(async (place, options) => {
             await user.save();
         }
 
-        //  DailyRedactorStats
         const today = new Date().toISOString().slice(0, 10);
         const dailyStats = await DailyRedactorStats.findOne({ where: { redactor_id: redactorId, day: today } });
+
         if (dailyStats) {
-            console.log('dailystats');
-            if (place.needs_attention == true) {
-                console.log('attention true');
+            if (place.needs_attention) {
                 dailyStats.places_needing_att += 1;
             }
             dailyStats.total_places += 1;
             dailyStats.total_time_spent += timeSpent;
             dailyStats.avg_time_per_place = dailyStats.total_time_spent / dailyStats.total_places;
-
             await dailyStats.save();
         } else {
-            if (place.needs_attention == true) {
-                console.log('attention true');
-
-                await DailyRedactorStats.create({
-                    redactor_id: redactorId,
-                    day: today,
-                    places_needing_att: 1,
-                    total_places: 1,
-                    total_time_spent: timeSpent,
-                    avg_time_per_place: timeSpent,
-                });
-            }
-            else {
-                console.log('attention false');
-
-                await DailyRedactorStats.create({
-                    redactor_id: redactorId,
-                    day: today,
-                    total_places: 1,
-                    places_needing_att: 0,
-                    total_time_spent: timeSpent,
-                    avg_time_per_place: timeSpent,
-                });
-            }
-
+            await DailyRedactorStats.create({
+                redactor_id: redactorId,
+                day: today,
+                places_needing_att: place.needs_attention ? 1 : 0,
+                total_places: 1,
+                total_time_spent: timeSpent,
+                avg_time_per_place: timeSpent,
+            });
         }
-        place.needs_attention = false;
 
+        if (place.needs_attention) {
+            place.needs_attention = false;
+            await place.save({ hooks: false }); // Désactiver les hooks pour éviter une boucle infinie
+        }
     }
 });
 
+export interface PlaceWithImages extends Place {
+    images: Image[];
+}
 
-Place.belongsTo(City, { foreignKey: 'city_id', as: 'associatedCity' });
+
 
 export default Place;

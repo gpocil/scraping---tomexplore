@@ -17,6 +17,8 @@ Image.belongsTo(Place, { foreignKey: 'place_id', as: 'place' });
 
 User.hasMany(DailyRedactorStats, { foreignKey: 'redactor_id', as: 'stats' });
 DailyRedactorStats.belongsTo(User, { foreignKey: 'redactor_id', as: 'user' });
+Place.belongsTo(City, { foreignKey: 'city_id', as: 'associatedCity' });
+Image.belongsTo(Place, { foreignKey: 'place_id', as: 'associatedPlace' });
 
 export {
     Country,

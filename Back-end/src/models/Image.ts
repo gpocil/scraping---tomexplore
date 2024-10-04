@@ -46,18 +46,16 @@ Image.init({
     author: {
         type: DataTypes.STRING,
         allowNull: true
-
     },
     license: {
         type: DataTypes.STRING,
         allowNull: true
-    },
+    }
 }, {
     sequelize,
     modelName: 'Image',
     timestamps: false
 });
 
-Image.belongsTo(Place, { foreignKey: 'place_id', as: 'associatedPlace' });
 
 export default Image;

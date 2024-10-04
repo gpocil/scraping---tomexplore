@@ -6,7 +6,7 @@ import * as UserStatsController from '../../controllers/front/UserStatsControlle
 
 const router = Router();
 
-router.get('/:placeId/images', ImageController.getImagesByPlaceId);
+router.get('/getPlaceById/:placeId', ImageController.getPlaceById);
 router.get('/getAllImages', ImageController.getPlacesWithImages);
 router.post('/deleteImages', ImageController.deleteImagesUser);
 router.post('/setTop', ImageController.setTopAndSetChecked);
