@@ -88,7 +88,6 @@ const Admin: React.FC = () => {
     }, []);
 
     const handlePlaceClick = (verifiedPlace: VerifiedPlace) => {
-        // Utiliser findPlaceById pour trouver le lieu
         const foundPlace = findPlaceById(verifiedPlace.id_tomexplore);
 
         if (foundPlace) {

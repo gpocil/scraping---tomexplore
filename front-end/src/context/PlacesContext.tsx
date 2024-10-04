@@ -13,12 +13,35 @@ const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} });
+    const [placeMap, setPlaceMap] = useState<Map<number, IPlace>>(new Map());
+
+    const buildPlaceMap = (responseData: IResponseStructure) => {
+        const newPlaceMap = new Map<number, IPlace>();
+
+        const statuses = ['unchecked', 'needs_attention', 'checked', 'to_be_deleted'] as const;
+
+        statuses.forEach((status) => {
+            Object.keys(responseData[status]).forEach((country) => {
+                Object.keys(responseData[status][country]).forEach((city) => {
+                    const cityPlaces = responseData[status][country][city] as unknown as Record<string, IPlace[]>;
+                    Object.values(cityPlaces).forEach((placesArray) => {
+                        placesArray.forEach((place) => {
+                            newPlaceMap.set(place.place_id, place);
+                        });
+                    });
+                });
+            });
+        });
+
+        setPlaceMap(newPlaceMap);
+    };
 
     const fetchData = useCallback(() => {
         apiClient.get<IResponseStructure>('/front/getAllImages')
             .then((response) => {
                 setData(response.data);
-                console.log('Fetched places data:', response.data);
+                buildPlaceMap(response.data); // Construire le Map ici
+                console.log('Fetched places data and built placeMap:', response.data);
             })
             .catch((error) => console.error('Error fetching places:', error));
     }, []);
@@ -28,42 +51,13 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     }, [fetchData]);
 
     const findPlaceById = (placeId: number): IPlace | undefined => {
-        console.log('Searching for place with ID:', placeId);
-        for (const status of ['unchecked', 'needs_attention', 'checked', 'to_be_deleted'] as const) {
-            console.log(`Checking status: ${status}`);
-            for (const country of Object.keys(data[status])) {
-                console.log(`Checking country: ${country}`);
-                for (const city of Object.keys(data[status][country])) {
-                    console.log(`Checking city: ${city}`);
-                    const cityPlaces = data[status][country][city] as unknown as Record<string, IPlace[]>;
-                    console.log(`Checking places in ${status} -> ${country} -> ${city}`, cityPlaces);
-                    for (const placeKey of Object.keys(cityPlaces)) {
-                        const placeArray: IPlace[] = cityPlaces[placeKey];
-                        console.log(`Checking place array for key ${placeKey}:`, placeArray);
-                        if (Array.isArray(placeArray)) {
-                            const foundPlace = placeArray.find((p: IPlace) => {
-                                const match = p.place_id === placeId;
-                                console.log(`Comparing place_id ${p.place_id} with ${placeId}: ${match}`);
-                                return match;
-                            });
-                            if (foundPlace) {
-                                console.log('Found place:', foundPlace);
-                                return foundPlace;
-                            }
-                        } else {
-                            console.error(`Expected array but got:`, placeArray);
-                        }
-                    }
-                }
-            }
-        }
-        console.log('Place not found for ID:', placeId);
-        return undefined;
+        return placeMap.get(placeId); // Recherche O(1) avec le Map
     };
 
     const updatePlaces = () => {
         fetchData();
     };
+
     const updateSinglePlace = (placeId: number) => {
         console.log('Fetching images for place with ID:', placeId);
         return apiClient.get<IPlace>(`/front/${placeId}/images`)
@@ -90,6 +84,7 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
                             }
                         }
                     }
+                    buildPlaceMap(updatedData); // Recréer le Map pour inclure la mise à jour
                     return updatedData;
                 });
             })
@@ -101,7 +96,6 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
             {children}
         </PlaceContext.Provider>
     );
-
 };
 
 export const usePlaces = () => {

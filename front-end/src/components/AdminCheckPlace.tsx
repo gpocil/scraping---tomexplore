@@ -33,9 +33,9 @@ const AdminCheckPlace: React.FC = () => {
             }
 
             setLoading(false);
-        }, 1000); // Délai de 1 seconde
+        }, 1000);
 
-        return () => clearTimeout(timeoutId); // Nettoyage du timeout lorsque le composant est démonté
+        return () => clearTimeout(timeoutId);
     }, [placeId, findPlaceById, navigate]);
 
     if (loading) {
@@ -49,11 +49,8 @@ const AdminCheckPlace: React.FC = () => {
     }
 
     if (!place) {
-        console.error('Place state is null or undefined');
         return <div>Error: No place found.</div>;
     }
-
-    console.log('Displaying place:', place); // Log pour voir les données du lieu juste avant de les afficher
 
     return (
         <div className="container mt-5">
