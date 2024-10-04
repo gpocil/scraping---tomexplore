@@ -17,7 +17,7 @@ interface PhotoSelectorCityProps {
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
     const navigate = useNavigate();
     const { checkCookie } = useUser();
-    const { updatePlaces } = usePlaces();
+    const { updatePlaces, updateSinglePlace } = usePlaces(); // Add updateSinglePlace
     const [currentPlaceId, setCurrentPlaceId] = useState(places[0]?.place_id);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -40,7 +40,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         if (!isScraping) {
-            updatePlaces();
+            updatePlaces(); // Ensure cache and state are up to date
         }
     }, [isScraping]);
 
@@ -139,6 +139,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 if (remainingImagesCount() <= 15) {
                     setIsStepOne(false);
                 }
+                await updateSinglePlace(currentPlace?.place_id!);  // Update place in cache and state
             }
         } catch (error) {
             console.error('Error deleting images:', error);
@@ -156,6 +157,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 updatePlaceEnd(currentPlace.place_id);
                 setTopImages([]);
                 setIsStepOne(true);
+                await updateSinglePlace(currentPlace?.place_id!); // Update place in cache and state
                 handleNext();
             }
         } catch (error) {
@@ -176,6 +178,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 details: details
             });
             if (response.status === 200) {
+                await updateSinglePlace(currentPlace?.place_id!);  // Update place in cache and state
                 handleNext();
             }
         } catch (error) {
@@ -207,6 +210,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
             if (response.status === 200) {
                 alert('Images Instagram récupérées');
+                await updateSinglePlace(currentPlace?.place_id!); // Update place in cache and state
             }
         } catch (error) {
             console.error('Error updating Instagram:', error);
@@ -249,7 +253,6 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                     disabled={isScraping}
                 >
                     🏠 Accueil
-
                 </button>
 
                 <h2>{cityName}</h2>
@@ -257,17 +260,14 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             <h4 className="mb-4">{currentPlace?.place_name} - {currentPlace?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
             <h5 className="mb-4">Nom original : {currentPlace?.place_name_original}</h5>
 
-            <span className="mb-3" style={{ fontSize: '1.5em' }}>
-            </span>
+            <span className="mb-3" style={{ fontSize: '1.5em' }}></span>
 
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentIndex === 0 || isScraping} >
+                <button className="btn btn-secondary" onClick={handlePrev} disabled={currentIndex === 0 || isScraping}>
                     ⬅️ Précédent
                 </button>
                 <div className="text-center">
-                    <h4>
-                        {currentIndex + 1} / {places.length}
-                    </h4>
+                    <h4>{currentIndex + 1} / {places.length}</h4>
                     <h3 className={`mb-4 ${isStepOne ? 'text-danger' : 'text-primary'}`}>
                         {isStepOne ? '🗑️ Supprimer les images' : '⭐ Sélectionner le top 3'}
                     </h3>
@@ -277,7 +277,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
-                        totalImages > 15 ? (  // Si plus de 15 images, on force l'utilisateur à en supprimer
+                        totalImages > 15 ? (
                             <div className="mt-3">
                                 <p className="text-danger">
                                     Il reste {remainingImagesCount() - 15} photo(s) à supprimer avant de continuer.
@@ -292,12 +292,12 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                                     </button>
                                 )}
                             </div>
-                        ) : (  // Si 15 images ou moins, on peut en supprimer mais ce n'est pas obligatoire
+                        ) : (
                             <div className="mt-3">
                                 <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
                                     Aucune image à supprimer 👍
                                 </button>
-                                {selectedImages.length > 0 && (  // Si des images sont sélectionnées, permettre leur suppression
+                                {selectedImages.length > 0 && (
                                     <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
                                         Supprimer les images ❌
                                     </button>
@@ -313,9 +313,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                             Confirmer le Top 3 & Lieu suivant ✅
                         </button>
                     )}
-
                 </div>
-
             </div>
 
             <div className="card">

@@ -1,6 +1,7 @@
 import { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import apiClient from '../util/apiClient';
 import { IResponseStructure, IPlace } from '../model/Interfaces';
+import { openDB } from 'idb';
 
 interface PlaceContextType {
     data: IResponseStructure;
@@ -12,29 +13,49 @@ interface PlaceContextType {
 
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
+const dbName = 'placesDatabase';
+const storeName = 'placesStore';
+
+async function initDB() {
+    return openDB(dbName, 1, {
+        upgrade(db) {
+            db.createObjectStore(storeName);
+        },
+    });
+}
+
+async function saveToIndexedDB(data: IResponseStructure) {
+    const db = await initDB();
+    await db.put(storeName, data, 'placesData');
+}
+
+async function getFromIndexedDB(): Promise<IResponseStructure | null> {
+    const db = await initDB();
+    return db.get(storeName, 'placesData');
+}
+
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} });
     const [loading, setLoading] = useState<boolean>(true);
 
     const fetchData = useCallback(() => {
-        const cachedData = localStorage.getItem('placesData');
-        if (cachedData) {
-            setData(JSON.parse(cachedData));
-            setLoading(false);
-        } else {
-            setLoading(true);
-            apiClient.get<IResponseStructure>('/front/getAllImages')
-                .then((response) => {
-                    setData(response.data);
-                    localStorage.setItem('placesData', JSON.stringify(response.data));
-                    setLoading(false);
-                    console.log('Fetched places data:', response.data);
-                })
-                .catch((error) => {
-                    console.error('Error fetching places:', error);
-                    setLoading(false);
-                });
-        }
+        getFromIndexedDB().then((cachedData) => {
+            if (cachedData) {
+                setData(cachedData);
+                setLoading(false);
+            } else {
+                apiClient.get<IResponseStructure>('/front/getAllImages')
+                    .then((response) => {
+                        setData(response.data);
+                        saveToIndexedDB(response.data); // Cache data in IndexedDB
+                        setLoading(false);
+                    })
+                    .catch((error) => {
+                        console.error('Error fetching places:', error);
+                        setLoading(false);
+                    });
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -83,9 +104,9 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
                             }
                         }
                     }
+                    saveToIndexedDB(updatedData); // Update cache with the new data
                     return updatedData;
                 });
-                localStorage.setItem('placesData', JSON.stringify(updatedPlace)); // Cache updated place
             })
             .catch((error) => console.error('Error fetching images for place:', error));
     };

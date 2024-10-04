@@ -16,43 +16,43 @@ interface PhotoSelectorPlaceProps {
 
 const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComplete }) => {
     const navigate = useNavigate();
-    const { updateSinglePlace } = usePlaces();
+    const { updateSinglePlace } = usePlaces();  // Get the function to update cache
     const { checkCookie } = useUser();
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isPlaceComplete, setIsPlaceComplete] = useState(false);
-    const [showModal, setShowModal] = useState(false); // État pour afficher le modal
+    const [showModal, setShowModal] = useState(false); // Modal state for needs attention
     const [showInstagramInput, setShowInstagramInput] = useState(false);
     const [instagramLink, setInstagramLink] = useState(place?.instagram_link || '');
     const [isScraping, setIsScraping] = useState(false);
-    const [updateCounter, setUpdateCounter] = useState(0); // Compteur pour forcer la mise à jour
     const user = useUser().user;
 
+    // Effect to ensure the user is logged in, otherwise redirect to login
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
         }
     }, [checkCookie, navigate]);
 
+    // Set the Instagram link when the place data changes
     useEffect(() => {
         setInstagramLink(place?.instagram_link || '');
     }, [place]);
 
-    const remainingImagesCount = (): number => {
-        return totalImages - selectedImages.length;
-    };
+    const totalImages = place?.images?.length || 0;
 
+    // Start tracking place stats when user is working on a place
     useEffect(() => {
         if (user) {
-            updatePlaceStart(place.place_id, user?.userId)
+            updatePlaceStart(place.place_id, user?.userId);
         }
-    }, []);
+    }, [user, place]);
 
+    // Ensure that updates are made to both the cache and state after scraping or updates
     useEffect(() => {
         if (!isScraping) {
-            updateSinglePlace(place.place_id); // Mettre à jour les places une fois le scraping terminé
-            setUpdateCounter((prevCounter) => prevCounter + 1); // Incrémenter le compteur pour forcer la mise à jour
+            updateSinglePlace(place.place_id); // Update cache and state after scraping completes
         }
     }, [isScraping]);
 
@@ -67,6 +67,10 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
     }, [place]);
+
+    const remainingImagesCount = (): number => {
+        return totalImages - selectedImages.length;
+    };
 
     const handleImageClick = (image: IImage) => {
         if (isStepOne) {
@@ -105,32 +109,12 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 if (remainingImagesCount() <= 15) {
                     setIsStepOne(false);
                 }
+                // Update cache and state after image deletion
+                await updateSinglePlace(place.place_id);
             }
         } catch (error) {
             console.error('Error deleting images:', error);
             alert('Failed to delete images');
-        }
-    };
-
-    const handleSetNeedsAttention = () => {
-        updatePlaceAbort(place.place_id);
-        setShowModal(true);
-    };
-
-    const handleModalSubmit = async (details: string) => {
-        try {
-            const response = await apiClient.put('/front/setNeedsAttention', {
-                place_id: place?.place_id,
-                details: details
-            });
-            if (response.status === 200) {
-                setIsPlaceComplete(true);
-            }
-        } catch (error) {
-            console.error('Error setting as needing attention:', error);
-            alert('Failed to set needing attention');
-        } finally {
-            setShowModal(false);
         }
     };
 
@@ -145,10 +129,36 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 setTopImages([]);
                 setIsStepOne(true);
                 setIsPlaceComplete(true);
+                // Update cache and state after setting top images
+                await updateSinglePlace(place.place_id);
             }
         } catch (error) {
             console.error('Error setting top images:', error);
             alert('Failed to set top images');
+        }
+    };
+
+    const handleSetNeedsAttention = () => {
+        updatePlaceAbort(place.place_id);
+        setShowModal(true);  // Open the modal for setting needs attention
+    };
+
+    const handleModalSubmit = async (details: string) => {
+        try {
+            const response = await apiClient.put('/front/setNeedsAttention', {
+                place_id: place?.place_id,
+                details: details
+            });
+            if (response.status === 200) {
+                setIsPlaceComplete(true);
+                // Update cache and state after setting needs attention
+                await updateSinglePlace(place.place_id);
+            }
+        } catch (error) {
+            console.error('Error setting as needing attention:', error);
+            alert('Failed to set needing attention');
+        } finally {
+            setShowModal(false);
         }
     };
 
@@ -167,6 +177,8 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
             if (response.status === 200) {
                 alert('Images Instagram récupérées');
+                // Update cache and state after Instagram update
+                await updateSinglePlace(place.place_id);
             }
         } catch (error) {
             console.error('Error updating Instagram:', error);
@@ -177,7 +189,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     };
 
     if (isPlaceComplete) {
-        updateSinglePlace(place.place_id);
+        updateSinglePlace(place.place_id);  // Ensure the place update is reflected in cache and state
         return (
             <div className="container mt-5 text-center">
                 <h1>Lieu terminé 🥂</h1>
@@ -185,12 +197,11 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                     className="btn btn-primary"
                     onClick={() => {
                         updatePlaceAbort(place.place_id);
-                        navigate('/');
+                        onComplete();  // Navigate back or mark completion
                     }}
                     disabled={isScraping}
                 >
                     🏠 Accueil
-
                 </button>
             </div>
         );
@@ -200,10 +211,8 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         return <div>Error: No place found.</div>;
     }
 
-    const totalImages = place?.images?.length || 0;
-
     return (
-        <div className="container mt-5" key={updateCounter}>
+        <div className="container mt-5">
             <div className="d-flex justify-content-between align-items-center mb-4">
                 <button className="btn btn-primary mt-3" onClick={() => navigate('/')}>
                     🏠 Accueil
@@ -219,9 +228,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
             <div className="d-flex justify-content-between align-items-center mb-3">
                 <div className="text-center">
-                    <h4>
-                        {isStepOne ? '🗑️ Supprimer les images' : '⭐ Sélectionner le top 3'}
-                    </h4>
+                    <h4>{isStepOne ? '🗑️ Supprimer les images' : '⭐ Sélectionner le top 3'}</h4>
                 </div>
                 <div className="mt-4">
                     <button className="btn btn-warning mt-3" onClick={handleSetNeedsAttention}>
@@ -375,6 +382,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                     </div>
                 </div>
             </div>
+
             <NeedsAttentionDetails
                 show={showModal}
                 onHide={() => setShowModal(false)}

@@ -18,7 +18,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const navigate = useNavigate();
     const location = useLocation();
     const place = (location.state as { place: IPlace }).place;
-    const { updatePlaces } = usePlaces();
+    const { updatePlaces, updateSinglePlace } = usePlaces();
 
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -145,7 +145,6 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
         }
     };
 
-
     const handleSetTopImages = async () => {
         console.log('Setting top images:', topImages);
         try {
@@ -156,17 +155,24 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             console.log('Set top images response:', response);
 
             if (response.status === 200) {
-                updatePlaceEnd(place.place_id);
+                // Update in-memory state and IndexedDB
+                updatePlacesAfterValidation(place.place_id);
                 setTopImages([]);
-                place.checked = true;
-                updatePlaces();
-                handleBackClick();
+                place.checked = true;  // Mark the place as checked in the local state
+                handleBackClick(); // Navigate back after validation
             }
         } catch (error) {
             console.error('Error setting top images:', error);
             alert('Failed to set top images');
         }
     };
+
+    // New function to update place status and remove from "needs_attention"
+    const updatePlacesAfterValidation = async (placeId: number) => {
+        await updateSinglePlace(placeId);  // This will update the cache (IndexedDB) and memory
+        updatePlaces();  // Trigger re-fetching the data to refresh the UI
+    };
+
 
     const handleUploadSubmit = async (files: File[]) => {
         console.log('Uploading files:', files);
