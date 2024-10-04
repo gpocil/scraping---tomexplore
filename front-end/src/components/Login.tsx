@@ -18,7 +18,7 @@ const Login: React.FC = () => {
 
     useEffect(() => {
         updatePlaces();
-    }, [location.pathname]);
+    }, []);
 
     const handleLogin = async (event: React.FormEvent) => {
         event.preventDefault();
