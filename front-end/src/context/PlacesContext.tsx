@@ -4,6 +4,7 @@ import { IResponseStructure, IPlace } from '../model/Interfaces';
 
 interface PlaceContextType {
     data: IResponseStructure;
+    loading: boolean;
     updatePlaces: () => void;
     findPlaceById: (placeId: number) => IPlace | undefined;
     updateSinglePlace: (placeId: number) => Promise<void>;
@@ -13,37 +14,27 @@ const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} });
-    const [placeMap, setPlaceMap] = useState<Map<number, IPlace>>(new Map());
-
-    const buildPlaceMap = (responseData: IResponseStructure) => {
-        const newPlaceMap = new Map<number, IPlace>();
-
-        const statuses = ['unchecked', 'needs_attention', 'checked', 'to_be_deleted'] as const;
-
-        statuses.forEach((status) => {
-            Object.keys(responseData[status]).forEach((country) => {
-                Object.keys(responseData[status][country]).forEach((city) => {
-                    const cityPlaces = responseData[status][country][city] as unknown as Record<string, IPlace[]>;
-                    Object.values(cityPlaces).forEach((placesArray) => {
-                        placesArray.forEach((place) => {
-                            newPlaceMap.set(place.place_id, place);
-                        });
-                    });
-                });
-            });
-        });
-
-        setPlaceMap(newPlaceMap);
-    };
+    const [loading, setLoading] = useState<boolean>(true);
 
     const fetchData = useCallback(() => {
-        apiClient.get<IResponseStructure>('/front/getAllImages')
-            .then((response) => {
-                setData(response.data);
-                buildPlaceMap(response.data); // Construire le Map ici
-                console.log('Fetched places data and built placeMap:', response.data);
-            })
-            .catch((error) => console.error('Error fetching places:', error));
+        const cachedData = localStorage.getItem('placesData');
+        if (cachedData) {
+            setData(JSON.parse(cachedData));
+            setLoading(false);
+        } else {
+            setLoading(true);
+            apiClient.get<IResponseStructure>('/front/getAllImages')
+                .then((response) => {
+                    setData(response.data);
+                    localStorage.setItem('placesData', JSON.stringify(response.data));
+                    setLoading(false);
+                    console.log('Fetched places data:', response.data);
+                })
+                .catch((error) => {
+                    console.error('Error fetching places:', error);
+                    setLoading(false);
+                });
+        }
     }, []);
 
     useEffect(() => {
@@ -51,7 +42,21 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     }, [fetchData]);
 
     const findPlaceById = (placeId: number): IPlace | undefined => {
-        return placeMap.get(placeId); // Recherche O(1) avec le Map
+        for (const status of ['unchecked', 'needs_attention', 'checked', 'to_be_deleted'] as const) {
+            for (const country of Object.keys(data[status])) {
+                for (const city of Object.keys(data[status][country])) {
+                    const cityPlaces = data[status][country][city] as unknown as Record<string, IPlace[]>;
+                    for (const placeKey of Object.keys(cityPlaces)) {
+                        const placeArray: IPlace[] = cityPlaces[placeKey];
+                        const foundPlace = placeArray.find((p: IPlace) => p.place_id === placeId);
+                        if (foundPlace) {
+                            return foundPlace;
+                        }
+                    }
+                }
+            }
+        }
+        return undefined;
     };
 
     const updatePlaces = () => {
@@ -59,12 +64,9 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const updateSinglePlace = (placeId: number) => {
-        console.log('Fetching images for place with ID:', placeId);
         return apiClient.get<IPlace>(`/front/${placeId}/images`)
             .then((response) => {
                 const updatedPlace = response.data;
-                console.log('Fetched images for place:', updatedPlace);
-
                 setData((prevData) => {
                     const updatedData = { ...prevData };
                     for (const status of ['unchecked', 'needs_attention', 'checked', 'to_be_deleted'] as const) {
@@ -73,26 +75,23 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
                                 const cityPlaces = updatedData[status][country][city] as unknown as Record<string, IPlace[]>;
                                 for (const placeKey of Object.keys(cityPlaces)) {
                                     const placeArray: IPlace[] = cityPlaces[placeKey];
-                                    if (Array.isArray(placeArray)) {
-                                        const placeIndex = placeArray.findIndex((p: IPlace) => p.place_id === placeId);
-                                        if (placeIndex !== -1) {
-                                            cityPlaces[placeKey][placeIndex] = updatedPlace;
-                                            console.log('Updated place:', updatedPlace);
-                                        }
+                                    const placeIndex = placeArray.findIndex((p: IPlace) => p.place_id === placeId);
+                                    if (placeIndex !== -1) {
+                                        cityPlaces[placeKey][placeIndex] = updatedPlace;
                                     }
                                 }
                             }
                         }
                     }
-                    buildPlaceMap(updatedData); // Recréer le Map pour inclure la mise à jour
                     return updatedData;
                 });
+                localStorage.setItem('placesData', JSON.stringify(updatedPlace)); // Cache updated place
             })
             .catch((error) => console.error('Error fetching images for place:', error));
     };
 
     return (
-        <PlaceContext.Provider value={{ data, updatePlaces, findPlaceById, updateSinglePlace }}>
+        <PlaceContext.Provider value={{ data, loading, updatePlaces, findPlaceById, updateSinglePlace }}>
             {children}
         </PlaceContext.Provider>
     );

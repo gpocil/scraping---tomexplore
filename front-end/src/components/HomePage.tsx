@@ -8,7 +8,7 @@ import { useUser } from '../context/UserContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const HomePage: React.FC = () => {
-    const { data: places, updatePlaces } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void };
+    const { data: places, updatePlaces, loading } = usePlaces() as { data: IResponseStructure, updatePlaces: () => void, loading: boolean };
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
@@ -145,6 +145,10 @@ const HomePage: React.FC = () => {
 
     const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention, totalPlacesToBeDeleted } = getTotalCounts();
 
+    if (loading) {
+        return <div className="container mt-5 text-center">Chargement des données...</div>; // Show loading message
+    }
+
     if (selectedPlace) {
         return <PhotoSelectorPlace place={selectedPlace} onComplete={handlePlaceComplete} />;
     }
@@ -152,7 +156,6 @@ const HomePage: React.FC = () => {
     if (countryName && cityName && selectedCityPlaces.length > 0) {
         return <PhotoSelectorCity places={selectedCityPlaces} cityName={cityName} />;
     }
-
     return (
         <div className="container mt-5">
             <button

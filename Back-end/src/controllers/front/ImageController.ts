@@ -7,7 +7,6 @@ import Image from '../../models/Image';
 import { deleteFolderRecursiveHelper, deleteImages } from '../scraping/FileController';
 import fs from 'fs';
 import * as ScrapingMainController from '../scraping/ScrapingMainController';
-import { PlaceWithImages } from '../../models/Place';
 
 interface ImageResponse {
     image_name: string;
@@ -143,48 +142,40 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
 };
 
 
-export const getPlaceById = async (req: Request, res: Response) => {
+export const getImagesByPlaceId = async (req: Request, res: Response) => {
     const placeId = req.params.placeId;
-    console.log(`Received request to fetch data for place ID: ${placeId}`);
+    console.log(`Received request to fetch images for place ID: ${placeId}`);
 
     try {
-        const place = await Place.findByPk(placeId, {
-            include: [
-                {
-                    model: Image,
-                    as: 'images',
-                    attributes: ['image_name', 'id'],
-                    required: false,
-                }
-            ]
-        }) as PlaceWithImages;
-
+        // Récupérer le dossier associé au placeId depuis la base de données
+        const place = await Place.findByPk(placeId);
         if (!place) {
             console.error(`Place not found for ID: ${placeId}`);
             return res.status(404).json({ error: 'Place not found' });
         }
 
-        const placeResponse: PlaceResponse = {
-            place_id: place.id_tomexplore,
-            place_name: place.name_eng,
-            place_name_original: place.name_original,
-            wikipedia_link: place.wikipedia_link || '',
-            google_maps_link: place.google_maps_link || '',
-            instagram_link: place.instagram_link || '',
-            checked: place.checked,
-            needs_attention: place.needs_attention,
-            images: place.images.map((image: { image_name: string; id: number }) => ({
-                id: image.id,
-                image_name: image.image_name,
-                url: `https://monblogdevoyage.com/images/${encodeURIComponent(place.folder)}/${image.image_name}`
-            })),
-            type: place.type,
+        const folderPath = place.folder; // Chemin du dossier
+        const folderName = encodeURIComponent(path.basename(folderPath));
+        console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
 
-        };
+        // Récupérer toutes les images associées à ce place_id
+        const images = await Image.findAll({ where: { place_id: placeId } });
 
-        res.json(placeResponse);
+        if (!images.length) {
+            console.error(`No images found for place ID: ${placeId}`);
+            return res.status(404).json({ error: 'No images found for this place' });
+        }
+
+        // Créer les URLs des images avec les ID
+        const imageData = images.map((image: Image) => ({
+            id: image.id,  // Ajoute l'ID de l'image
+            url: `https://monblogdevoyage.com/images/${folderName}/${image.image_name}`
+        }));
+        console.log(`Image data for place ID ${placeId}: ${JSON.stringify(imageData)}`);
+
+        res.json(imageData);
     } catch (error) {
-        console.error('Error fetching data for place:', error);
+        console.error('Error fetching images:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
