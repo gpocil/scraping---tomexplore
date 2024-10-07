@@ -22,7 +22,9 @@ export async function updatePlaceStart(req: Request, res: Response): Promise<voi
             return;
         }
         place.timestamp_start = new Date();
+        place.timestamp_end = null as any;
         place.redactor_id = userId;
+
         await place.save();
         res.status(200).json({
             message: 'Place updated successfully',
@@ -52,8 +54,15 @@ export async function updatePlaceEnd(req: Request, res: Response): Promise<void>
             res.status(404).json({ message: 'Place not found' });
             return;
         }
+        if (!place.timestamp_start) {
+            console.warn(`No start timestamp found for place ID ${place.id_tomexplore}`);
+            res.status(400).json({ message: 'Start timestamp missing' });
+            return;
+        }
+
         place.timestamp_end = new Date();
         await place.save();
+
 
         res.status(200).json({
             message: 'Place updated successfully',

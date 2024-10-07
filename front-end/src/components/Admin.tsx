@@ -77,6 +77,7 @@ const Admin: React.FC = () => {
                 });
 
                 setUsers(updatedUsers);
+                console.log(updatedUsers)
                 setLoading(false);
             } catch (error) {
                 setError('Failed to load user info');
