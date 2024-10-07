@@ -18,7 +18,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const navigate = useNavigate();
     const location = useLocation();
     const place = (location.state as { place: IPlace }).place;
-    const { updatePlaces, updateSinglePlace } = usePlaces();
+    const { updatePlaces, updateSinglePlace, data: places } = usePlaces();
 
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -33,6 +33,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     const [isScraping, setIsScraping] = useState(false);
     const [images, setImages] = useState<IImage[]>(place.images || []);
     const user = useUser().user;
+    const [cityName, setCityName] = useState<string | null>(null);
 
     useEffect(() => {
         console.log('Component mounted');
@@ -40,6 +41,32 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             console.log('Component unmounted');
         };
     }, []);
+
+    useEffect(() => {
+        const findCityForPlace = () => {
+            if (places.needs_attention) {
+                // Parcourir les pays et les villes dans needs_attention
+                for (const country of Object.keys(places.needs_attention)) {
+                    for (const city of Object.keys(places.needs_attention[country])) {
+                        const cityPlaces = places.needs_attention[country][city];
+                        for (const placeArray of Object.values(cityPlaces)) {
+                            if (Array.isArray(placeArray)) {
+                                for (const placeItem of placeArray) {
+                                    if (placeItem.place_id === place.place_id) {
+                                        setCityName(city); // Si trouvé, définir le nom de la ville
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        findCityForPlace();
+    }, [places, place.place_id]);
+
 
     useEffect(() => {
         setImages(place.images);
@@ -337,7 +364,7 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                     )}
                 </Col>
                 <Col md={8}>
-                    <h4 className="mb-4">{place?.place_name} - {place?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'}</h4>
+                    <h4 className="mb-4">{place?.place_name} - {cityName} - {place?.type === 'Business' ? '🍺🍽️ Bar/Restaurant' : '🏛️ Attraction touristique'} </h4>
                     <h5 className="mb-4">{place?.place_name_original ? "Nom orginal : " + place?.place_name_original : ""}</h5>
 
 

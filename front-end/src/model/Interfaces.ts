@@ -20,6 +20,7 @@ export interface IPlace {
     to_be_deleted?: boolean;
     images: IImage[];
     details?: string;
+    city_name?: string;
 }
 
 export interface ICity {

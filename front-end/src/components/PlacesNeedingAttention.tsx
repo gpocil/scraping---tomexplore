@@ -7,7 +7,7 @@ import './styles/PlacesNeedingAttention.css';
 import { useUser } from '../context/UserContext';
 
 const PlacesNeedingAttention: React.FC = () => {
-    const { data: places, updatePlaces } = usePlaces(); // Adding updatePlaces to refresh data
+    const { data: places, updatePlaces } = usePlaces();
     const [businessPlaces, setBusinessPlaces] = useState<IPlace[]>([]);
     const [touristAttractions, setTouristAttractions] = useState<IPlace[]>([]);
     const navigate = useNavigate();
@@ -20,7 +20,6 @@ const PlacesNeedingAttention: React.FC = () => {
             for (const country of Object.keys(places.needs_attention)) {
                 for (const city of Object.keys(places.needs_attention[country])) {
                     for (const place of Object.values(places.needs_attention[country][city]).flat()) {
-                        // Exclude closed places if the user is not admin
                         const isClosed = place.details && place.details.toLowerCase().includes('fermé');
                         if (!isClosed || user?.admin) {
                             if (place.type === 'Tourist Attraction') {
@@ -36,18 +35,17 @@ const PlacesNeedingAttention: React.FC = () => {
             setTouristAttractions(tourist);
         };
         fetchPlacesNeedingAttention();
-    }, [places]); // Re-fetch places every time "places" data changes
+    }, [places]);
 
     useEffect(() => {
-        // Fetch updated places when coming back from the validation screen
         updatePlaces();
     }, []);
 
     const getPlaceClass = (details: string | undefined) => {
         if (details && details.toLowerCase().includes('fermé')) {
-            return 'text-danger';  // Red line if the place is closed
+            return 'text-danger';
         }
-        return 'text-secondary';  // Default gray line
+        return 'text-secondary';
     };
 
     return (
