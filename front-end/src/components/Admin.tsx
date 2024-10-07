@@ -43,13 +43,11 @@ const Admin: React.FC = () => {
     const { findPlaceById } = usePlaces();
     const navigate = useNavigate();
 
-
     useEffect(() => {
-        if (!user || user.admin == false) {
+        if (!user || !user.admin) {
             navigate('/');
         }
     }, [user]);
-
 
     useEffect(() => {
         const fetchUserInfo = async () => {
@@ -61,12 +59,25 @@ const Admin: React.FC = () => {
                     const updatedDailyStats = user.dailyStats.map((dayStat: DailyStats) => {
                         const filteredVerifiedPlaces = user.verifiedPlaces.filter((place: VerifiedPlace) => {
                             const placeDate = new Date(place.timestamp_start).toISOString().slice(0, 10);
-                            return placeDate === dayStat.day;
+                            const duration = new Date(place.timestamp_end).getTime() - new Date(place.timestamp_start).getTime();
+                            return placeDate === dayStat.day && duration > 0;
                         });
+
+                        // Calculer les totaux pour chaque jour avec les places vérifiées filtrées
+                        const totalTimeSpent = filteredVerifiedPlaces.reduce((acc, place) => {
+                            const duration = new Date(place.timestamp_end).getTime() - new Date(place.timestamp_start).getTime();
+                            return acc + (duration > 0 ? duration : 0);
+                        }, 0) / 1000; // Conversion en secondes
+
+                        const totalPlaces = filteredVerifiedPlaces.length;
+                        const avgTimePerPlace = totalPlaces > 0 ? totalTimeSpent / totalPlaces : 0;
 
                         return {
                             ...dayStat,
                             verifiedPlaces: filteredVerifiedPlaces,
+                            total_places: totalPlaces,
+                            total_time_spent: totalTimeSpent,
+                            avg_time_per_place: avgTimePerPlace,
                         };
                     });
 
@@ -77,7 +88,7 @@ const Admin: React.FC = () => {
                 });
 
                 setUsers(updatedUsers);
-                console.log(updatedUsers)
+                console.log(updatedUsers);
                 setLoading(false);
             } catch (error) {
                 setError('Failed to load user info');
@@ -87,6 +98,23 @@ const Admin: React.FC = () => {
 
         fetchUserInfo();
     }, []);
+    const formatDuration = (seconds: number) => {
+        if (isNaN(seconds) || seconds < 0) {
+            return '0 sec';
+        }
+
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = Math.floor(seconds % 60);
+
+        if (hours > 0) {
+            return `${hours} h ${minutes} m ${remainingSeconds} s`;
+        } else if (minutes > 0) {
+            return `${minutes} m ${remainingSeconds} s`;
+        } else {
+            return `${remainingSeconds} sec`;
+        }
+    };
 
     const handlePlaceClick = (verifiedPlace: VerifiedPlace) => {
         const foundPlace = findPlaceById(verifiedPlace.id_tomexplore);
@@ -98,7 +126,6 @@ const Admin: React.FC = () => {
             }
         }
     };
-
 
     if (loading) {
         return (
@@ -123,7 +150,6 @@ const Admin: React.FC = () => {
                 }}
             >
                 🏠 Accueil
-
             </button>
             <h2 className="text-center mb-4">Admin Dashboard</h2>
 
@@ -135,9 +161,8 @@ const Admin: React.FC = () => {
                                 <h2><b>{user.login}</b></h2>
                                 <Badge bg="primary" pill>Total Places: {user.total_places}</Badge>{' '}
                                 <Badge bg="info" pill>Places needing attention: {user.places_needing_att_checked}</Badge>{' '}
-                                <Badge bg="success" pill>Time Spent: {user.total_time_spent} sec</Badge>{' '}
-                                <Badge bg="info" pill>Avg Time per Place: {user.avg_time_per_place.toFixed(2)} sec</Badge>
-
+                                <Badge bg="success" pill>Time Spent: {formatDuration(Math.max(user.total_time_spent, 0))}</Badge>{' '}
+                                <Badge bg="info" pill>Avg Time per Place: {formatDuration(Math.max(user.avg_time_per_place, 0))}</Badge>
                             </Accordion.Header>
                             <Accordion.Body>
                                 <h4>Daily Stats</h4>
@@ -146,7 +171,10 @@ const Admin: React.FC = () => {
                                         user.dailyStats.map((day, dayIndex) => (
                                             <Accordion.Item eventKey={`day-${userIndex}-${dayIndex}`} key={day.id}>
                                                 <Accordion.Header>
-                                                    {day.day} - Total places: {day.total_places}, Places needing attention : {day.places_needing_att}, Time spent: {day.total_time_spent} sec, Avg. time per place: {day.avg_time_per_place.toFixed(2)} sec
+                                                    {day.day} - Total places: {day.total_places},
+                                                    Places needing attention: {day.places_needing_att},
+                                                    Time spent: {formatDuration(day.total_time_spent)},
+                                                    Avg. time per place: {formatDuration(day.avg_time_per_place)}
                                                 </Accordion.Header>
                                                 <Accordion.Body>
                                                     <Card>
@@ -175,7 +203,7 @@ const Admin: React.FC = () => {
                                                                         <div>
                                                                             <Badge bg="info">Start: {new Date(place.timestamp_start).toLocaleString()}</Badge>{' '}
                                                                             <Badge bg="danger">End: {new Date(place.timestamp_end).toLocaleString()}</Badge>
-                                                                            <span> --- {(new Date(place.timestamp_end).getTime() - new Date(place.timestamp_start).getTime()) / 1000} secondes</span>
+                                                                            <span> --- {formatDuration((new Date(place.timestamp_end).getTime() - new Date(place.timestamp_start).getTime()) / 1000)}</span>
                                                                         </div>
                                                                     </ListGroup.Item>
                                                                 ))
@@ -192,6 +220,7 @@ const Admin: React.FC = () => {
                                     )}
                                 </Accordion>
                             </Accordion.Body>
+
                         </Accordion.Item>
                     ))
                 ) : (

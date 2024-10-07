@@ -235,7 +235,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
-                        totalImages > 15 ? (
+                        totalImages > 15 ? ( // Si plus de 15 images, on force l'utilisateur à en supprimer
                             <div className="mt-3">
                                 <p className="text-danger">
                                     Il reste {remainingImagesCount() - 15} photo(s) à supprimer avant de continuer.
@@ -250,10 +250,17 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                                     </button>
                                 )}
                             </div>
-                        ) : (
-                            <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
-                                Aucune image à supprimer 👍
-                            </button>
+                        ) : (  // Si 15 images ou moins, on peut en supprimer mais ce n'est pas obligatoire
+                            <div className="mt-3">
+                                <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
+                                    Aucune image à supprimer 👍
+                                </button>
+                                {selectedImages.length > 0 && ( // Si des images sont sélectionnées, permettre leur suppression
+                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
+                                        Supprimer les images ❌
+                                    </button>
+                                )}
+                            </div>
                         )
                     ) : (
                         <button
