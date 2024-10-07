@@ -10,7 +10,7 @@ interface VerifiedPlace {
     name_eng: string;
     timestamp_start: string;
     timestamp_end: string;
-    needs_attention: boolean;
+    has_needed_attention: boolean;
 }
 
 interface DailyStats {
@@ -157,19 +157,20 @@ const Admin: React.FC = () => {
                                                                         key={place.id_tomexplore}
                                                                         action
                                                                         onClick={() => handlePlaceClick(place)}
+                                                                        className={place.has_needed_attention ? 'attention-needed' : ''}
+                                                                        style={place.has_needed_attention ? { backgroundColor: '#ffcccc' } : {}}
                                                                     >
                                                                         <h5>
                                                                             {place.name_eng}{' '}
-                                                                            {place.needs_attention == true && (
+                                                                            {place.has_needed_attention && (
                                                                                 <Badge bg="warning" className="ml-2">
-                                                                                    ⚠️
+                                                                                    ⚠️ A requis une attention
                                                                                 </Badge>
                                                                             )}
                                                                             <Badge bg="secondary" className="ml-2">
                                                                                 ID: {place.id_tomexplore}
                                                                             </Badge>
                                                                         </h5>
-
                                                                         <div>
                                                                             <Badge bg="info">Start: {new Date(place.timestamp_start).toLocaleString()}</Badge>{' '}
                                                                             <Badge bg="danger">End: {new Date(place.timestamp_end).toLocaleString()}</Badge>

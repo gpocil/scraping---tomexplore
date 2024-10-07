@@ -25,6 +25,8 @@ class Place extends Model {
     public timestamp_start?: Date;
     public timestamp_end?: Date;
     public redactor_id?: number;
+    public has_needed_attention?: boolean;
+
 }
 
 Place.init({
@@ -108,6 +110,10 @@ Place.init({
     },
     redactor_id: {
         type: DataTypes.INTEGER,
+        allowNull: true
+    },
+    has_needed_attention: {
+        type: DataTypes.BOOLEAN,
         allowNull: true
     }
 }, {

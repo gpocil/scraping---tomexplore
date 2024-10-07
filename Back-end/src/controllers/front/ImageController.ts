@@ -155,14 +155,10 @@ export const getSinglePlace = async (req: Request, res: Response) => {
 
         const images = await Image.findAll({ where: { place_id: placeId } });
 
-        if (!images.length) {
-            console.error(`No images found for place ID: ${placeId}`);
-            return res.status(404).json({ error: 'No images found for this place' });
-        }
-
         const imageData = images.map((image: Image) => ({
             id: image.id,
-            url: `https://monblogdevoyage.com/images/${folderName}/${image.image_name}`
+            url: `https://monblogdevoyage.com/images/${folderName}/${image.image_name}`,
+            top: image.top
         }));
         console.log(`Image data for place ID ${placeId}: ${JSON.stringify(imageData)}`);
         const response = {
@@ -268,8 +264,11 @@ export const setTopAndSetChecked = async (req: Request, res: Response) => {
 
         const place = await Place.findByPk(place_id);
         if (place) {
+            if (place.needs_attention === true) {
+                place.has_needed_attention = true;
+            }
             place.checked = true;
-            // place.needs_attention = false;
+            place.needs_attention = false;
             place.last_modification = new Date();
             await place.save();
             console.log(`Place with ID ${place_id} set to checked.`);
