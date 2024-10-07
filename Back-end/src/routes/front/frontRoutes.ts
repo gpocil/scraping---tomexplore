@@ -22,6 +22,8 @@ router.post('/placeAbort', UserStatsController.updatePlaceAbort);
 router.post('/placeEnd', UserStatsController.updatePlaceEnd);
 router.post('/placeStart', UserStatsController.updatePlaceStart);
 router.get('/userStats', UserStatsController.getUsersInfo);
+router.get('/getPlace/:id', ImageController.getSinglePlace);
+
 
 
 

@@ -8,7 +8,7 @@ import { useUser } from '../context/UserContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const HomePage: React.FC = () => {
-    const { data: places, updatePlaces } = usePlaces()
+    const { data: places } = usePlaces()
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);

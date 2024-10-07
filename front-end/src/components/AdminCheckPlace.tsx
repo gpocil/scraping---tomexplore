@@ -35,7 +35,7 @@ const AdminCheckPlace: React.FC = () => {
 
         const fetchPlaceData = async () => {
             try {
-                const response = await apiClient.get<PlaceResponse>(`front/getPlaceById/${placeId}`);
+                const response = await apiClient.get<PlaceResponse>(`front/getPlace/${placeId}`);
                 console.log(response.data);
                 setPlace(response.data);
             } catch (error) {
