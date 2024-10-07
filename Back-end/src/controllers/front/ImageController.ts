@@ -13,7 +13,9 @@ interface ImageResponse {
     id: number;
     url: string;
 }
-
+export interface PlaceWithCity extends Place {
+    city?: City;
+}
 interface PlaceResponse {
     place_id: number;
     place_name: string;
@@ -142,10 +144,15 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+
 export const getSinglePlace = async (req: Request, res: Response) => {
     const placeId = req.params.id;
     try {
-        const place = await Place.findByPk(placeId);
+        // Récupère le lieu avec la ville associée
+        const place = await Place.findByPk<PlaceWithCity>(placeId, {
+            include: [{ model: City, as: 'city' }]
+        });
         if (!place) {
             console.error(`Place not found for ID: ${placeId}`);
             return res.status(404).json({ error: 'Place not found' });
@@ -155,24 +162,27 @@ export const getSinglePlace = async (req: Request, res: Response) => {
         const folderName = encodeURIComponent(path.basename(folderPath));
         console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
 
+        // Récupère les images associées au lieu
         const images = await Image.findAll({ where: { place_id: placeId } });
-
         const imageData = images.map((image: Image) => ({
             id: image.id,
             url: `https://monblogdevoyage.com/images/${folderName}/${image.image_name}`,
             top: image.top
         }));
         console.log(`Image data for place ID ${placeId}: ${JSON.stringify(imageData)}`);
+
+        // Structure la réponse avec les informations de la ville
         const response = {
             place,
+            city: place.city,
             images: imageData
         };
+
         res.json(response);
     } catch (error) {
         console.error('Error fetching images:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-
 }
 
 

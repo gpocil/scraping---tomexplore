@@ -132,7 +132,7 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
                     where: {
                         redactor_id: user.id,
                     },
-                    attributes: ['id_tomexplore', 'name_eng', 'timestamp_start', 'timestamp_end']
+                    attributes: ['id_tomexplore', 'name_eng', 'timestamp_start', 'timestamp_end', 'has_needed_attention']
                 });
 
                 return {
