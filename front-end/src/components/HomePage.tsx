@@ -44,7 +44,7 @@ const HomePage: React.FC = () => {
                     for (const city of Object.keys(places[status][country])) {
                         for (const place of Object.values(places[status][country][city]).flat()) {
                             if (
-                                place.place_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                place.place_name && place.place_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                 place.place_id.toString().includes(searchQuery)
                             ) {
                                 newFilteredPlaces.push({ country, city, place, status });
@@ -59,6 +59,7 @@ const HomePage: React.FC = () => {
             setFilteredPlaces([]);
         }
     }, [searchQuery, places]);
+
 
     useEffect(() => {
         if (countryName && cityName) {

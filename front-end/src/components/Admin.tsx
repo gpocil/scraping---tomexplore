@@ -47,26 +47,25 @@ const Admin: React.FC = () => {
         if (!user || !user.admin) {
             navigate('/');
         }
-    }, [user]);
+    }, [user, navigate]);
 
     useEffect(() => {
         const fetchUserInfo = async () => {
             try {
                 const response = await apiClient.get('/front/userStats');
+                console.log(response.data);
                 const usersData = response.data || [];
 
                 const updatedUsers = usersData.map((user: UserInfo) => {
                     const updatedDailyStats = user.dailyStats.map((dayStat: DailyStats) => {
                         const filteredVerifiedPlaces = user.verifiedPlaces.filter((place: VerifiedPlace) => {
                             const placeDate = new Date(place.timestamp_start).toISOString().slice(0, 10);
-                            const duration = new Date(place.timestamp_end).getTime() - new Date(place.timestamp_start).getTime();
-                            return placeDate === dayStat.day && duration > 0;
+                            return placeDate === dayStat.day;
                         });
 
-                        // Calculer les totaux pour chaque jour avec les places vérifiées filtrées
                         const totalTimeSpent = filteredVerifiedPlaces.reduce((acc, place) => {
                             const duration = new Date(place.timestamp_end).getTime() - new Date(place.timestamp_start).getTime();
-                            return acc + (duration > 0 ? duration : 0);
+                            return acc + duration;
                         }, 0) / 1000; // Conversion en secondes
 
                         const totalPlaces = filteredVerifiedPlaces.length;
@@ -98,21 +97,24 @@ const Admin: React.FC = () => {
 
         fetchUserInfo();
     }, []);
+
     const formatDuration = (seconds: number) => {
-        if (isNaN(seconds) || seconds < 0) {
+        if (isNaN(seconds)) {
             return '0 sec';
         }
 
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const remainingSeconds = Math.floor(seconds % 60);
+        const absSeconds = Math.abs(seconds);
+        const hours = Math.floor(absSeconds / 3600);
+        const minutes = Math.floor((absSeconds % 3600) / 60);
+        const remainingSeconds = Math.floor(absSeconds % 60);
+        const sign = seconds < 0 ? '-' : '';
 
         if (hours > 0) {
-            return `${hours} h ${minutes} m ${remainingSeconds} s`;
+            return `${sign}${hours} h ${minutes} m ${remainingSeconds} s`;
         } else if (minutes > 0) {
-            return `${minutes} m ${remainingSeconds} s`;
+            return `${sign}${minutes} m ${remainingSeconds} s`;
         } else {
-            return `${remainingSeconds} sec`;
+            return `${sign}${remainingSeconds} sec`;
         }
     };
 
@@ -161,8 +163,8 @@ const Admin: React.FC = () => {
                                 <h2><b>{user.login}</b></h2>
                                 <Badge bg="primary" pill>Total Places: {user.total_places}</Badge>{' '}
                                 <Badge bg="info" pill>Places needing attention: {user.places_needing_att_checked}</Badge>{' '}
-                                <Badge bg="success" pill>Time Spent: {formatDuration(Math.max(user.total_time_spent, 0))}</Badge>{' '}
-                                <Badge bg="info" pill>Avg Time per Place: {formatDuration(Math.max(user.avg_time_per_place, 0))}</Badge>
+                                <Badge bg="success" pill>Time Spent: {formatDuration(user.total_time_spent)}</Badge>{' '}
+                                <Badge bg="info" pill>Avg Time per Place: {formatDuration(user.avg_time_per_place)}</Badge>
                             </Accordion.Header>
                             <Accordion.Body>
                                 <h4>Daily Stats</h4>
