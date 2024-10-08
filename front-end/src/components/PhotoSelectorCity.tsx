@@ -33,11 +33,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const user = useUser().user;
     const location = useLocation();
 
-    useEffect(() => {
-        return () => {
-            updatePlaceAbort(currentPlaceId);
-        };
-    }, [location.pathname, currentPlaceId]);
+
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -68,7 +64,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         const handleBeforeUnload = () => {
-            if (currentPlace) {
+            if (currentPlace && !isCityComplete) {
                 updatePlaceAbort(currentPlace.place_id);
             }
         };
@@ -76,7 +72,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         return () => {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, [currentPlace]);
+    }, [currentPlace, isCityComplete]);
+
 
     useEffect(() => {
         setInstagramLink(currentPlace?.instagram_link || '');
