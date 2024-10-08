@@ -31,7 +31,7 @@ const AppWrapper: React.FC = () => {
 
   useEffect(() => {
     // Si l'utilisateur n'est pas sur les routes exclues, on appelle updatePlaces
-    if (!['/login', '/admin', '/admin/check-place/:placeId'].includes(location.pathname)) {
+    if (!['/admin', '/admin/check-place/:placeId'].includes(location.pathname)) {
       setLoading(true); // Début du chargement
       updatePlaces().finally(() => setLoading(false)); // Fin du chargement après la fin de la promesse
     }
