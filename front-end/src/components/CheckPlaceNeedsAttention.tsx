@@ -97,9 +97,6 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
     const totalImages = images.length || 0;
 
-    const remainingImagesCount = (): number => {
-        return totalImages - selectedImages.length;
-    };
 
     const handleImageClick = (image: IImage) => {
         console.log('Image clicked:', image);
@@ -424,8 +421,14 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                         📤 Uploader des photos
                     </Button>
                     <Button className="mb-3 w-100" variant="success" disabled={isScraping} onClick={() => {
-                        const url = generateGoogleSearchUrl(place.place_name, "");
-                        window.open(url, '_blank');
+                        if (cityName) {
+                            const url = generateGoogleSearchUrl(place.place_name, cityName);
+                            window.open(url, '_blank');
+                        }
+                        else {
+                            const url = generateGoogleSearchUrl(place.place_name, '');
+                            window.open(url, '_blank');
+                        }
                     }}>
                         📷 Rechercher Instagram
                     </Button>

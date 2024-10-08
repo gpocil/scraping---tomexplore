@@ -1,6 +1,8 @@
 import apiClient from './apiClient';
 
 export const updatePlaceStart = async (placeId: number, userId: number): Promise<void> => {
+    console.log('START')
+
     try {
         const response = await apiClient.post('front/placeStart', { placeId, userId });
         if (response.status === 200) {
@@ -14,6 +16,7 @@ export const updatePlaceStart = async (placeId: number, userId: number): Promise
 };
 
 export const updatePlaceEnd = async (placeId: number): Promise<void> => {
+    console.log('END')
     try {
         const response = await apiClient.post('front/placeEnd', { placeId });
         if (response.status === 200) {
@@ -27,6 +30,8 @@ export const updatePlaceEnd = async (placeId: number): Promise<void> => {
 };
 
 export const updatePlaceAbort = async (placeId: number): Promise<void> => {
+    console.log('ABORT')
+
     try {
         const response = await apiClient.post('front/placeAbort', { placeId });
         if (response.status === 200) {

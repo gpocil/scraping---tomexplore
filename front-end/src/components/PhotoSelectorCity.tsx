@@ -85,6 +85,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     useEffect(() => {
         if (user && currentPlace) {
             updatePlaceStart(currentPlace.place_id, user?.userId);
+            console.log('start');
         }
     }, [currentPlace, user]);
 
