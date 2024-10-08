@@ -16,6 +16,10 @@ export async function updatePlaceStart(req: Request, res: Response): Promise<voi
             res.status(404).json({ message: 'Place not found' });
             return;
         }
+        if (place.timestamp_end) {
+            res.status(404).json({ message: 'Place already done' });
+            return;
+        }
         const user = await User.findByPk(userId);
         if (!user) {
             res.status(404).json({ message: 'User not found' });
@@ -57,6 +61,11 @@ export async function updatePlaceEnd(req: Request, res: Response): Promise<void>
         if (!place.timestamp_start) {
             console.warn(`No start timestamp found for place ID ${place.id_tomexplore}`);
             res.status(400).json({ message: 'Start timestamp missing' });
+            return;
+        }
+        if (place.timestamp_end) {
+            console.warn(`Place already finished ${place.id_tomexplore}`);
+            res.status(400).json({ message: 'end timestamp already there missing' });
             return;
         }
 
@@ -130,6 +139,7 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
 
         const usersInfo = await Promise.all(
             users.map(async (user) => {
+                // Récupérer les statistiques journalières
                 const dailyStats = await DailyRedactorStats.findAll({
                     where: {
                         redactor_id: user.id
@@ -137,6 +147,15 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
                     attributes: ['id', 'redactor_id', 'day', 'total_places', 'total_time_spent', 'avg_time_per_place', 'places_needing_att']
                 });
 
+                // Filtrer les jours uniques pour éviter les doublons
+                const uniqueDailyStats = dailyStats.reduce((acc: DailyRedactorStats[], stat) => {
+                    if (!acc.some(item => item.day === stat.day)) {
+                        acc.push(stat);
+                    }
+                    return acc;
+                }, []);
+
+                // Récupérer les lieux vérifiés
                 const verifiedPlaces = await Place.findAll({
                     where: {
                         redactor_id: user.id,
@@ -150,7 +169,7 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
                     total_places: user.total_places,
                     total_time_spent: user.total_time_spent,
                     avg_time_per_place: user.avg_time_per_place,
-                    dailyStats: dailyStats,
+                    dailyStats: uniqueDailyStats,
                     verifiedPlaces: verifiedPlaces
                 };
             })
