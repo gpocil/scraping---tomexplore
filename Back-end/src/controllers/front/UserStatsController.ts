@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Place from '../../models/Place';
 import User from '../../models/User';
 import DailyRedactorStats from '../../models/DailyRedactorStats';
+import { Op } from 'sequelize';
 
 export async function updatePlaceStart(req: Request, res: Response): Promise<void> {
     const { placeId, userId } = req.body;
@@ -139,7 +140,6 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
 
         const usersInfo = await Promise.all(
             users.map(async (user) => {
-                // Récupérer les statistiques journalières
                 const dailyStats = await DailyRedactorStats.findAll({
                     where: {
                         redactor_id: user.id
@@ -147,7 +147,6 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
                     attributes: ['id', 'redactor_id', 'day', 'total_places', 'total_time_spent', 'avg_time_per_place', 'places_needing_att']
                 });
 
-                // Filtrer les jours uniques pour éviter les doublons
                 const uniqueDailyStats = dailyStats.reduce((acc: DailyRedactorStats[], stat) => {
                     if (!acc.some(item => item.day === stat.day)) {
                         acc.push(stat);
@@ -155,13 +154,16 @@ export async function getUsersInfo(req: Request, res: Response): Promise<void> {
                     return acc;
                 }, []);
 
-                // Récupérer les lieux vérifiés
                 const verifiedPlaces = await Place.findAll({
                     where: {
                         redactor_id: user.id,
+                        timestamp_end: {
+                            [Op.ne]: null
+                        }
                     },
                     attributes: ['id_tomexplore', 'name_eng', 'timestamp_start', 'timestamp_end', 'has_needed_attention']
                 });
+
 
                 return {
                     id: user.id,

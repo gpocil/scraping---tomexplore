@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { IPlace, IImage } from '../model/Interfaces';
 import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
@@ -31,6 +31,13 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const currentPlace = places.find((place) => place.place_id === currentPlaceId);
     const totalImages = currentPlace?.images?.length || 0;
     const user = useUser().user;
+    const location = useLocation();
+
+    useEffect(() => {
+        return () => {
+            updatePlaceAbort(currentPlaceId);
+        };
+    }, [location.pathname, currentPlaceId]);
 
     useEffect(() => {
         if (!checkCookie()) {
