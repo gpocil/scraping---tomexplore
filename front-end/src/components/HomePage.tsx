@@ -39,17 +39,18 @@ const HomePage: React.FC = () => {
         if (searchQuery) {
             const newFilteredPlaces: { country: string; city: string; place: IPlace; status: string }[] = [];
 
-            ['checked', 'unchecked', 'needs_attention'].forEach(status => {
+            ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => {
                 for (const country of Object.keys(places[status])) {
                     for (const city of Object.keys(places[status][country])) {
-                        for (const place of Object.values(places[status][country][city]).flat()) {
+                        for (const place of Object.values(places[status][country][city] || {}).flat()) {
                             if (
-                                place.place_name && place.place_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                place.place_id.toString().includes(searchQuery)
+                                (place.place_name && place.place_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                (place.place_id && place.place_id.toString().includes(searchQuery))
                             ) {
                                 newFilteredPlaces.push({ country, city, place, status });
                             }
                         }
+
                     }
                 }
             });
