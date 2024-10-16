@@ -72,7 +72,10 @@ const PlacesNeedingAttention: React.FC = () => {
                                     onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
                                     style={{ cursor: 'pointer' }}
                                 >
-                                    {place.place_id} - {place.place_name}
+                                    <b>{place.place_id} - {place.place_name}</b>
+                                    {user?.admin && place.details && (
+                                        <span className="text-muted d-block small"> {place.details}</span>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -87,8 +90,10 @@ const PlacesNeedingAttention: React.FC = () => {
                                     onClick={() => navigate(`/check-place/${place.place_id}`, { state: { place } })}
                                     style={{ cursor: 'pointer' }}
                                 >
-                                    {place.place_id} - {place.place_name}
-                                </li>
+                                    <b>{place.place_id} - {place.place_name}</b>
+                                    {user?.admin && place.details && (
+                                        <span className="text-muted d-block small"> {place.details}</span>
+                                    )}                                </li>
                             ))}
                         </ul>
                     </div>

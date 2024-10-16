@@ -5,7 +5,7 @@ import apiClient from '../util/apiClient';
 import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
-import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
+import NeedsAttentionDetails from './modals/NeedsAttentionModal';
 import { Spinner } from 'react-bootstrap';
 import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 
@@ -16,43 +16,46 @@ interface PhotoSelectorPlaceProps {
 
 const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComplete }) => {
     const navigate = useNavigate();
-    const { updateSinglePlace } = usePlaces();  // Get the function to update cache
+    const { updateSinglePlace } = usePlaces();
     const { checkCookie } = useUser();
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
     const [isStepOne, setIsStepOne] = useState(true);
     const [isPlaceComplete, setIsPlaceComplete] = useState(false);
-    const [showModal, setShowModal] = useState(false); // Modal state for needs attention
+    const [showModal, setShowModal] = useState(false);
     const [showInstagramInput, setShowInstagramInput] = useState(false);
     const [instagramLink, setInstagramLink] = useState(place?.instagram_link || '');
     const [isScraping, setIsScraping] = useState(false);
     const user = useUser().user;
+    const [displayedImages, setDisplayedImages] = useState<IImage[]>([]);
 
-    // Effect to ensure the user is logged in, otherwise redirect to login
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
         }
     }, [checkCookie, navigate]);
 
-    // Set the Instagram link when the place data changes
+    useEffect(() => {
+        if (place) {
+            setDisplayedImages(place.images.slice(0, 15));
+        }
+    }, [place]);
+
     useEffect(() => {
         setInstagramLink(place?.instagram_link || '');
     }, [place]);
 
     const totalImages = place?.images?.length || 0;
 
-    // Start tracking place stats when user is working on a place
     useEffect(() => {
         if (user) {
             updatePlaceStart(place.place_id, user?.userId);
         }
     }, [user, place]);
 
-    // Ensure that updates are made to both the cache and state after scraping or updates
     useEffect(() => {
         if (!isScraping) {
-            updateSinglePlace(place.place_id); // Update cache and state after scraping completes
+            updateSinglePlace(place.place_id);
         }
     }, [isScraping]);
 
@@ -106,11 +109,13 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 place.images = place.images.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                 );
-                if (remainingImagesCount() <= 15) {
-                    setIsStepOne(false);
+
+                const updatedDisplayedImages = place.images.slice(0, 15);
+                setDisplayedImages(updatedDisplayedImages);
+
+                if (updatedDisplayedImages.length === 0) {
+                    await handleValidateImages();
                 }
-                // Update cache and state after image deletion
-                await updateSinglePlace(place.place_id);
             }
         } catch (error) {
             console.error('Error deleting images:', error);
@@ -118,6 +123,26 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
         }
     };
 
+    const handleValidateImages = async () => {
+        try {
+            const unseenImageIds = place?.images.slice(15).map((image) => image.id) || [];
+            if (unseenImageIds.length > 0) {
+                await apiClient.post('/front/deleteImages', {
+                    imageIds: unseenImageIds,
+                    place_id: place?.place_id
+                });
+            }
+            onComplete();
+        } catch (error) {
+            console.error('Error validating images:', error);
+            alert('Failed to validate images');
+        }
+    };
+    const handleStepTwoTransition = () => {
+        if (displayedImages.length > 0) {
+            setIsStepOne(false);
+        }
+    };
     const handleSelectTop = async () => {
         try {
             const response = await apiClient.post('/front/setTop', {
@@ -129,7 +154,6 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 setTopImages([]);
                 setIsStepOne(true);
                 setIsPlaceComplete(true);
-                // Update cache and state after setting top images
                 await updateSinglePlace(place.place_id);
             }
         } catch (error) {
@@ -140,7 +164,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
     const handleSetNeedsAttention = () => {
         updatePlaceAbort(place.place_id);
-        setShowModal(true);  // Open the modal for setting needs attention
+        setShowModal(true);
     };
 
     const handleModalSubmit = async (details: string) => {
@@ -151,7 +175,6 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
             });
             if (response.status === 200) {
                 setIsPlaceComplete(true);
-                // Update cache and state after setting needs attention
                 await updateSinglePlace(place.place_id);
             }
         } catch (error) {
@@ -177,7 +200,6 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
             if (response.status === 200) {
                 alert('Images Instagram récupérées');
-                // Update cache and state after Instagram update
                 await updateSinglePlace(place.place_id);
             }
         } catch (error) {
@@ -189,7 +211,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     };
 
     if (isPlaceComplete) {
-        updateSinglePlace(place.place_id);  // Ensure the place update is reflected in cache and state
+        updateSinglePlace(place.place_id);
         return (
             <div className="container mt-5 text-center">
                 <h1>Lieu terminé 🥂</h1>
@@ -197,7 +219,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                     className="btn btn-primary"
                     onClick={() => {
                         updatePlaceAbort(place.place_id);
-                        onComplete();  // Navigate back or mark completion
+                        onComplete();
                     }}
                     disabled={isScraping}
                 >
@@ -235,42 +257,39 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
-                        totalImages > 15 ? ( // Si plus de 15 images, on force l'utilisateur à en supprimer
-                            <div className="mt-3">
-                                <p className="text-danger">
-                                    Il reste {remainingImagesCount() - 15} photo(s) à supprimer avant de continuer.
-                                </p>
-                                {selectedImages.length > 0 ? (
-                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
-                                        Supprimer les images ❌
-                                    </button>
-                                ) : (
-                                    <button className="btn btn-primary mt-3" disabled>
-                                        Sélectionnez des images à supprimer
-                                    </button>
-                                )}
-                            </div>
-                        ) : (  // Si 15 images ou moins, on peut en supprimer mais ce n'est pas obligatoire
-                            <div className="mt-3">
-                                <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
+                        <div className="mt-3">
+                            {selectedImages.length > 0 ? (
+                                <button
+                                    className="btn btn-danger mt-3"
+                                    onClick={handleDeleteImages}
+                                    disabled={isScraping}
+                                >
+                                    Supprimer les images ❌
+                                </button>
+                            ) : (
+                                <button
+                                    className="btn btn-primary mt-3"
+                                    onClick={() => {
+                                        if (remainingImagesCount() <= 15) {
+                                            handleStepTwoTransition();  // Passe à l'étape suivante si aucune image à supprimer
+                                        }
+                                    }}
+                                    disabled={isScraping}
+                                >
                                     Aucune image à supprimer 👍
                                 </button>
-                                {selectedImages.length > 0 && ( // Si des images sont sélectionnées, permettre leur suppression
-                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
-                                        Supprimer les images ❌
-                                    </button>
-                                )}
-                            </div>
-                        )
+                            )}
+                        </div>
                     ) : (
                         <button
                             className="btn btn-primary mt-3"
                             onClick={handleSelectTop}
-                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3 || isScraping}
+                            disabled={topImages.length !== 3 || isScraping}
                         >
                             Confirmer le Top 3 & Lieu suivant ✅
                         </button>
                     )}
+
                 </div>
             </div>
 
@@ -279,23 +298,25 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                     <div className="col-md-8" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                         <div className="card-body">
                             <div className="row image-grid">
-                                {place?.images?.map((image) => {
+                                {displayedImages.map((image) => {
                                     const isSelectedDelete = selectedImages.some((img) => img.id === image.id);
-                                    const topIndex = topImages.findIndex((img) => img.id === image.id);
+                                    const isSelectedTop = topImages.some((img) => img.id === image.id);
+                                    const containerClassName = `col-4 mb-3 image-container 
+            ${isSelectedDelete ? 'selected-delete' : ''} 
+            ${isSelectedTop ? 'selected-top' : ''}`;
+
                                     return (
                                         <div
                                             key={image.id}
-                                            className={`col-4 mb-3 image-container ${isSelectedDelete
-                                                ? 'selected-delete'
-                                                : topIndex !== -1
-                                                    ? 'selected-top'
-                                                    : ''
-                                                }`}
+                                            className={containerClassName}
                                             onClick={() => handleImageClick(image)}
                                         >
-                                            <img src={image.url} alt={image.image_name ?? 'Image'} className="img-fluid" />
-                                            {isSelectedDelete && <div className="selected-overlay">✓</div>}
-                                            {topIndex !== -1 && <div className="selected-overlay">{topIndex + 1}</div>}
+                                            <img src={image.url} loading='lazy' alt={image.image_name ?? 'Image'} className="img-fluid" />
+                                            {(isSelectedDelete || isSelectedTop) && (
+                                                <div className="selected-overlay">
+                                                    {isSelectedDelete ? '✓' : topImages.indexOf(image) + 1}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}

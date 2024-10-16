@@ -9,11 +9,22 @@ interface NeedsAttentionDetailsProps {
 
 const NeedsAttentionDetails: React.FC<NeedsAttentionDetailsProps> = ({ show, onHide, onSubmit }) => {
     const [details, setDetails] = useState('');
+    const [isChecked, setIsChecked] = useState(false);
+
+    const handleCheckboxChange = () => {
+        setIsChecked(!isChecked);
+        if (!isChecked) {
+            setDetails('10 - manque de photos');
+        } else {
+            setDetails('');
+        }
+    };
 
     const handleSubmit = () => {
         onSubmit(details);
-        setDetails(''); // Clear the text field after submission
-        onHide(); // Close the modal
+        setDetails('');
+        setIsChecked(false);
+        onHide();
     };
 
     return (
@@ -28,8 +39,17 @@ const NeedsAttentionDetails: React.FC<NeedsAttentionDetailsProps> = ({ show, onH
                         <Form.Control
                             as="textarea"
                             rows={3}
-                            value={details}
+                            value={isChecked ? '10 - manque de photos' : details}
                             onChange={(e) => setDetails(e.target.value)}
+                            disabled={isChecked}
+                        />
+                    </Form.Group>
+                    <Form.Group controlId="notEnoughPhotos">
+                        <Form.Check
+                            type="checkbox"
+                            label="Pas assez de photos"
+                            checked={isChecked}
+                            onChange={handleCheckboxChange}
                         />
                     </Form.Group>
                 </Form>

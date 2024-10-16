@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { IPlace, IImage } from '../model/Interfaces';
 import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
@@ -27,11 +27,10 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const [showInstagramInput, setShowInstagramInput] = useState(false);
     const [instagramLink, setInstagramLink] = useState('');
     const [isScraping, setIsScraping] = useState(false);
-
     const currentPlace = places.find((place) => place.place_id === currentPlaceId);
     const totalImages = currentPlace?.images?.length || 0;
     const user = useUser().user;
-    const location = useLocation();
+    const [displayedImages, setDisplayedImages] = useState<IImage[]>([]);
 
 
 
@@ -58,9 +57,12 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         }
     }, [places, currentPlaceId]);
 
-    const remainingImagesCount = (): number => {
-        return totalImages - selectedImages.length;
-    };
+    useEffect(() => {
+        if (currentPlace) {
+            setDisplayedImages(currentPlace.images.slice(0, 15));
+        }
+    }, [currentPlace]);
+
 
     useEffect(() => {
         const handleBeforeUnload = () => {
@@ -134,20 +136,44 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 place_id: currentPlace?.place_id
             });
 
-            if (response.status === 200) {
+            if (response.status === 200 && currentPlace) {
+                currentPlace.images = currentPlace.images.filter(
+                    (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
+                );
+
+                const updatedDisplayedImages = currentPlace.images.slice(0, 15);
+                setDisplayedImages(updatedDisplayedImages);
                 setSelectedImages([]);
-                if (currentPlace) {
-                    currentPlace.images = currentPlace.images.filter(
-                        (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
-                    );
-                }
-                if (remainingImagesCount() <= 15) {
-                    setIsStepOne(false);
+                if (updatedDisplayedImages.length === 0) {
+                    await handleValidateImages();
                 }
             }
         } catch (error) {
             console.error('Error deleting images:', error);
             alert('Failed to delete images');
+        }
+    };
+
+    const handleStepTwoTransition = () => {
+        if (displayedImages.length > 0) {
+            setIsStepOne(false);
+        }
+    };
+
+
+    const handleValidateImages = async () => {
+        try {
+            const unseenImageIds = currentPlace?.images.slice(15).map((image) => image.id) || [];
+            if (unseenImageIds.length > 0) {
+                await apiClient.post('/front/deleteImages', {
+                    imageIds: unseenImageIds,
+                    place_id: currentPlace?.place_id
+                });
+            }
+            handleNext();
+        } catch (error) {
+            console.error('Error validating images:', error);
+            alert('Failed to validate images');
         }
     };
 
@@ -282,42 +308,28 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         ❌ Problème avec ce lieu
                     </button>
                     {isStepOne ? (
-                        totalImages > 15 ? (  // Si plus de 15 images, on force l'utilisateur à en supprimer
-                            <div className="mt-3">
-                                <p className="text-danger">
-                                    Il reste {remainingImagesCount() - 15} photo(s) à supprimer avant de continuer.
-                                </p>
-                                {selectedImages.length > 0 ? (
-                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
-                                        Supprimer les images ❌
-                                    </button>
-                                ) : (
-                                    <button className="btn btn-primary mt-3" disabled>
-                                        Sélectionnez des images à supprimer
-                                    </button>
-                                )}
-                            </div>
-                        ) : (  // Si 15 images ou moins, on peut en supprimer mais ce n'est pas obligatoire
-                            <div className="mt-3">
-                                <button className="btn btn-primary mt-3" onClick={() => setIsStepOne(false)} disabled={isScraping}>
+                        <div className="mt-3">
+                            {selectedImages.length > 0 ? (
+                                <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
+                                    Supprimer les images ❌
+                                </button>
+                            ) : (
+                                <button className="btn btn-primary mt-3" onClick={handleStepTwoTransition} disabled={isScraping}>
                                     Aucune image à supprimer 👍
                                 </button>
-                                {selectedImages.length > 0 && (  // Si des images sont sélectionnées, permettre leur suppression
-                                    <button className="btn btn-danger mt-3" onClick={handleDeleteImages} disabled={isScraping}>
-                                        Supprimer les images ❌
-                                    </button>
-                                )}
-                            </div>
-                        )
-                    ) : (
-                        <button
-                            className="btn btn-primary mt-3"
-                            onClick={handleSelectTop}
-                            disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3 || isScraping}
-                        >
-                            Confirmer le Top 3 & Lieu suivant ✅
-                        </button>
-                    )}
+                            )}
+                        </div>
+
+                    )
+                        : (
+                            <button
+                                className="btn btn-primary mt-3"
+                                onClick={handleSelectTop}
+                                disabled={totalImages > 3 ? topImages.length !== 3 : topImages.length > 3 || isScraping}
+                            >
+                                Confirmer le Top 3 & Lieu suivant ✅
+                            </button>
+                        )}
 
                 </div>
 
@@ -328,27 +340,31 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                     <div className="col-md-8" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                         <div className="card-body">
                             <div className="row image-grid">
-                                {currentPlace?.images?.map((image) => {
+                                {displayedImages.map((image) => {
                                     const isSelectedDelete = selectedImages.some((img) => img.id === image.id);
-                                    const topIndex = topImages.findIndex((img) => img.id === image.id);
+                                    const isSelectedTop = topImages.some((img) => img.id === image.id);
+                                    const containerClassName = `col-4 mb-3 image-container 
+            ${isSelectedDelete ? 'selected-delete' : ''} 
+            ${isSelectedTop ? 'selected-top' : ''}`;
+
                                     return (
                                         <div
                                             key={image.id}
-                                            className={`col-4 mb-3 image-container ${isSelectedDelete
-                                                ? 'selected-delete'
-                                                : topIndex !== -1
-                                                    ? 'selected-top'
-                                                    : ''
-                                                }`}
+                                            className={containerClassName}
                                             onClick={() => handleImageClick(image)}
                                         >
-                                            <img src={image.url} alt={image.image_name ?? 'Image'} className="img-fluid" />
-                                            {isSelectedDelete && <div className="selected-overlay">✓</div>}
-                                            {topIndex !== -1 && <div className="selected-overlay">{topIndex + 1}</div>}
+                                            <img src={image.url} loading='lazy' alt={image.image_name ?? 'Image'} className="img-fluid" />
+                                            {(isSelectedDelete || isSelectedTop) && (
+                                                <div className="selected-overlay">
+                                                    {isSelectedDelete ? '✓' : topImages.indexOf(image) + 1}
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
+
+
                         </div>
                     </div>
                     <div className="col-md-4 d-flex flex-column" style={{ height: '70vh' }}>
