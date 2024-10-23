@@ -218,7 +218,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 id_tomexplore,
                 famous,
                 name_en,
-                name_fr,
+                address,
                 link_maps: google_maps_link,
                 city: cityName,
                 instagram_username,
@@ -228,13 +228,14 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
             if (!id_tomexplore || !name_en || !cityName || !countryName || famous === undefined) {
                 return { error: 'Missing required fields', placeData };
             }
-
+            let googleImages: ImageResultBusiness = { urls: [], count: 0 };
             let wikiMediaResult: ImageResultTourist = { urls: [], count: 0, link: '' };
             let unsplashResult: ImageResultTourist = { urls: [], count: 0, link: '' };
             let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
             let wikipediaUrl: string = '';
             let originalName: string = '';
             let errors: string[] = [];
+            let location_full_address = `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
 
             try {
                 let country, city;
@@ -264,13 +265,13 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
 
                 // Fetch Wikimedia Images
                 try {
-                    originalName = await GoogleController.getOriginalName({ body: { name_eng: name_en, country: countryName } } as Request);
+                    originalName = await GoogleController.getOriginalName({ body: { name_eng: name_en, country: countryName, city:cityName } } as Request);
                     if (originalName !== '') { // Recherche avec nom original si possible
                         wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName, city: cityName } } as Request);
-                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName } } as Request);
+                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName, city: cityName } } as Request);
                     } else {
                         wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en, city: cityName } } as Request);
-                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName } } as Request);
+                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName, city: cityName } } as Request);
                     }
 
                     if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
@@ -279,7 +280,15 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     errors.push(`Error fetching Wikimedia images: ${error.message}`);
                     wikiMediaResult.error = `Error fetching Wikimedia images: ${error.message}`;
                 }
-
+  // Fetch Google Images
+  try {
+    googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
+    if (googleImages.error) errors.push(googleImages.error);
+} catch (error: any) {
+    console.error(`Error fetching Google images: ${error.message}`);
+    errors.push(`Error fetching Google images: ${error.message}`);
+    googleImages.error = `Error fetching Google images: ${error.message}`;
+}
                 // Fetch Instagram Images if username is provided
                 if (instagram_username && instagram_username !== "") {
                     try {
@@ -340,7 +349,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     return { error: 'Failed to fetch images from both Wikimedia, Unsplash and Instagram', details: errors, placeData };
                 }
 
-                const result = await FileController.downloadPhotosTouristAttraction(id_tomexplore, wikiMediaResult, unsplashResult, instagramImages);
+                const result = await FileController.downloadPhotosTouristAttraction(id_tomexplore, wikiMediaResult, unsplashResult, instagramImages, googleImages);
 
                 // Check if Place exists, otherwise create it
                 let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });

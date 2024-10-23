@@ -61,6 +61,8 @@ const wikiExtensions = [
 export async function findWikipediaUrl(req?: Request, res?: Response): Promise<string> {
     const name = req ? req.body.name as string : '';
     const country = req ? req.body.country as string : '';
+    const city = req ? req.body.city as string : '';
+
 
     if (!name || !country) {
         if (res) {
@@ -96,7 +98,7 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         });
         await handleConsentPage(page);
 
-        console.log(`Typing search query: ${name} wikipedia`);
+        console.log(`Typing search query: ${name} ${city} wikipedia`);
         await page.waitForSelector('textarea#APjFqb', { visible: true });
         console.log('Clicking on the text area to focus');
         await page.click('textarea#APjFqb'); // Click on the text area to focus

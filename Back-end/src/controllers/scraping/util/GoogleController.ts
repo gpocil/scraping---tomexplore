@@ -3,7 +3,6 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser, Page } from 'puppeteer';
 import * as ProxyController from '../ProxyController';
-import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
@@ -360,16 +359,20 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
   let browser: Browser | null = null;
 
   try {
-    const { name_eng, country } = req.body;
+    let { name_eng, country, city } = req.body;
 
-    if (!name_eng || !country) {
+    if (!name_eng || !country || !city) {
       if (res) {
-        res.status(400).json({ error: "name_eng and country are required in the request body" });
+        res.status(400).json({ error: "name_eng, country, and city are required in the request body" });
       }
-      throw new Error("name_eng and country are required in the request body");
+      throw new Error("name_eng, country, and city are required in the request body");
     }
 
-    const searchQuery = `${name_eng}+${country}`;
+    name_eng = name_eng.replace(/\s+/g, '+');
+    country = country.replace(/\s+/g, '+');
+    city = city.replace(/\s+/g, '+');
+
+    const searchQuery = `${name_eng}+${city}+${country}`;
     const url = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
 
     const proxy = ProxyController.getRandomProxy();
@@ -425,6 +428,21 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
         }
       }
     });
+
+    // If name is equal to city, try to extract the name from h1
+    if (name === city) {
+      console.log('Extracted name matches city, attempting to get h1 element instead');
+      name = await page.evaluate(() => {
+        const h1Element = document.querySelector('h1.DUwDvf.lfPIob');
+        if (h1Element) {
+          console.log('h1 element found after matching with city');
+          return h1Element.textContent?.trim() || '';
+        } else {
+          console.log('h1 element not found after matching with city');
+          return '';
+        }
+      });
+    }
 
     if (!name) {
       // Wait for the page to load after clicking the link

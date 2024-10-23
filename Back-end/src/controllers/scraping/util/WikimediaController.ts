@@ -18,7 +18,10 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return { urls: [], count: 0, error };
     }
 
-    const searchTerm = encodeURIComponent(name + " " + req?.body.city);
+    let searchTerm = encodeURIComponent(name);
+    
+    // Remplacer manuellement les apostrophes par %27
+    searchTerm = searchTerm.replace(/'/g, '%27');
 
     let browser;
     try {

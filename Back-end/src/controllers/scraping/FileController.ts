@@ -110,7 +110,9 @@ export async function downloadPhotosTouristAttraction(
     id_tomexplore: number,
     wikiMediaUrls: { urls: [string, string, string][]; count: number },
     unsplashUrls: { urls: [string, string, string][]; count: number },
-    instagramImages: { urls: string[], count: number } = { urls: [], count: 0 }
+    instagramImages: { urls: string[], count: number } = { urls: [], count: 0 },
+    googleImages: { urls: string[], count: number } = { urls: [], count: 0 }
+
 ): Promise<{
     [x: string]: any; downloadDir: string, imageCount: number, imageNames: string[]
 }> {
@@ -123,7 +125,11 @@ export async function downloadPhotosTouristAttraction(
         })),
         ...instagramImages.urls.map(url => ({
             url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+        })),
+        ...googleImages.urls.map(url => ({ 
+            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
         }))
+
     ];
 
     const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
