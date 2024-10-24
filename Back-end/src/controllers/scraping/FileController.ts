@@ -104,32 +104,32 @@ interface ImageUrl {
     license?: string;
     author?: string;
     generatedName: string;
+    source?:string;
 }
 
 export async function downloadPhotosTouristAttraction(
     id_tomexplore: number,
-    wikiMediaUrls: { urls: [string, string, string][]; count: number },
-    unsplashUrls: { urls: [string, string, string][]; count: number },
-    instagramImages: { urls: string[], count: number } = { urls: [], count: 0 },
-    googleImages: { urls: string[], count: number } = { urls: [], count: 0 }
+    wikiMediaUrls: { urls: [string, string, string][]; count: number, source: string },
+    unsplashUrls: { urls: [string, string, string][]; count: number, source: string },
+    instagramImages: { urls: string[], count: number, source: string } = { urls: [], count: 0, source: "Instagram" },
+    googleImages: { urls: string[], count: number, source: string } = { urls: [], count: 0, source: "Google" }
 
 ): Promise<{
-    [x: string]: any; downloadDir: string, imageCount: number, imageNames: string[]
+    [x: string]: any; downloadDir: string, imageCount: number, imageNames: { filename: string, source: string }[]
 }> {
     const imageUrls: ImageUrl[] = [
         ...wikiMediaUrls.urls.map(([url, license, author]) => ({
-            url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+            url, license, author, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`, source: wikiMediaUrls.source
         })),
         ...unsplashUrls.urls.map(([url]) => ({
-            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`, source: unsplashUrls.source
         })),
         ...instagramImages.urls.map(url => ({
-            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`, source: instagramImages.source
         })),
-        ...googleImages.urls.map(url => ({ 
-            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`
+        ...googleImages.urls.map(url => ({
+            url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`, source: googleImages.source
         }))
-
     ];
 
     const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
@@ -137,29 +137,21 @@ export async function downloadPhotosTouristAttraction(
     if (imageUrls.length > 0) {
         fs.mkdirSync(downloadDir, { recursive: true });
 
-        const photosWithLicenses: { filename: string; license?: string }[] = [];
-        const imageNames: string[] = [];
+        const imageNames: { filename: string, source: string }[] = [];
 
-        await Promise.all(imageUrls.map(async ({ url, license }, index) => {
+        await Promise.all(imageUrls.map(async ({ url, license, source }, index) => {
             try {
                 const response = await axios.get(url, { responseType: 'arraybuffer' });
                 const imageBuffer = Buffer.from(response.data);
                 const filename = `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
                 const outputPath = path.join(downloadDir, filename);
-
-                // Delete the file if it already exists
                 if (fs.existsSync(outputPath)) {
                     fs.unlinkSync(outputPath);
                 }
                 await sharp(imageBuffer).toFile(outputPath);
-
-                // Add the photo and its license (if available) to the list
-                if (license) {
-                    photosWithLicenses.push({ filename, license });
-                } else {
-                    photosWithLicenses.push({ filename });
-                }
-                imageNames.push(filename);
+                if(source){
+                imageNames.push({ filename, source })}
+          
             } catch (error) {
                 console.error(`Failed to download image at ${url}:`, error);
             }
@@ -170,6 +162,7 @@ export async function downloadPhotosTouristAttraction(
     }
     return { downloadDir: '', imageCount: 0, imageNames: [] };
 }
+
 
 export async function deleteImages(imageIds: number[]): Promise<void> {
     // Include Place model to access the folder property

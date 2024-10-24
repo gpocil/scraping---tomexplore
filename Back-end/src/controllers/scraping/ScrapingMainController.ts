@@ -15,6 +15,7 @@ interface ImageResultBusiness {
     urls: string[];
     count: number;
     error?: string;
+    source?:string;
 }
 
 let cityCache: Record<string, any> = {};
@@ -198,6 +199,7 @@ interface ImageResultTourist {
     count: number;
     error?: string;
     link?: string;
+    source?:string;
 }
 
 export async function getPhotosTouristAttraction(req?: Request, res?: Response): Promise<any> {
@@ -268,6 +270,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     originalName = await GoogleController.getOriginalName({ body: { name_eng: name_en, country: countryName, city:cityName } } as Request);
                     if (originalName !== '') { // Recherche avec nom original si possible
                         wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName, city: cityName } } as Request);
+                        wikiMediaResult.source = 'Wikimedia';
                         wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName, city: cityName } } as Request);
                     } else {
                         wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en, city: cityName } } as Request);
@@ -283,6 +286,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
   // Fetch Google Images
   try {
     googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
+    googleImages.source = 'Google';
     if (googleImages.error) errors.push(googleImages.error);
 } catch (error: any) {
     console.error(`Error fetching Google images: ${error.message}`);
@@ -293,6 +297,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 if (instagram_username && instagram_username !== "") {
                     try {
                         instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
+    instagramImages.source = 'Instagram';
+
                         if (instagramImages.error) errors.push(instagramImages.error);
                     } catch (error: any) {
                         console.error(`Error fetching Instagram images: ${error.message}`);
@@ -305,6 +311,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 if (famous === true) {
                     try {
                         unsplashResult = await UnsplashController.unsplashSearch({ body: { name: name_en } } as Request);
+                        unsplashResult.source = 'Unsplash';
+
                         if (unsplashResult.error) errors.push(unsplashResult.error);
                     } catch (error: any) {
                         console.error(`Error fetching Unsplash images: ${error.message}`);
@@ -349,8 +357,14 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     return { error: 'Failed to fetch images from both Wikimedia, Unsplash and Instagram', details: errors, placeData };
                 }
 
-                const result = await FileController.downloadPhotosTouristAttraction(id_tomexplore, wikiMediaResult, unsplashResult, instagramImages, googleImages);
-
+                const result = await FileController.downloadPhotosTouristAttraction(
+                    id_tomexplore, 
+                    { ...wikiMediaResult, source: wikiMediaResult.source ?? 'Unknown' },
+                    { ...unsplashResult, source: unsplashResult.source ?? 'Unknown' },
+                    { ...instagramImages, source: instagramImages.source ?? 'Instagram' },
+                    { ...googleImages, source: googleImages.source ?? 'Google' }
+                );
+                
                 // Check if Place exists, otherwise create it
                 let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });
                 if (!place) {
@@ -383,19 +397,18 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
 
                 await Promise.all(
                     result.imageNames.map((generatedName, index) => {
-                        let source = 'Instagram';
                         let author: string | null = null;
                         let license: string | null = null;
-
-                        if (index < wikiMediaResult.urls.length) {
-                            source = 'Wikimedia';
+                        if (index < wikiMediaResult.urls.length && wikiMediaResult.source) {
                             author = wikiMediaResult.urls[index][1];
                             license = wikiMediaResult.urls[index][2];
-                        } else if (index < wikiMediaResult.urls.length + unsplashResult.urls.length) {
-                            source = 'Unsplash';
-                        }
+                        } 
+                        else if (index < wikiMediaResult.urls.length + unsplashResult.urls.length && unsplashResult.source) {
+                            author = unsplashResult.urls[index][1];
+                            license = unsplashResult.urls[index][2];
+                        } 
+                        return saveImage(generatedName.source, author, license, generatedName.filename);
 
-                        return saveImage(source, author, license, generatedName);
                     })
                 );
 
@@ -605,8 +618,12 @@ export async function scrapeWikimediaAfterUpdate(req: Request, res: Response) {
         }
 
         console.log(`Downloading wikimedia photos for place ID: ${id_tomexplore}`);
-        const result = await FileController.downloadPhotosTouristAttraction(id_tomexplore, wikiImages, { urls: [], count: 0 });
-
+        const result = await FileController.downloadPhotosTouristAttraction(
+            id_tomexplore, 
+            wikiImages, 
+            { urls: [], count: 0, source: 'Wikimedia' } 
+        );
+        
         let place = await Place.findOne({ where: { id_tomexplore } });
         if (place) {
             await place.update({
@@ -641,10 +658,10 @@ export async function scrapeWikimediaAfterUpdate(req: Request, res: Response) {
                 });
 
                 return saveImage(
-                    wikiImages.urls[index]?.[0],
+                    'Wikimedia',
                     author,
                     license,
-                    generatedName
+                    generatedName.filename
                 );
             })
         );
