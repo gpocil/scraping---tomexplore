@@ -56,7 +56,7 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                 {
                     model: Image,
                     as: 'images',
-                    attributes: ['image_name', 'id'],
+                    attributes: ['image_name', 'id', 'original_url'],
                     required: false,
                 },
                 {
@@ -117,10 +117,11 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                         google_maps_link: place.google_maps_link || '',
                         instagram_link: place.instagram_link || '',
                         unsplash_link: place.unsplash_link || '',
-                        images: images.map((image: { image_name: string; id: number }) => ({
+                        images: images.map((image: { image_name: string; id: number, original_url:string }) => ({
                             id: image.id,
                             image_name: image.image_name,
-                            url: `https://monblogdevoyage.com/images/${encodeURIComponent(place.folder)}/${image.image_name}`
+                            url: `https://monblogdevoyage.com/images/${encodeURIComponent(place.folder)}/${image.image_name}`,
+                            source: image.original_url,
                         })),
                         checked: place.checked,
                         needs_attention: place.needs_attention,
