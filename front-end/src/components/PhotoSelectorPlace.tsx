@@ -42,7 +42,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     useEffect(() => {
         if (place) {
             const sortedImages = place.images.slice().sort((a, b) => {
-                const sourceOrder = ['Google', 'Instagram', 'Wikimedia', null];
+                const sourceOrder = ['Instagram', 'Google', 'Wikimedia', 'Unsplash', null];
                 const sourceA = sourceOrder.indexOf(a.source);
                 const sourceB = sourceOrder.indexOf(b.source);
                 return sourceA - sourceB;
