@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IPlace, IImage } from '../model/Interfaces';
 import './styles/PhotoSelectorCity.css';
 import apiClient from '../util/apiClient';
@@ -28,6 +28,10 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     const [isScraping, setIsScraping] = useState(false);
     const user = useUser().user;
     const [displayedImages, setDisplayedImages] = useState<IImage[]>([]);
+    const lastImageRef = useRef<HTMLDivElement>(null); // Typage explic
+
+
+
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -37,7 +41,14 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
     useEffect(() => {
         if (place) {
-            setDisplayedImages(place.images.slice(0, 15));
+            const sortedImages = place.images.slice().sort((a, b) => {
+                const sourceOrder = ['Google', 'Instagram', 'Wikimedia', null];
+                const sourceA = sourceOrder.indexOf(a.source);
+                const sourceB = sourceOrder.indexOf(b.source);
+                return sourceA - sourceB;
+            });
+   
+            setDisplayedImages(sortedImages.slice(0, 15));
         }
     }, [place]);
 
@@ -74,6 +85,12 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
     const remainingImagesCount = (): number => {
         return totalImages - selectedImages.length;
     };
+    useEffect(() => {
+        if (lastImageRef.current) {
+            lastImageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+    }, [displayedImages]); // Déclenchement à chaque fois que les images affichées sont mises à jour
+
 
     const handleImageClick = (image: IImage) => {
         if (isStepOne) {
@@ -112,6 +129,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
                 const updatedDisplayedImages = place.images.slice(0, 15);
                 setDisplayedImages(updatedDisplayedImages);
+
 
                 if (updatedDisplayedImages.length === 0) {
                     await handleValidateImages();
@@ -270,9 +288,8 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                                 <button
                                     className="btn btn-primary mt-3"
                                     onClick={() => {
-                                        if (remainingImagesCount() <= 15) {
                                             handleStepTwoTransition();  // Passe à l'étape suivante si aucune image à supprimer
-                                        }
+                                        
                                     }}
                                     disabled={isScraping}
                                 >
@@ -312,6 +329,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                                             onClick={() => handleImageClick(image)}
                                         >
                                             <img src={image.url} loading='lazy' alt={image.image_name ?? 'Image'} className="img-fluid" />
+                                            <span style={{ fontWeight: 'bold', color: 'white', fontSize: '14px' }}>{image.source}</span>
                                             {(isSelectedDelete || isSelectedTop) && (
                                                 <div className="selected-overlay">
                                                     {isSelectedDelete ? '✓' : topImages.indexOf(image) + 1}

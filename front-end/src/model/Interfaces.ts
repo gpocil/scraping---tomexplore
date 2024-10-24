@@ -4,6 +4,7 @@ export interface IImage {
     id: number;
     image_name: string;
     url: string;
+    source: string | null;
 }
 
 export interface IPlace {

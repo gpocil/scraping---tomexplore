@@ -59,9 +59,19 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         if (currentPlace) {
-            setDisplayedImages(currentPlace.images.slice(0, 15));
+            const sortedImages = currentPlace.images.slice().sort((a, b) => {
+                const sourceOrder = ['Google', 'Instagram', 'Wikimedia', null];
+                const sourceA = sourceOrder.indexOf(a.source);
+                const sourceB = sourceOrder.indexOf(b.source);
+                return sourceA - sourceB;
+            });
+   
+            setDisplayedImages(sortedImages.slice(0, 15));
         }
     }, [currentPlace]);
+    
+    
+    
 
 
     useEffect(() => {
@@ -155,9 +165,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleStepTwoTransition = () => {
-        if (displayedImages.length > 0) {
             setIsStepOne(false);
-        }
+        
     };
 
 
@@ -354,6 +363,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                                             onClick={() => handleImageClick(image)}
                                         >
                                             <img src={image.url} loading='lazy' alt={image.image_name ?? 'Image'} className="img-fluid" />
+                                            <span style={{ fontWeight: 'bold', color: 'white', fontSize: '14px' }}>{image.source}</span>
                                             {(isSelectedDelete || isSelectedTop) && (
                                                 <div className="selected-overlay">
                                                     {isSelectedDelete ? '✓' : topImages.indexOf(image) + 1}
