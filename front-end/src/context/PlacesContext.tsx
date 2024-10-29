@@ -1,10 +1,10 @@
-import { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
+import { createContext, useState, useContext, ReactNode, useCallback } from 'react';
 import apiClient from '../util/apiClient';
 import { IResponseStructure, IPlace } from '../model/Interfaces';
 
 interface PlaceContextType {
     data: IResponseStructure;
-    updatePlaces: () => Promise<void>;  // Changement ici
+    updatePlaces: (isAdmin: boolean) => Promise<void>; // Modifie ici pour inclure isAdmin
     findPlaceById: (placeId: number) => IPlace | undefined;
     updateSinglePlace: (placeId: number) => Promise<void>;
 }
@@ -14,14 +14,19 @@ const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
 export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     const [data, setData] = useState<IResponseStructure>({ checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} });
 
-    const fetchData = useCallback((): Promise<void> => {
-        return apiClient.get<IResponseStructure>('/front/getAllImages')  // Retourner la promesse
+    const fetchData = useCallback((isAdmin: boolean): Promise<void> => {
+        console.log("Admin : " + isAdmin);
+        // Ajoute isAdmin comme paramètre de requête
+        const url = `/front/getAllImages?admin=${isAdmin}`;
+        
+        return apiClient.get<IResponseStructure>(url)  // Charge les données selon le statut admin
             .then((response) => {
                 setData(response.data);
                 console.log('Fetched places data:', response.data);
             })
             .catch((error) => console.error('Error fetching places:', error));
     }, []);
+    
 
     const findPlaceById = (placeId: number): IPlace | undefined => {
         // Logique pour trouver une place par ID
@@ -43,8 +48,8 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         return undefined;
     };
 
-    const updatePlaces = (): Promise<void> => {
-        return fetchData();  // Retourner la promesse ici
+    const updatePlaces = (isAdmin: boolean): Promise<void> => {
+        return fetchData(isAdmin);  // Passe le paramètre isAdmin à fetchData
     };
 
     const updateSinglePlace = (placeId: number): Promise<void> => {

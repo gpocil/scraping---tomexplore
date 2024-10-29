@@ -41,8 +41,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     }, [checkCookie, navigate]);
 
     useEffect(() => {
-        if (!isScraping) {
-            updatePlaces();
+        if (!isScraping && user) {
+            updatePlaces(user?.admin);
         }
     }, [isScraping]);
 

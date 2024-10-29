@@ -51,7 +51,14 @@ interface ResponseStructure {
 
 export const getPlacesWithImages = async (req: Request, res: Response) => {
     try {
+        const isAdmin = req.query.admin === 'true';
+        console.log(isAdmin);
+
+        // Condition pour exclure les lieux "checked" si l'utilisateur n'est pas admin
+        const whereCondition = isAdmin ? {} : { checked: false };
+
         const places = await Place.findAll({
+            where: whereCondition,
             include: [
                 {
                     model: Image,
@@ -117,7 +124,7 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                         google_maps_link: place.google_maps_link || '',
                         instagram_link: place.instagram_link || '',
                         unsplash_link: place.unsplash_link || '',
-                        images: images.map((image: { image_name: string; id: number, original_url:string }) => ({
+                        images: images.map((image: { image_name: string; id: number, original_url: string }) => ({
                             id: image.id,
                             image_name: image.image_name,
                             url: `https://monblogdevoyage.com/images/${encodeURIComponent(place.folder)}/${image.image_name}`,
@@ -145,6 +152,7 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 
 export const getSinglePlace = async (req: Request, res: Response) => {

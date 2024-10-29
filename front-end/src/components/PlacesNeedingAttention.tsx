@@ -38,7 +38,8 @@ const PlacesNeedingAttention: React.FC = () => {
     }, [places]);
 
     useEffect(() => {
-        updatePlaces();
+        if(user){
+        updatePlaces(user?.admin);}
     }, []);
 
     const getPlaceClass = (details: string | undefined) => {

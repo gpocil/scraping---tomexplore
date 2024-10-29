@@ -25,28 +25,7 @@ const App: React.FC = () => {
 };
 
 const AppWrapper: React.FC = () => {
-  const location = useLocation();
-  const { updatePlaces } = usePlaces();
-  const [loading, setLoading] = useState(true); // État pour gérer le chargement
 
-  useEffect(() => {
-    // Si l'utilisateur n'est pas sur les routes exclues, on appelle updatePlaces
-    if (!['/admin', '/admin/check-place/:placeId'].includes(location.pathname)) {
-      setLoading(true); // Début du chargement
-      updatePlaces().finally(() => setLoading(false)); // Fin du chargement après la fin de la promesse
-    }
-  }, []);
-
-  // Si loading est vrai, afficher l'animation de chargement
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Chargement...</span>
-        </Spinner>
-      </div>
-    );
-  }
 
   return (
     <Routes>

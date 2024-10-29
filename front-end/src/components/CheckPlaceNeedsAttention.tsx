@@ -132,9 +132,9 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
                 place_id: place?.place_id
             });
 
-            if (response.status === 200) {
+            if (response.status === 200 && user) {
                 await updateImages();
-                updatePlaces();
+                updatePlaces(user?.admin);
                 alert('Google Images rescraped successfully');
             }
         } catch (error) {
@@ -194,7 +194,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     // New function to update place status and remove from "needs_attention"
     const updatePlacesAfterValidation = async (placeId: number) => {
         await updateSinglePlace(placeId);  // This will update the cache (IndexedDB) and memory
-        updatePlaces();  // Trigger re-fetching the data to refresh the UI
+        if(user)
+        updatePlaces(user?.admin);  // Trigger re-fetching the data to refresh the UI
     };
 
 
@@ -217,7 +218,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
             console.log('Upload response:', response);
             if (response.status === 200) {
-                updatePlaces();
+                if(user)
+                updatePlaces(user?.admin);
                 alert('Photos uploaded successfully');
             }
         } catch (error) {
@@ -235,7 +237,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 updatePlaceEnd(place.place_id);
-                updatePlaces();
+                if(user)
+                updatePlaces(user?.admin);
                 handleBackClick();
             }
         } catch (error) {
@@ -255,7 +258,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
-                await updatePlaces();
+                if(user)
+                await updatePlaces(user?.admin);
                 await updateImages();
                 alert('Images Instagram récupérées');
             }
@@ -279,7 +283,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                updatePlaces();
+                if(user)
+                updatePlaces(user?.admin);
                 alert('Wikimedia updated and images scraped successfully');
             }
         } catch (error) {

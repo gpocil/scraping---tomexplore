@@ -39,7 +39,7 @@ const HomePage: React.FC = () => {
         if (searchQuery) {
             const newFilteredPlaces: { country: string; city: string; place: IPlace; status: string }[] = [];
 
-            ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => {
+            ['unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => { // Exclut 'checked' pour non-admin
                 for (const country of Object.keys(places[status])) {
                     for (const city of Object.keys(places[status][country])) {
                         for (const place of Object.values(places[status][country][city] || {}).flat()) {
@@ -50,16 +50,30 @@ const HomePage: React.FC = () => {
                                 newFilteredPlaces.push({ country, city, place, status });
                             }
                         }
-
                     }
                 }
             });
+
+            if (user?.admin) { // Inclut 'checked' uniquement pour admin
+                for (const country of Object.keys(places.checked)) {
+                    for (const city of Object.keys(places.checked[country])) {
+                        for (const place of Object.values(places.checked[country][city] || {}).flat()) {
+                            if (
+                                (place.place_name && place.place_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                (place.place_id && place.place_id.toString().includes(searchQuery))
+                            ) {
+                                newFilteredPlaces.push({ country, city, place, status: 'checked' });
+                            }
+                        }
+                    }
+                }
+            }
 
             setFilteredPlaces(newFilteredPlaces);
         } else {
             setFilteredPlaces([]);
         }
-    }, [searchQuery, places]);
+    }, [searchQuery, places, user?.admin]);
 
 
     useEffect(() => {
@@ -92,7 +106,9 @@ const HomePage: React.FC = () => {
         let totalPlacesNeedsAttention = 0;
         let totalPlacesToBeDeleted = 0;
 
-        ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => {
+        const statuses = user?.admin ? ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'] : ['unchecked', 'needs_attention', 'to_be_deleted'];
+        
+        statuses.forEach(status => {
             for (const country of Object.keys(places[status])) {
                 uniqueCountries.add(country);
                 for (const city of Object.keys(places[status][country])) {
@@ -167,11 +183,14 @@ const HomePage: React.FC = () => {
             </button>
 
             <h1 className="mb-4 text-center">{viewChecked ? 'Lieux traités ✅' : 'Lieux à traiter ❌'}</h1>
-            <div className="d-flex justify-content-center mb-4">
-                <button className="btn btn-primary" onClick={() => setViewChecked(!viewChecked)}>
-                    {viewChecked ? 'Afficher lieux à traiter ❌' : 'Afficher lieux traités ✅'}
-                </button>
-            </div>
+            {user?.admin && (
+                <div className="d-flex justify-content-center mb-4">
+                    <button className="btn btn-primary" onClick={() => setViewChecked(!viewChecked)}>
+                        {viewChecked ? 'Afficher lieux à traiter ❌' : 'Afficher lieux traités ✅'}
+                    </button>
+                </div>
+            )}
+
             <div className="d-flex justify-content-center mb-4">
                 <button className="btn btn-warning" onClick={() => navigate('/places-needing-attention')}>
                     🚨 Lieux nécessitant une attention
@@ -198,9 +217,12 @@ const HomePage: React.FC = () => {
                     <li className="list-group-item">
                         <strong>🍻 Lieux à traiter :</strong> {totalPlacesUnchecked}
                     </li>
+                    {user?.admin && (
+
                     <li className="list-group-item">
                         <strong>🍻 Lieux traités :</strong> {totalPlacesChecked}
                     </li>
+                    )}
                     <li className="list-group-item">
                         <strong>🚨 Lieux nécessitant une attention :</strong> {totalPlacesNeedsAttention}
                     </li>
