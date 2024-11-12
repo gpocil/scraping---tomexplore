@@ -39,7 +39,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/front', frontRoutes);
-const imagesPath = path.join(__dirname, 'temp');
+const imagesPath = path.join(__dirname, 'dist/temp');
 console.log('imagepath : ' + imagesPath);
 app.use('/images', express.static(imagesPath));
 app.use('/api', QueueRoutes);
@@ -58,12 +58,13 @@ app.use('/api', wikimediaRoutes);
 app.use('/api', fileRoutes);
 app.use('/api', googleRoutes);
 
-app.use(express.static('/home/ubuntu/scraping---tomexplore/front-end/build'));
+// Serve static files from the React app
+app.use(express.static(path.join(__dirname, 'front-end/build')));
 
+// The "catchall" handler: for any request that doesn't match one above, send back index.html
 app.get('*', (req, res) => {
-    res.sendFile('/home/ubuntu/scraping---tomexplore/front-end/build/index.html');
+    res.sendFile(path.join(__dirname, 'front-end/build', 'index.html'));
 });
-
 
 sequelize.authenticate()
     .then(() => {
