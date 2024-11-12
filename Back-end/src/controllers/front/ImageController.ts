@@ -30,6 +30,7 @@ interface PlaceResponse {
     details?: string;
     type?: string;
     has_needed_attention: Boolean | undefined;
+    photos_deleted: Boolean | undefined;
 }
 
 interface CityResponse {
@@ -134,7 +135,8 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                         needs_attention: place.needs_attention,
                         has_needed_attention: place.has_needed_attention,
                         details: place.details,
-                        type: place.type
+                        type: place.type,
+                        photos_deleted:place.photos_deleted
                     };
 
                     if (!response[checkedStatus][country.name][city.name][place.name_eng]) {
