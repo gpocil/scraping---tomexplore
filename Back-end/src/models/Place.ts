@@ -26,7 +26,7 @@ class Place extends Model {
     public timestamp_end?: Date;
     public redactor_id?: number;
     public has_needed_attention?: boolean;
-
+public photos_deleted?: boolean;
 }
 
 Place.init({
@@ -113,6 +113,10 @@ Place.init({
         allowNull: true
     },
     has_needed_attention: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true
+    },
+    photos_deleted: {
         type: DataTypes.BOOLEAN,
         allowNull: true
     }

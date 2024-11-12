@@ -290,10 +290,11 @@ export const deleteCheckedPlacesByIds = async (req: Request, res: Response) => {
                     where: { place_id: place.id_tomexplore }
                 });
                 console.log(`Deleted images for place ID: ${place.id_tomexplore}`);
-
-                await Place.destroy({
-                    where: { id_tomexplore: place.id_tomexplore }
-                });
+                await Place.update(
+                    { photos_deleted: true },
+                    { where: { id_tomexplore: place.id_tomexplore } }
+                );
+                
                 console.log(`Deleted place with ID: ${place.id_tomexplore}`);
             } catch (error) {
                 console.error(`Error deleting files for place ID: ${placeId}`, error);
