@@ -61,6 +61,13 @@ export function deleteFolderRecursiveHelper(folderPath: string): void {
     // Delete the now-empty folder
     fs.rmdirSync(folderPath);
 }
+export async function deleteImagesByID(imageIds: number[]): Promise<void> {
+
+    await Image.destroy({ where: { id: imageIds } });   
+
+
+
+}
 
 
 interface Url {
@@ -180,13 +187,22 @@ export async function deleteImages(imageIds: number[]): Promise<void> {
 
     // Delete image files from server
     images.forEach(image => {
-        const folder = image.getDataValue('associatedPlace').folder;
-        const imagePath = path.join(__dirname, '../..', 'temp', folder, image.image_name);
-        if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
+        try {
+            const folder = image.getDataValue('associatedPlace').folder;
+            const imagePath = path.join(__dirname, '../../../dist', 'temp', folder, image.image_name);
+            console.log(`Deleting image file: ${imagePath}`);
+
+            if (fs.existsSync(imagePath)) {
+                fs.unlinkSync(imagePath);
+            }
+        } catch (error) {
+            const folder = image.getDataValue('associatedPlace').folder;
+            const imagePath = path.join(__dirname, '../../../dist', 'temp', folder, image.image_name);
+            console.error(`Failed to delete image file for ID ${image.id}: ${imagePath}`, error);
         }
     });
 }
+
 
 interface ImageUrl {
     url: string;
