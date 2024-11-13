@@ -274,7 +274,7 @@ export const deleteCheckedPlacesByIds = async (req: Request, res: Response) => {
                 console.log(`Place not found for ID: ${placeId}`);
                 continue;
             }
-            const folderPath = path.join(__dirname, '../dist', 'temp', place.folder);
+            const folderPath = path.join(__dirname, '../../../dist', 'temp', place.folder);
             console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
 
             try {
