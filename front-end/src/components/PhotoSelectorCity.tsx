@@ -188,11 +188,32 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const handleSelectTop = async () => {
         try {
+            // Select image IDs for the top 3
             const response = await apiClient.post('/front/setTop', {
                 imageIds: topImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
+    
             if (response.status === 200 && currentPlace) {
+                // Filter out the IDs of images to keep (top 3 + displayed 15)
+                const idsToKeep = [
+                    ...topImages.map((image) => image.id),
+                    ...displayedImages.map((image) => image.id)
+                ];
+    
+                // Collect IDs of images that are not in the selected top or displayed images
+                const imagesToDelete = currentPlace.images
+                    .filter((image) => !idsToKeep.includes(image.id))
+                    .map((image) => image.id);
+    
+                if (imagesToDelete.length > 0) {
+                    // Call the deleteImages endpoint to remove unwanted images
+                    await apiClient.post('/front/deleteImages', {
+                        imageIds: imagesToDelete,
+                        place_id: currentPlace?.place_id
+                    });
+                }
+    
                 updatePlaceEnd(currentPlace.place_id);
                 setTopImages([]);
                 setIsStepOne(true);
@@ -203,6 +224,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             alert('Failed to set top images');
         }
     };
+    
 
     const handleSetNeedsAttention = () => {
         updatePlaceAbort(currentPlaceId);
