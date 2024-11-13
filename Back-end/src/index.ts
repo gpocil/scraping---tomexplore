@@ -40,7 +40,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 app.use('/api/auth', authRoutes);
 app.use('/api/front', frontRoutes);
 const imagesPath = path.join(__dirname, 'temp');
-console.log('imagepath : ' + imagesPath);
+app.get('/api/images-path', (req: Request, res: Response) => {
+    res.json({ path: imagesPath });
+});
+
 app.use('/images', express.static(imagesPath));
 app.use('/api', QueueRoutes);
 
