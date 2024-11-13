@@ -153,7 +153,7 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
             include: [{
                 model: Image,
                 as: 'images',
-                attributes: ['image_name', 'author', 'license', 'top', 'original_url']
+                attributes: ['id', 'image_name', 'author', 'license', 'top', 'original_url']
             }]
         });
 
@@ -176,8 +176,9 @@ export const getAllCheckedImagesByPlaceId = async (req: Request, res: Response) 
             ...(place.name_original && { name_original: place.name_original }),
             ...(place.instagram_updated && { instagram_link: place.instagram_link }),
             instagram_updated: place.instagram_updated,
-            images: images.map((image: { image_name: string; author: string; license: string; top: number; original_url: string }) => ({
+            images: images.map((image: { id: number; image_name: string; author: string; license: string; top: number; original_url: string }) => ({
                 image_name: image.image_name,
+                id: image.id,
                 url: `http://localhost:3000/images/${encodeURIComponent(place.folder)}/${encodeURIComponent(image.image_name)}`,
                 author: image.author,
                 license: image.license,
@@ -274,7 +275,7 @@ export const deleteCheckedPlacesByIds = async (req: Request, res: Response) => {
                 console.log(`Place not found for ID: ${placeId}`);
                 continue;
             }
-            const folderPath = path.join(__dirname, '../../../dist', 'temp', place.folder);
+            const folderPath = path.join(__dirname, '../dist', 'temp', place.folder);
             console.log(`Folder path for place ID ${placeId}: ${folderPath}`);
 
             try {
