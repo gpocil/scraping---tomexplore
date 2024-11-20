@@ -82,7 +82,7 @@ export async function downloadPhotosBusiness(id_tomexplore: number, instagramIma
     ];
 
     if (imageUrls.length > 0) {
-        const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
+        const downloadDir = path.join(__dirname, '../../../dist', 'temp', id_tomexplore.toString());
         fs.mkdirSync(downloadDir, { recursive: true });
 
         await Promise.all(imageUrls.map(async ({ url, generatedName }) => {
@@ -145,7 +145,7 @@ export async function downloadPhotosTouristAttraction(
 ): Promise<{
     downloadDir: string, imageCount: number, imageNames: { filename: string, source: string }[]
 }> {
-    const downloadDir = path.join(__dirname, '../..', 'temp', id_tomexplore.toString());
+    const downloadDir = path.join(__dirname, '../../../dist', 'temp', id_tomexplore.toString());
     fs.mkdirSync(downloadDir, { recursive: true });
 
     const imageUrls = [
