@@ -44,11 +44,12 @@ Event.init({
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE'
     },
+    // Dans Event.ts
     place_id: {
         type: DataTypes.INTEGER,
         references: {
             model: 'Places',
-            key: 'id'
+            key: 'id_tomexplore' // Référencer la vraie clé primaire
         }
     },
     instagram_link: {

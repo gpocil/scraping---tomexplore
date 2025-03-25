@@ -31,7 +31,7 @@ Image.init({
         type: DataTypes.INTEGER,
         references: {
             model: Place,
-            key: 'id' // Changer de 'id_tomexplore' à 'id'
+            key: 'id_tomexplore'
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE'
