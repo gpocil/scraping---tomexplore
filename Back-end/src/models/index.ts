@@ -29,6 +29,8 @@ Event.belongsTo(Country, { foreignKey: 'country_id', as: 'associatedCountry_even
 Event.belongsTo(City, { foreignKey: 'city_id', as: 'associatedCity_event' });
 Event.belongsTo(Place, { foreignKey: 'place_id', as: 'associatedPlace_event' });
 
+Event.hasMany(Image, { foreignKey: 'event_id', as: 'images_event' });
+
 export {
     Country,
     City,

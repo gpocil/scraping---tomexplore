@@ -47,8 +47,8 @@ Event.init({
     place_id: {
         type: DataTypes.INTEGER,
         references: {
-            model: 'Places',  // Nom de la table
-            key: 'id_tomexplore'
+            model: 'Places',
+            key: 'id'
         }
     },
     instagram_link: {
@@ -82,15 +82,21 @@ Event.init({
     event_category: {
         type: DataTypes.STRING
     },
-    img_urls: {
-        type: DataTypes.JSON
-    },
     description: {
-        type: DataTypes.STRING
+        type: DataTypes.TEXT
     },
     slug: {
         type: DataTypes.STRING
     },
+    img_id: {
+        type: DataTypes.INTEGER,
+        references: {
+            model: 'Images',
+            key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
+    }
 
 }, {
     sequelize,
