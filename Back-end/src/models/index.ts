@@ -24,6 +24,7 @@ Country.hasMany(Event, { foreignKey: 'country_id', as: 'events' });
 City.hasMany(Event, { foreignKey: 'city_id', as: 'events' });
 Place.hasMany(Event, { foreignKey: 'place_id', as: 'events' });
 
+Image.belongsTo(Event, { foreignKey: 'event_id', as: 'associatedEvent' });
 Event.belongsTo(Country, { foreignKey: 'country_id', as: 'associatedCountry_event' });
 Event.belongsTo(City, { foreignKey: 'city_id', as: 'associatedCity_event' });
 Event.belongsTo(Place, { foreignKey: 'place_id', as: 'associatedPlace_event' });

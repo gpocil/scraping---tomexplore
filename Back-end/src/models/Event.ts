@@ -46,6 +46,10 @@ Event.init({
     },
     place_id: {
         type: DataTypes.INTEGER,
+        references: {
+            model: 'Places',  // Nom de la table
+            key: 'id_tomexplore'
+        }
     },
     instagram_link: {
         type: DataTypes.STRING

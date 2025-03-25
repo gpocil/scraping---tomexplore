@@ -1,12 +1,14 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../sequelize';
 import Place from './Place';
+import Event from './Event';
 
 class Image extends Model {
     public id!: number;
     public image_name!: string;
     public original_url?: string;
     public place_id!: number;
+    public event_id!: number;
     public top?: number;
     public author?: string;
     public license?: string;
@@ -27,9 +29,17 @@ Image.init({
     },
     place_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
         references: {
             model: Place,
+            key: 'id_tomexplore'
+        },
+        onDelete: 'CASCADE',
+        onUpdate: 'CASCADE'
+    },
+    event_id: {
+        type: DataTypes.INTEGER,
+        references: {
+            model: Event,
             key: 'id_tomexplore'
         },
         onDelete: 'CASCADE',
