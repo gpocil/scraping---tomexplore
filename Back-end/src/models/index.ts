@@ -4,6 +4,7 @@ import Place from './Place';
 import Image from './Image';
 import User from './User';
 import Queue from './Queue';
+import Event from './Event';
 import DailyRedactorStats from './DailyRedactorStats';
 
 Country.hasMany(City, { foreignKey: 'country_id', as: 'cities' });
@@ -19,6 +20,14 @@ User.hasMany(DailyRedactorStats, { foreignKey: 'redactor_id', as: 'stats' });
 DailyRedactorStats.belongsTo(User, { foreignKey: 'redactor_id', as: 'user' });
 Image.belongsTo(Place, { foreignKey: 'place_id', as: 'associatedPlace' });
 
+Country.hasMany(Event, { foreignKey: 'country_id', as: 'events' });
+City.hasMany(Event, { foreignKey: 'city_id', as: 'events' });
+Place.hasMany(Event, { foreignKey: 'place_id', as: 'events' });
+
+Event.belongsTo(Country, { foreignKey: 'country_id', as: 'associatedCountry_event' });
+Event.belongsTo(City, { foreignKey: 'city_id', as: 'associatedCity_event' });
+Event.belongsTo(Place, { foreignKey: 'place_id', as: 'associatedPlace_event' });
+
 export {
     Country,
     City,
@@ -26,5 +35,6 @@ export {
     Image,
     User,
     Queue,
-    DailyRedactorStats
+    DailyRedactorStats,
+    Event
 };
