@@ -15,7 +15,7 @@ import Image from '../../../models/Image';
 puppeteer.use(StealthPlugin());
 
 // Configuration Algolia
-const ALGOLIA_API_URL = 'https://e35vbjot1f-dsn.algolia.net/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key=OGZkMDA5NjIxMDk0NmRmNGY0OWUwNzEyNTI2MzVjNzQzY2IwMDNjMDFkY2Y2ZDJlYjVmYTE5OGRkYjNmYjc4MnZhbGlkVW50aWw9MTc0Mjk5ODUwMQ%3D%3D&x-algolia-application-id=E35VBJOT1F'; 
+const ALGOLIA_API_URL = 'https://e35vbjot1f-2.algolianet.com/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key=Zjk1YjY3ZDNkMjVlNGY0YWVhMGU2ZmEyNTUyMjQwODY4NGNiYTQ3M2IwYzMzMzdjZjFlMzAwYTBhZGFmZTNjMnZhbGlkVW50aWw9MTc0MzAwNjMwNQ%3D%3D&x-algolia-application-id=E35VBJOT1F'; 
 
 // Rayon de recherche en km autour de la ville
 const DEFAULT_SEARCH_RADIUS = 20;

@@ -3,6 +3,6 @@ import * as AlgoliaController from '../../controllers/scraping/util/AlgoliaContr
 
 const router = Router();
 
-router.post('/events-by-city', AlgoliaController.fetchEventsByCity);
+router.post('/algolia', AlgoliaController.fetchEventsByCity);
 
 export default router;
