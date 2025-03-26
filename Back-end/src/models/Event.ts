@@ -106,5 +106,7 @@ Event.init({
 });
 
 Event.belongsTo(Country, { foreignKey: 'country_id', as: 'associatedCountry' });
+Event.belongsTo(City, { foreignKey: 'city_id', as: 'city' });
+
 
 export default Event;

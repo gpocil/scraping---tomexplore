@@ -6,6 +6,8 @@ class City extends Model {
     public id!: number;
     public name!: string;
     public country_id!: number;
+    public latitude!: number;
+    public longitude!: number;
 }
 
 City.init({
@@ -27,11 +29,24 @@ City.init({
         },
         onDelete: 'CASCADE',
         onUpdate: 'CASCADE'
+    },
+    latitude: {
+        type: DataTypes.FLOAT,
+    },
+    longitude: {
+        type: DataTypes.FLOAT,
     }
 }, {
     sequelize,
     modelName: 'City',
-    timestamps: false
+    tableName: 'cities',
+    timestamps: false,
+    indexes: [
+        {
+            name: 'country_id',
+            fields: ['country_id']
+        }
+    ]
 });
 
 City.belongsTo(Country, { foreignKey: 'country_id', as: 'associatedCountry' });
