@@ -31,11 +31,11 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
 
     // Lancer le navigateur avec le proxy
     browser = await puppeteer.launch({
-      headless: "new",
+      headless: false, // Conserver headless: false pendant le développement
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--start-fullscreen',
+        '--window-size=1280,800', // Taille de fenêtre plus standard
         `--proxy-server=${proxy.address}`,
       ],
     });
@@ -45,15 +45,22 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
     // Définir les en-têtes pour simuler un navigateur réel
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
     
-    // Construire l'URL de recherche
-    const searchUrl = buildSearchUrl(city, dateStart, dateEnd);
-    console.log(`URL de recherche: ${searchUrl}`);
-
-    // Naviguer vers la page de recherche
-    await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+    // Naviguer vers la page d'accueil des événements
+    console.log("Navigation vers la page d'accueil des événements...");
+    await page.goto('https://www.infolocale.fr', { waitUntil: 'networkidle2', timeout: 60000 });
     
     // Gérer le consentement aux cookies si nécessaire
     await handleCookieConsent(page);
+    
+    // Effectuer la recherche par ville
+    console.log(`Recherche de la ville: ${city}...`);
+    await searchForCity(page, city);
+    
+    // Si des dates sont spécifiées, filtrer par dates
+    if (dateStart || dateEnd) {
+      console.log("Filtrage par dates...");
+      await filterByDates(page, dateStart, dateEnd);
+    }
     
     // Attendre que les événements soient chargés
     await page.waitForSelector('memo-hit', { timeout: 10000 }).catch(() => {
@@ -105,6 +112,108 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
       await browser.close();
       console.log('Navigateur fermé');
     }
+  }
+}
+
+/**
+ * Effectue une recherche de ville dans le champ de recherche
+ */
+async function searchForCity(page: Page, city: string): Promise<void> {
+  try {
+    console.log(`URL avant recherche: ${await page.url()}`);
+    
+    // Attendre que le champ de recherche soit disponible
+    await page.waitForSelector('#search-location', { timeout: 5000 });
+    
+    // Cliquer sur le champ pour le faire apparaître si nécessaire
+    await page.click('#search-location');
+    
+    // Effacer le contenu du champ s'il y en a
+    await page.evaluate(() => {
+      const input = document.querySelector('#search-location') as HTMLInputElement;
+      if (input) input.value = '';
+    });
+    
+    // Saisir la ville
+    await page.type('#search-location', city, { delay: 100 });
+    console.log(`Ville "${city}" saisie dans le champ de recherche`);
+    
+    // Attendre un court instant pour que la liste de suggestions apparaisse
+    await page.waitForTimeout(1000);
+    
+    // Appuyer sur Entrée pour soumettre la recherche
+    await page.keyboard.press('Enter');
+    console.log('Recherche soumise');
+    
+    // Attendre que la page se charge
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {
+      console.log('Navigation non détectée, vérification des résultats de recherche');
+    });
+    
+    // Après la navigation
+    await page.waitForTimeout(3000); // Attendre un peu plus pour être sûr
+    const finalUrl = await page.url();
+    const pageTitle = await page.title();
+    console.log(`URL après recherche: ${finalUrl}`);
+    console.log(`Titre de la page: ${pageTitle}`);
+    console.log(`HTML visible: ${await page.content().then(html => html.substring(0, 200) + '...')}`);
+    
+    // Capture d'écran pour déboguer
+    await page.screenshot({ path: 'debug-search-result.png', fullPage: true });
+    
+  } catch (error) {
+    console.error(`Erreur lors de la recherche de ville: ${error}`);
+    throw error;
+  }
+}
+
+/**
+ * Filtre les résultats par date
+ */
+async function filterByDates(page: Page, dateStart?: string, dateEnd?: string): Promise<void> {
+  try {
+    // Rechercher le bouton de filtre par date
+    const dateFilterSelector = 'button.filter-button';
+    await page.waitForSelector(dateFilterSelector, { timeout: 5000 });
+    
+    // Cliquer sur le bouton de filtre
+    await page.click(dateFilterSelector);
+    console.log("Ouverture du filtre de dates");
+    
+    // Attendre que le formulaire de filtrage s'affiche
+    await page.waitForSelector('.date-filter-form', { timeout: 5000 });
+    
+    // Si une date de début est spécifiée
+    if (dateStart) {
+      const formattedStartDate = formatDate(dateStart);
+      console.log(`Définition de la date de début: ${formattedStartDate}`);
+      
+      // Trouver et remplir le champ de date de début
+      await page.type('input[name="date_debut"]', formattedStartDate, { delay: 100 });
+    }
+    
+    // Si une date de fin est spécifiée
+    if (dateEnd) {
+      const formattedEndDate = formatDate(dateEnd);
+      console.log(`Définition de la date de fin: ${formattedEndDate}`);
+      
+      // Trouver et remplir le champ de date de fin
+      await page.type('input[name="date_fin"]', formattedEndDate, { delay: 100 });
+    }
+    
+    // Soumettre le formulaire de filtre
+    await page.click('button[type="submit"]');
+    console.log("Filtre de dates appliqué");
+    
+    // Attendre que la page se recharge avec les résultats filtrés
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {
+      console.log('Navigation non détectée après filtrage par date');
+    });
+    
+  } catch (error) {
+    console.error(`Erreur lors du filtrage par dates: ${error}`);
+    // Ne pas arrêter le processus si le filtrage échoue
+    console.log("Poursuite du scraping sans filtre de dates");
   }
 }
 
