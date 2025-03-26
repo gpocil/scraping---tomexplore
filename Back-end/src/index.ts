@@ -15,7 +15,7 @@ import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
 import QueueRoutes from './routes/scraping/QueueRoutes';
-import infolocaleRoutes from './routes/scraping/infolocaleRoutes';
+import infolocaleRoutes from './routes/scraping/InfolocaleRoutes';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
