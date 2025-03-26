@@ -157,16 +157,13 @@ async function searchForCity(page: Page, city: string): Promise<void> {
     await page.waitForSelector('.aa-Item', { visible: true, timeout: 5000 });
     console.log("Suggestions trouvées");
     
-    // Screenshot avant le clic pour débogage
-    await page.screenshot({ path: 'before-suggestion-click.png' });
-    
     // Cliquer sur la première suggestion
     console.log("Clic sur la première suggestion");
     await page.click('.aa-Item');
     
     // Attendre que la page se charge après sélection de la suggestion
     console.log("Attente après le clic sur la suggestion");
-    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {
+    await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 }).catch(() => {
       console.log('Navigation non détectée après sélection de suggestion');
     });
     
@@ -176,9 +173,6 @@ async function searchForCity(page: Page, city: string): Promise<void> {
     const pageTitle = await page.title();
     console.log(`URL après recherche: ${finalUrl}`);
     console.log(`Titre de la page: ${pageTitle}`);
-    
-    // Capture d'écran finale
-    await page.screenshot({ path: 'after-suggestion-click.png', fullPage: true });
     
   } catch (error) {
     console.error(`Erreur lors de la recherche de ville: ${error}`);
