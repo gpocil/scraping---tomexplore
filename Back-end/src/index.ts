@@ -16,6 +16,7 @@ import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
 import QueueRoutes from './routes/scraping/QueueRoutes';
 import infolocaleRoutes from './routes/scraping/InfolocaleRoutes';
+import algoliaRoutes from './routes/scraping/algoliaRoutes';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
@@ -50,7 +51,6 @@ app.use('/api', QueueRoutes);
 
 
 
-
 //------------------------Auth required---------------------------------
 
 // app.use(jwtMiddleware);
@@ -65,6 +65,7 @@ app.use('/api', wikimediaRoutes);
 app.use('/api', fileRoutes);
 app.use('/api', googleRoutes);
 app.use('/api', infolocaleRoutes);
+app.use('/api', algoliaRoutes);
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../../front-end/build')));
