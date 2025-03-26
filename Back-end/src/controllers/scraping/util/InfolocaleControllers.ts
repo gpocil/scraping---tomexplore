@@ -10,6 +10,10 @@ puppeteer.use(StealthPlugin());
  * Récupère les événements du site infolocale.fr pour une ville spécifique
  */
 export async function fetchInfolocaleEvents(req?: Request, res?: Response): Promise<any> {
+  // Ajout du temps de début pour mesurer la durée du scraping
+  const startTime = Date.now();
+  console.log(`[${new Date().toISOString()}] Début du scraping`);
+  
   const { city, dateStart, dateEnd } = req ? req.body : { city: '', dateStart: '', dateEnd: '' };
   
   if (!city) {
@@ -31,11 +35,11 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
 
     // Lancer le navigateur avec le proxy
     browser = await puppeteer.launch({
-      headless: false, // Conserver headless: false pendant le développement
+      headless: "new", // Mode headless activé pour l'exécution en production
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
-        '--window-size=1280,800', // Taille de fenêtre plus standard
+        '--window-size=1280,800',
         `--proxy-server=${proxy.address}`,
       ],
     });
@@ -47,7 +51,7 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
     
     // Naviguer vers la page d'accueil des événements
     console.log("Navigation vers la page d'accueil des événements...");
-    await page.goto('https://www.infolocale.fr', { waitUntil: 'networkidle2', timeout: 60000 });
+    await page.goto('https://www.infolocale.fr', { waitUntil: 'networkidle2', timeout: 20000 });
     
     // Gérer le consentement aux cookies si nécessaire
     await handleCookieConsent(page);
@@ -63,7 +67,7 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
     }
     
     // Attendre que les événements soient chargés
-    await page.waitForSelector('memo-hit', { timeout: 10000 }).catch(() => {
+    await page.waitForSelector('memo-hit', { timeout: 5000 }).catch(() => {
       console.log('Aucun événement trouvé ou structure de page différente');
     });
 
@@ -90,23 +94,31 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
       });
     }
 
-    // Retourner le résultat au format attendu
+    // Retourner le résultat au format attendu avec le temps d'exécution
+    const executionTime = (Date.now() - startTime) / 1000; // Conversion en secondes
+    console.log(`[${new Date().toISOString()}] Fin du scraping. Durée totale: ${executionTime} secondes`);
+    
     return {
       events: data.events,
       count: data.events.length,
-      source: 'Infolocale'
+      source: 'Infolocale',
+      executionTime // Ajout du temps d'exécution dans la réponse
     };
 
   } catch (error: any) {
+    const executionTime = (Date.now() - startTime) / 1000;
     const errorMsg = `Erreur lors de l'extraction des événements: ${error.message}`;
     console.error(errorMsg);
+    console.log(`[${new Date().toISOString()}] Échec du scraping. Durée: ${executionTime} secondes`);
+    
     if (res) {
       res.status(500).json({
         error: 'Erreur lors de l\'extraction des événements',
-        message: error.message
+        message: error.message,
+        executionTime
       });
     }
-    return { events: [], count: 0, error: errorMsg, source: 'Infolocale' };
+    return { events: [], count: 0, error: errorMsg, source: 'Infolocale', executionTime };
   } finally {
     if (browser) {
       await browser.close();
@@ -116,54 +128,73 @@ export async function fetchInfolocaleEvents(req?: Request, res?: Response): Prom
 }
 
 /**
- * Effectue une recherche de ville dans le champ de recherche
+ * Effectue une recherche de ville dans le champ de recherche Algolia
  */
 async function searchForCity(page: Page, city: string): Promise<void> {
   try {
     console.log(`URL avant recherche: ${await page.url()}`);
     
-    // Attendre que le champ de recherche soit disponible
-    await page.waitForSelector('#search-location', { timeout: 5000 });
+    // Attendre que le champ de recherche Algolia soit disponible
+    console.log("Recherche du champ Algolia...");
+    await page.waitForSelector('.aa-Input', { timeout: 10000 });
     
-    // Cliquer sur le champ pour le faire apparaître si nécessaire
-    await page.click('#search-location');
+    // Cliquer sur le champ pour le focus
+    await page.click('.aa-Input');
+    console.log("Champ Algolia cliqué");
     
     // Effacer le contenu du champ s'il y en a
     await page.evaluate(() => {
-      const input = document.querySelector('#search-location') as HTMLInputElement;
+      const input = document.querySelector('.aa-Input') as HTMLInputElement;
       if (input) input.value = '';
     });
     
     // Saisir la ville
-    await page.type('#search-location', city, { delay: 100 });
-    console.log(`Ville "${city}" saisie dans le champ de recherche`);
+    await page.type('.aa-Input', city, { delay: 100 });
+    console.log(`Ville "${city}" saisie dans le champ de recherche Algolia`);
     
-    // Attendre un court instant pour que la liste de suggestions apparaisse
-    await page.waitForTimeout(1000);
+    // Attendre que les suggestions apparaissent
+    console.log("Attente des suggestions...");
+    await page.waitForSelector('.aa-Item', { visible: true, timeout: 5000 });
+    console.log("Suggestions trouvées");
     
-    // Appuyer sur Entrée pour soumettre la recherche
-    await page.keyboard.press('Enter');
-    console.log('Recherche soumise');
+    // Screenshot avant le clic pour débogage
+    await page.screenshot({ path: 'before-suggestion-click.png' });
     
-    // Attendre que la page se charge
+    // Cliquer sur la première suggestion
+    console.log("Clic sur la première suggestion");
+    await page.click('.aa-Item');
+    
+    // Attendre que la page se charge après sélection de la suggestion
+    console.log("Attente après le clic sur la suggestion");
     await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 10000 }).catch(() => {
-      console.log('Navigation non détectée, vérification des résultats de recherche');
+      console.log('Navigation non détectée après sélection de suggestion');
     });
     
     // Après la navigation
-    await page.waitForTimeout(3000); // Attendre un peu plus pour être sûr
+    await page.waitForTimeout(3000);
     const finalUrl = await page.url();
     const pageTitle = await page.title();
     console.log(`URL après recherche: ${finalUrl}`);
     console.log(`Titre de la page: ${pageTitle}`);
-    console.log(`HTML visible: ${await page.content().then(html => html.substring(0, 200) + '...')}`);
     
-    // Capture d'écran pour déboguer
-    await page.screenshot({ path: 'debug-search-result.png', fullPage: true });
+    // Capture d'écran finale
+    await page.screenshot({ path: 'after-suggestion-click.png', fullPage: true });
     
   } catch (error) {
     console.error(`Erreur lors de la recherche de ville: ${error}`);
-    throw error;
+    
+    // Si on ne trouve pas les suggestions, essayons une autre approche
+    console.log("Tentative avec une approche alternative...");
+    try {
+      // Navigation directe avec l'URL de recherche
+      const searchUrl = `https://www.infolocale.fr/recherche?commune=${encodeURIComponent(city)}`;
+      console.log(`Navigation directe vers: ${searchUrl}`);
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+      console.log(`URL après navigation directe: ${await page.url()}`);
+    } catch (fallbackError) {
+      console.error(`Erreur avec l'approche alternative: ${fallbackError}`);
+      throw error; // Relancer l'erreur originale
+    }
   }
 }
 
@@ -174,14 +205,14 @@ async function filterByDates(page: Page, dateStart?: string, dateEnd?: string): 
   try {
     // Rechercher le bouton de filtre par date
     const dateFilterSelector = 'button.filter-button';
-    await page.waitForSelector(dateFilterSelector, { timeout: 5000 });
+    await page.waitForSelector(dateFilterSelector, { timeout: 2000 });
     
     // Cliquer sur le bouton de filtre
     await page.click(dateFilterSelector);
     console.log("Ouverture du filtre de dates");
     
     // Attendre que le formulaire de filtrage s'affiche
-    await page.waitForSelector('.date-filter-form', { timeout: 5000 });
+    await page.waitForSelector('.date-filter-form', { timeout: 2000 });
     
     // Si une date de début est spécifiée
     if (dateStart) {
@@ -281,7 +312,7 @@ async function extractInfolocaleData(page: Page): Promise<{ events: any[] }> {
     eventCards.forEach(card => {
       try {
         // Extraire le titre
-        const titleElement = card.querySelector('h2.card-title');
+        const titleElement = card.querySelector('h3.card-title');
         const title = titleElement ? (titleElement as HTMLElement).innerText.trim() : 'Sans titre';
         
         // Extraire les dates de début et de fin
