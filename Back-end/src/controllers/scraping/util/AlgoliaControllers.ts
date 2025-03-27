@@ -5,6 +5,13 @@ import sequelize from '../../../sequelize';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser, Page } from 'puppeteer';
+
+// Extend the Window interface to include algoliaConf
+declare global {
+  interface Window {
+    algoliaConf?: { [key: string]: any };
+  }
+}
 import * as ProxyController from '../ProxyController';
 
 import City from '../../../models/City';
@@ -15,7 +22,7 @@ import Image from '../../../models/Image';
 puppeteer.use(StealthPlugin());
 
 // Configuration Algolia
-const ALGOLIA_API_URL = 'https://e35vbjot1f-2.algolianet.com/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key=Zjk1YjY3ZDNkMjVlNGY0YWVhMGU2ZmEyNTUyMjQwODY4NGNiYTQ3M2IwYzMzMzdjZjFlMzAwYTBhZGFmZTNjMnZhbGlkVW50aWw9MTc0MzAwNjMwNQ%3D%3D&x-algolia-application-id=E35VBJOT1F'; 
+const ALGOLIA_API_URL = 'https://e35vbjot1f-2.algolianet.com/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key={Clé API}%3D%3D&x-algolia-application-id=E35VBJOT1F'; 
 
 // Rayon de recherche en km autour de la ville
 const DEFAULT_SEARCH_RADIUS = 20;
@@ -54,8 +61,61 @@ export async function fetchEventsByCity(req: Request, res: Response): Promise<vo
       Number(radius)
     );
     
-    // 3. Requête à l'API Algolia
-    const events = await searchAlgoliaEvents(northEast, southWest);
+    // 3. Scrap de la clé API Algolia
+    const browser = await puppeteer.launch({
+      headless: "new", // Mode headless pour plus de performance
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      ignoreHTTPSErrors: true
+    });
+
+    let apiKey = '';
+    try {
+      console.log("Ouverture du navigateur pour récupérer la clé API Algolia...");
+      const page = await browser.newPage();
+      
+      // Masquer les traces de bot
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36');
+      
+      // URL CORRIGÉE - page des événements (et non la racine)
+      await page.goto('https://www.infolocale.fr/evenements', { 
+        waitUntil: 'networkidle2',
+        timeout: 30000
+      });
+      
+      // Attendre que le script contenant la configuration Algolia soit chargé
+      await page.waitForFunction(() => window.algoliaConf && window.algoliaConf["IL"], { timeout: 30000 });
+      
+      // Extraire la clé API depuis le script
+      apiKey = await page.evaluate(() => {
+        if (typeof window.algoliaConf !== 'undefined' && window.algoliaConf["IL"]) {
+          return window.algoliaConf["IL"].key;
+        }
+        return '';
+      });
+      
+      console.log(`Clé API Algolia récupérée: ${apiKey.substring(0, 15)}...`);
+      
+    } catch (error) {
+      console.error("Erreur lors de l'extraction de la clé API:", error);
+      
+      // FALLBACK: utiliser une clé statique en cas d'échec du scraping
+      apiKey = "OGVjZGU1Mzg5MDNmYzhkZjczZDE4ZTQ5ZjgzYTgwY2ZiYzk1YTQwYTFkNmIyYTA1NTc2N2ZmYWVhODk5NDM3MXZhbGlkVW50aWw9MTc0MzA4NTYzNA==";
+      console.log("Utilisation de la clé API de secours");
+    } finally {
+      // Fermer le navigateur
+      await browser.close();
+      console.log("Navigateur fermé");
+    }
+    
+    if (!apiKey) {
+      throw new Error("La clé API Algolia n'a pas été trouvée");
+    }
+    
+    // Construction de l'URL Algolia avec la clé récupérée
+    const algoliaUrl = `https://e35vbjot1f-2.algolianet.com/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key=${apiKey}&x-algolia-application-id=E35VBJOT1F`;
+    
+    // 3. Requête à l'API Algolia avec l'URL dynamique
+    const events = await searchAlgoliaEvents(northEast, southWest, algoliaUrl);
     console.log(`${events.length} événements trouvés via Algolia`);
     
     // 4. Sauvegarder les événements dans la BDD
@@ -151,7 +211,11 @@ function calculateBoundingBox(lat: number, lng: number, radiusKm: number = DEFAU
 /**
  * Rechercher des événements via l'API Algolia dans une zone géographique
  */
-async function searchAlgoliaEvents(northEast: { lat: number, lng: number }, southWest: { lat: number, lng: number }): Promise<any[]> {
+async function searchAlgoliaEvents(
+  northEast: { lat: number, lng: number }, 
+  southWest: { lat: number, lng: number },
+  apiUrl: string
+): Promise<any[]> {
   try {
     console.log(`Recherche dans la zone: NE[${northEast.lat}, ${northEast.lng}], SW[${southWest.lat}, ${southWest.lng}]`);
     
@@ -169,7 +233,7 @@ async function searchAlgoliaEvents(northEast: { lat: number, lng: number }, sout
     };
     
     console.log("Envoi de la requête à Algolia...");
-    const response = await axios.post(ALGOLIA_API_URL, requestBody);
+    const response = await axios.post(apiUrl, requestBody);
     
     if (response.data && response.data.results && response.data.results[0] && response.data.results[0].hits) {
       const hits = response.data.results[0].hits;
@@ -200,13 +264,50 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
       try {
         // Extraction des données pertinentes depuis la structure d'Algolia
         const name = eventData.titre || eventData.name || 'Sans titre';
-        const startDate = eventData.dateDebut ? new Date(eventData.dateDebut) : null;
-        const endDate = eventData.dateFin ? new Date(eventData.dateFin) : startDate;
-        const isRecurring = startDate && endDate && startDate.getTime() !== endDate.getTime();
+        
+        // Correction: Traitement correct des dates depuis les timestamps Unix
+        let startDate = null;
+        let endDate = null;
+        
+        // Première méthode: utiliser les timestamps Unix (format préféré)
+        if (eventData["date-first"]) {
+          startDate = new Date(eventData["date-first"] * 1000); // Multiplication par 1000 pour convertir en millisecondes
+        }
+        
+        if (eventData["date-last"]) {
+          endDate = new Date(eventData["date-last"] * 1000);
+        } 
+        // Si seule la date de début est disponible, utiliser la même pour la fin
+        else if (startDate) {
+          endDate = startDate;
+        }
+        
+        // Méthode alternative: utiliser les dates au format texte si les timestamps ne sont pas disponibles
+        if (!startDate && eventData["_date-first-literal"]) {
+          // Format attendu: "28/03/2025 00:00:00"
+          const [datePart, timePart] = eventData["_date-first-literal"].split(' ');
+          const [day, month, year] = datePart.split('/').map(Number);
+          startDate = new Date(year, month - 1, day); // Les mois en JS sont 0-indexed
+        }
+        
+        if (!endDate && eventData["_date-last-literal"]) {
+          const [datePart, timePart] = eventData["_date-last-literal"].split(' ');
+          const [day, month, year] = datePart.split('/').map(Number);
+          endDate = new Date(year, month - 1, day);
+        }
+        
+        // Déterminer si l'événement est récurrent
+        const isRecurring = startDate && endDate && 
+                            startDate.getTime() !== endDate.getTime() &&
+                            // Si les dates sont sur plus d'un jour, c'est récurrent
+                            (endDate.getTime() - startDate.getTime() > 86400000);
+                            
         const eventType = isRecurring ? 'event_recurring' : 'event_ponctual';
-        const description = eventData.descriptionCourte || eventData.description || '';
-        const url = eventData.url || '';
-        const category = eventData.rubrique?.lvl0 || eventData.rubrique?.lvl1 || '';
+        
+        // Extraction du reste des informations
+        const description = eventData.texte || '';
+        const url = `https://www.infolocale.fr${eventData.chemin}` || '';
+        const category = eventData.rubrique?.lvl0 || eventData.categorie || '';
         
         // Vérifier si l'événement existe déjà
         const existingEvent = await Event.findOne({
@@ -245,16 +346,16 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
         const newEvent = await Event.create(formattedEvent, { transaction });
         
         // Si une image est disponible, la sauvegarder
-        if (eventData.image?.url || eventData.images?.[0]?.url) {
-          const imageUrl = eventData.image?.url || eventData.images?.[0]?.url;
+        if (eventData.photo?.url) {
           try {
+            const imageUrl = eventData.photo.url;
             const image = await Image.create({
               image_name: `algolia_${newEvent.id}_${Date.now()}.jpg`,
               original_url: imageUrl,
               place_id: null,
               event_id: newEvent.id,
               author: 'Algolia API',
-              license: 'Algolia'
+              license: eventData.photo.credits || 'Infolocale'
             }, { transaction });
             
             // Mettre à jour l'événement avec l'ID de l'image
