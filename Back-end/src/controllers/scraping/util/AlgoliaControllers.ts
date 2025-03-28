@@ -22,11 +22,43 @@ import Place from '../../../models/Place';
 
 puppeteer.use(StealthPlugin());
 
-// Configuration Algolia
-const ALGOLIA_API_URL = 'https://e35vbjot1f-2.algolianet.com/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key={Clé API}%3D%3D&x-algolia-application-id=E35VBJOT1F'; 
-
 // Rayon de recherche en km autour de la ville
 const DEFAULT_SEARCH_RADIUS = 20;
+
+/**
+ * Fonction pour créer une instance de navigateur avec proxy
+ */
+async function createBrowserWithProxy() {
+  try {
+    // Utiliser un proxy aléatoire
+    const proxy = ProxyController.getRandomProxy();
+    console.log(`Utilisation du proxy: ${proxy.address}`);
+
+    // Lancer le navigateur avec le proxy
+    const browser = await puppeteer.launch({
+      headless: "new", // Mode headless activé pour l'exécution en production
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--window-size=1280,800',
+        `--proxy-server=${proxy.address}`,
+      ],
+      ignoreHTTPSErrors: true
+    });
+    
+    return browser;
+  } catch (error) {
+    console.error('Erreur lors du lancement du navigateur:', error);
+    
+    // En cas d'erreur de proxy, essayer sans proxy
+    console.log('Tentative de lancement sans proxy...');
+    return await puppeteer.launch({
+      headless: "new",
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      ignoreHTTPSErrors: true
+    });
+  }
+}
 
 /**
  * Recherche d'événements par ville avec Algolia
@@ -62,14 +94,11 @@ export async function fetchEventsByCity(req: Request, res: Response): Promise<vo
       Number(radius)
     );
     
-    // 3. Scrap de la clé API Algolia
-    const browser = await puppeteer.launch({
-      headless: "new", // Mode headless pour plus de performance
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      ignoreHTTPSErrors: true
-    });
-
+    // 3. Création du navigateur avec proxy
+    const browser = await createBrowserWithProxy();
     let apiKey = '';
+    
+    // 4. Récupération de la clé API Algolia
     try {
       console.log("Ouverture du navigateur pour récupérer la clé API Algolia...");
       const page = await browser.newPage();
@@ -104,27 +133,29 @@ export async function fetchEventsByCity(req: Request, res: Response): Promise<vo
       console.log("Utilisation de la clé API de secours");
     } finally {
       // Fermer le navigateur
-      await browser.close();
-      console.log("Navigateur fermé");
+      if (browser) {
+        await browser.close();
+        console.log("Navigateur fermé");
+      }
     }
     
     if (!apiKey) {
       throw new Error("La clé API Algolia n'a pas été trouvée");
     }
     
-    // Construction de l'URL Algolia avec la clé récupérée
+    // 5. Construction de l'URL Algolia avec la clé récupérée
     const algoliaUrl = `https://e35vbjot1f-2.algolianet.com/1/indexes/*/queries?x-algolia-agent=Algolia%20for%20JavaScript%20(4.13.0)%3B%20Browser%20(lite)%3B%20instantsearch.js%20(4.40.3)%3B%20JS%20Helper%20(3.8.2)&x-algolia-api-key=${apiKey}&x-algolia-application-id=E35VBJOT1F`;
     
-    // 3. Requête à l'API Algolia avec l'URL dynamique
+    // 6. Requête à l'API Algolia avec l'URL dynamique
     const events = await searchAlgoliaEvents(northEast, southWest, algoliaUrl);
     console.log(`${events.length} événements trouvés via Algolia`);
     
-    // 4. Sauvegarder les événements dans la BDD
+    // 7. Sauvegarder les événements dans la BDD
     const savedResults = await saveEventsToDB(events, city);
     
     const executionTime = (Date.now() - startTime) / 1000;
     
-    // 5. Réponse au client
+    // 8. Réponse au client
     res.status(200).json({
       success: true,
       executionTime: `${executionTime} secondes`,
