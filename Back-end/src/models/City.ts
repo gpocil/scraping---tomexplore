@@ -8,6 +8,10 @@ class City extends Model {
     public country_id!: number;
     public latitude!: number;
     public longitude!: number;
+    public most_nw_lat!: number;
+    public most_nw_lng!: number;
+    public most_se_lat!: number;
+    public most_se_lng!: number;
 }
 
 City.init({
@@ -35,6 +39,18 @@ City.init({
     },
     longitude: {
         type: DataTypes.FLOAT,
+    },
+    most_nw_lat: {
+        type: DataTypes.FLOAT
+    },
+    most_nw_lng: {
+        type: DataTypes.FLOAT
+    },
+    most_se_lat: {
+        type: DataTypes.FLOAT
+    },
+    most_se_lng: {
+        type: DataTypes.FLOAT
     }
 }, {
     sequelize,

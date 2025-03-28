@@ -18,6 +18,7 @@ import City from '../../../models/City';
 import Country from '../../../models/Country';
 import Event from '../../../models/Event';
 import Image from '../../../models/Image';
+import Place from '../../../models/Place';
 
 puppeteer.use(StealthPlugin());
 
@@ -255,6 +256,7 @@ async function searchAlgoliaEvents(
 async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: number, savedEvents: any[] }> {
   const savedEvents: any[] = [];
   let savedCount = 0;
+  let savedPlacesCount = 0;
   
   // Transaction pour assurer la cohérence des données
   const transaction = await sequelize.transaction();
@@ -262,32 +264,101 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
   try {
     for (const eventData of events) {
       try {
-        // Extraction des données pertinentes depuis la structure d'Algolia
+        // *** PARTIE 1: TRAITEMENT DU LIEU ***
+        let placeId = null;
+        
+        if (eventData.lieu) {
+          const lieuData = eventData.lieu;
+          
+          // Extraire le nom du lieu et l'adresse
+          // Format attendu: "Médiathèque Henri Vincenot, 5bis Avenue de Dijon"
+          let placeName = '';
+          let placeAddress = '';
+          
+          if (lieuData.adresse) {
+            const addressParts = lieuData.adresse.split(',');
+            if (addressParts.length > 1) {
+              placeName = addressParts[0].trim();
+              placeAddress = addressParts.slice(1).join(',').trim();
+            } else {
+              placeName = lieuData.nom || 'Lieu sans nom';
+              placeAddress = lieuData.adresse;
+            }
+          } else {
+            placeName = lieuData.nom || 'Lieu sans nom';
+          }
+          
+          // Chercher si le lieu existe déjà
+          let place = await Place.findOne({
+            where: {
+              [Op.or]: [
+                { name_eng: placeName },
+                { 
+                  [Op.and]: [
+                    { lat: lieuData.latitude },
+                    { lng: lieuData.longitude }
+                  ]
+                }
+              ]
+            },
+            transaction
+          });
+          
+          if (!place) {
+            // Créer un nouveau lieu
+            try {
+              const zipCode = lieuData.commune?.codePostal || '';
+              const cityAddress = lieuData.commune?.libelle || '';
+              
+              place = await Place.create({
+                slug: createSlug(placeName),
+                name_eng: placeName,
+                type: 'event_venue', // Type par défaut pour les lieux d'événements
+                city_id: city.id,
+                address: placeAddress,
+                zip_code: zipCode,
+                city_address: cityAddress,
+                lat: lieuData.latitude,
+                lng: lieuData.longitude,
+                public: true,
+                description_scrapio: eventData.texte || ''
+              }, { transaction });
+              
+              console.log(`Nouveau lieu créé: ${placeName}`);
+              savedPlacesCount++;
+            } catch (placeError) {
+              console.error(`Erreur lors de la création du lieu: ${placeError}`);
+              // En cas d'erreur, on continue sans associer de lieu
+            }
+          }
+          
+          if (place) {
+            placeId = place.id_tomexplore;
+          }
+        }
+        
+        // *** PARTIE 2: TRAITEMENT DE L'ÉVÉNEMENT (CODE EXISTANT) ***
         const name = eventData.titre || eventData.name || 'Sans titre';
         
-        // Correction: Traitement correct des dates depuis les timestamps Unix
+        // Traitement des dates (code existant)
         let startDate = null;
         let endDate = null;
         
-        // Première méthode: utiliser les timestamps Unix (format préféré)
         if (eventData["date-first"]) {
-          startDate = new Date(eventData["date-first"] * 1000); // Multiplication par 1000 pour convertir en millisecondes
+          startDate = new Date(eventData["date-first"] * 1000);
         }
         
         if (eventData["date-last"]) {
           endDate = new Date(eventData["date-last"] * 1000);
-        } 
-        // Si seule la date de début est disponible, utiliser la même pour la fin
-        else if (startDate) {
+        } else if (startDate) {
           endDate = startDate;
         }
         
-        // Méthode alternative: utiliser les dates au format texte si les timestamps ne sont pas disponibles
+        // Méthode alternative pour les dates (code existant)
         if (!startDate && eventData["_date-first-literal"]) {
-          // Format attendu: "28/03/2025 00:00:00"
           const [datePart, timePart] = eventData["_date-first-literal"].split(' ');
           const [day, month, year] = datePart.split('/').map(Number);
-          startDate = new Date(year, month - 1, day); // Les mois en JS sont 0-indexed
+          startDate = new Date(year, month - 1, day);
         }
         
         if (!endDate && eventData["_date-last-literal"]) {
@@ -296,15 +367,11 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
           endDate = new Date(year, month - 1, day);
         }
         
-        // Déterminer si l'événement est récurrent
         const isRecurring = startDate && endDate && 
-                            startDate.getTime() !== endDate.getTime() &&
-                            // Si les dates sont sur plus d'un jour, c'est récurrent
-                            (endDate.getTime() - startDate.getTime() > 86400000);
-                            
+                          startDate.getTime() !== endDate.getTime() &&
+                          (endDate.getTime() - startDate.getTime() > 86400000);
         const eventType = isRecurring ? 'event_recurring' : 'event_ponctual';
         
-        // Extraction du reste des informations
         const description = eventData.texte || '';
         const url = `https://www.infolocale.fr${eventData.chemin}` || '';
         const category = eventData.rubrique?.lvl0 || eventData.categorie || '';
@@ -332,7 +399,7 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
           name,
           country_id: city.country_id,
           city_id: city.id,
-          place_id: null,
+          place_id: placeId, // Association avec le lieu
           website_link: url,
           event_type: eventType,
           event_date_start: startDate,
@@ -345,14 +412,14 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
         // Créer l'événement
         const newEvent = await Event.create(formattedEvent, { transaction });
         
-        // Si une image est disponible, la sauvegarder
+        // Si une image est disponible, la sauvegarder (code existant)
         if (eventData.photo?.url) {
           try {
             const imageUrl = eventData.photo.url;
             const image = await Image.create({
               image_name: `algolia_${newEvent.id}_${Date.now()}.jpg`,
               original_url: imageUrl,
-              place_id: null,
+              place_id: placeId, // Association avec le lieu également
               event_id: newEvent.id,
               author: 'Algolia API',
               license: eventData.photo.credits || 'Infolocale'
@@ -374,7 +441,7 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
     
     // Valider la transaction si tout s'est bien passé
     await transaction.commit();
-    console.log(`${savedCount} événements sauvegardés avec succès`);
+    console.log(`${savedCount} événements et ${savedPlacesCount} lieux sauvegardés avec succès`);
     
     return { savedCount, savedEvents };
   } catch (error) {
