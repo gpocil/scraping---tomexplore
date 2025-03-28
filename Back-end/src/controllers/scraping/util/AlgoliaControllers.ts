@@ -315,7 +315,7 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
               place = await Place.create({
                 slug: createSlug(placeName),
                 name_eng: placeName,
-                type: 'event_venue', // Type par défaut pour les lieux d'événements
+                type: 'event_venue',
                 city_id: city.id,
                 address: placeAddress,
                 zip_code: zipCode,
@@ -323,7 +323,10 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
                 lat: lieuData.latitude,
                 lng: lieuData.longitude,
                 public: true,
-                description_scrapio: eventData.texte || ''
+                description_scrapio: eventData.texte || '',
+                folder: 'events',
+                updated: new Date(),
+                checked: false
               }, { transaction });
               
               console.log(`Nouveau lieu créé: ${placeName}`);
