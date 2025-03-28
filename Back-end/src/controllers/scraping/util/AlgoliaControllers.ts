@@ -254,6 +254,8 @@ async function searchAlgoliaEvents(
  * Sauvegarder les événements dans la base de données
  */
 async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: number, savedEvents: any[] }> {
+  console.log(`Traitement de ${events.length} événements, dont ${events.filter(e => e.lieu).length} avec des informations de lieu`);
+  
   const savedEvents: any[] = [];
   let savedCount = 0;
   let savedPlacesCount = 0;
@@ -327,8 +329,8 @@ async function saveEventsToDB(events: any[], city: any): Promise<{ savedCount: n
               console.log(`Nouveau lieu créé: ${placeName}`);
               savedPlacesCount++;
             } catch (placeError) {
-              console.error(`Erreur lors de la création du lieu: ${placeError}`);
-              // En cas d'erreur, on continue sans associer de lieu
+              console.error(`Erreur lors de la création du lieu ${placeName}:`, placeError);
+              // Affichage plus complet de l'erreur
             }
           }
           
