@@ -19,8 +19,8 @@ export const getAllEvents = async (req: Request, res: Response): Promise<void> =
       offset,
       include: [
         { model: City, as: 'city' },
-        { model: Place, as: 'place' },
-        { model: Image, as: 'image', required: false }
+        { model: Place, as: 'associatedPlace_event' },
+        { model: Image, as: 'event_images', required: false }
       ],
       order: [['event_date_start', 'ASC']]
     });
@@ -47,8 +47,8 @@ export const getEventById = async (req: Request, res: Response): Promise<void> =
     const event = await Event.findByPk(id, {
       include: [
         { model: City, as: 'city' },
-        { model: Place, as: 'place' },
-        { model: Image, as: 'image', required: false }
+        { model: Place, as: 'associatedPlace_event' },
+        { model: Image, as: 'event_images', required: false }
       ]
     });
     
@@ -111,8 +111,8 @@ export const searchEvents = async (req: Request, res: Response): Promise<void> =
               }
             }
           },
-          { model: Place, as: 'place' },
-          { model: Image, as: 'image', required: false }
+          { model: Place, as: 'associatedPlace_event' },
+          { model: Image, as: 'event_images', required: false }
         ],
         where: whereConditions,
         order: [['event_date_start', 'ASC']]
