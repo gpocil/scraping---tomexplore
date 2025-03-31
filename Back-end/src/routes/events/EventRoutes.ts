@@ -3,14 +3,12 @@ import * as EventsController from '../../controllers/events/EventsController';
 
 const router = Router();
 
-// Route pour importer des événements depuis Infolocale (existante)
+// Route pour importer des événements
 router.post('/events', EventsController.fetchInfolocaleEvents);
 
-// Routes pour afficher les événements
-router.get('/events', EventsController.getAllEvents);
-router.get('/events/:id', EventsController.getEventById);
-
-// Route pour rechercher des événements par critères (ville, dates)
-router.get('/events/search', EventsController.searchEvents);
+// Routes spécifiques AVANT les routes avec paramètres dynamiques
+router.get('/events/search', EventsController.searchEvents); // 1. Route spécifique d'abord
+router.get('/events', EventsController.getAllEvents);        // 2. Route générique ensuite
+router.get('/events/:id', EventsController.getEventById);    // 3. Route avec paramètre dynamique en dernier
 
 export default router;

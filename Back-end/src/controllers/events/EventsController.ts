@@ -70,27 +70,37 @@ export const getEventById = async (req: Request, res: Response): Promise<void> =
  */
 export const searchEvents = async (req: Request, res: Response): Promise<void> => {
     try {
+      console.log('🔍 Recherche d\'événements avec les paramètres:', req.query);
+      
       // Extraction des critères depuis les paramètres de requête
       const { city, dateStart, dateEnd, eventType } = req.query;
   
       // Vérification des critères obligatoires
       if (!city) {
+        console.log('❌ Critère de ville manquant');
         res.status(400).json({ message: 'Le critère de ville est obligatoire' });
         return;
       }
   
       if (!dateStart || !dateEnd) {
+        console.log('❌ Dates de début ou de fin manquantes');
         res.status(400).json({ message: 'Les dates de début et de fin sont obligatoires' });
         return;
       }
+
+      console.log(`🏙️ Recherche dans la ville: ${city}`);
+      console.log(`📅 Période: du ${dateStart} au ${dateEnd}`);
+      if (eventType) console.log(`🎭 Type d'événement: ${eventType}`);
   
       // Construction des conditions de recherche pour les événements
       const whereConditions: any = {
+        // L'événement commence avant la fin de la période
         event_date_start: {
-          [Op.gte]: new Date(dateStart as string)
-        },
-        event_date_end: {
           [Op.lte]: new Date(dateEnd as string)
+        },
+        // L'événement se termine après le début de la période
+        event_date_end: {
+          [Op.gte]: new Date(dateStart as string)
         }
       };
   
@@ -98,6 +108,8 @@ export const searchEvents = async (req: Request, res: Response): Promise<void> =
       if (eventType) {
         whereConditions.event_type = eventType;
       }
+  
+      console.log('🔎 Conditions de recherche:', JSON.stringify(whereConditions));
   
       // Recherche des événements
       const events = await Event.findAll({
@@ -118,13 +130,25 @@ export const searchEvents = async (req: Request, res: Response): Promise<void> =
         order: [['event_date_start', 'ASC']]
       });
   
+      console.log(`✅ Résultats trouvés: ${events.length} événements`);
+      
+      // Si aucun événement trouvé, renvoyer un message approprié
+      if (events.length === 0) {
+        res.status(200).json({
+          total: 0,
+          events: [],
+          message: "Aucun événement ne correspond à ces critères"
+        });
+        return;
+      }
+
       res.status(200).json({
         total: events.length,
         events
       });
     } catch (error) {
-      console.error('Erreur lors de la recherche d\'événements:', error);
-      res.status(500).json({ message: 'Erreur serveur' });
+      console.error('❌ Erreur lors de la recherche d\'événements:', error);
+      res.status(500).json({ message: 'Erreur serveur lors de la recherche' });
     }
   };
   
