@@ -32,19 +32,37 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const user = useUser().user;
     const [displayedImages, setDisplayedImages] = useState<IImage[]>([]);
 
-
-
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
         }
     }, [checkCookie, navigate]);
 
+    // Replace this useEffect that's causing the infinite loop
     useEffect(() => {
-        if (!isScraping && user) {
-            updatePlaces(user?.admin);
+        // Only fetch data once when the component mounts
+        if (user && !isScraping) {
+            // Don't call updatePlaces here - it's causing a refresh loop
+            // Instead we'll rely on the initial data load or explicit refresh actions
         }
-    }, [isScraping]);
+    }, [user]);
+
+    // Added a separate useEffect to handle the initial data load only once
+    useEffect(() => {
+        // Run only once when component mounts
+        const initialLoad = async () => {
+            if (user && places.length > 0 && currentPlaceId) {
+                // Ensure we have a current place selected
+                const currentPlaceExists = places.some(
+                    (place) => place.place_id === currentPlaceId
+                );
+                if (!currentPlaceExists && places.length > 0) {
+                    setCurrentPlaceId(places[0].place_id);
+                }
+            }
+        };
+        initialLoad();
+    }, []);
 
     useEffect(() => {
         const currentPlaceExists = places.some((place) => place.place_id === currentPlaceId);
@@ -65,14 +83,10 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 const sourceB = sourceOrder.indexOf(b.source);
                 return sourceA - sourceB;
             });
-   
+
             setDisplayedImages(sortedImages.slice(0, 15));
         }
     }, [currentPlace]);
-    
-    
-    
-
 
     useEffect(() => {
         const handleBeforeUnload = () => {
@@ -86,17 +100,17 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         };
     }, [currentPlace, isCityComplete]);
 
-
     useEffect(() => {
         setInstagramLink(currentPlace?.instagram_link || '');
     }, [currentPlace?.instagram_link]);
 
     useEffect(() => {
         if (user && currentPlace) {
+            // Only call updatePlaceStart when the currentPlace changes, not on every render
             updatePlaceStart(currentPlace.place_id, user?.userId);
             console.log('start');
         }
-    }, [currentPlace, user]);
+    }, [currentPlace?.place_id, user?.userId]); // Fixed dependency array
 
     const handleNext = () => {
         const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
@@ -165,10 +179,9 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleStepTwoTransition = () => {
-            setIsStepOne(false);
-        
-    };
+        setIsStepOne(false);
 
+    };
 
     const handleValidateImages = async () => {
         try {
@@ -193,19 +206,19 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 imageIds: topImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
-    
+
             if (response.status === 200 && currentPlace) {
                 // Filter out the IDs of images to keep (top 3 + displayed 15)
                 const idsToKeep = [
                     ...topImages.map((image) => image.id),
                     ...displayedImages.map((image) => image.id)
                 ];
-    
+
                 // Collect IDs of images that are not in the selected top or displayed images
                 const imagesToDelete = currentPlace.images
                     .filter((image) => !idsToKeep.includes(image.id))
                     .map((image) => image.id);
-    
+
                 if (imagesToDelete.length > 0) {
                     // Call the deleteImages endpoint to remove unwanted images
                     await apiClient.post('/front/deleteImages', {
@@ -213,7 +226,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                         place_id: currentPlace?.place_id
                     });
                 }
-    
+
                 updatePlaceEnd(currentPlace.place_id);
                 setTopImages([]);
                 setIsStepOne(true);
@@ -224,7 +237,6 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             alert('Failed to set top images');
         }
     };
-    
 
     const handleSetNeedsAttention = () => {
         updatePlaceAbort(currentPlaceId);
