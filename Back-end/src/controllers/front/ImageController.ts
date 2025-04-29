@@ -694,7 +694,7 @@ export const updateGoogleMaps = async (req: Request, res: Response) => {
 
 export const getUncheckedPlacesByCity = async (req: Request, res: Response) => {
     const cityName = req.params.cityName;
-    console.log(`Fetching unchecked places for city: ${cityName}`);
+    console.log(`[IMAGECONTROLLER] Fetching unchecked places for city: ${cityName}`);
 
     if (!cityName) {
         return res.status(400).json({ error: 'City name is required' });

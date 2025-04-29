@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, ReactNode, useCallback, useRef } from 'react';
+import { createContext, useState, useContext, ReactNode, useCallback, useRef, useMemo } from 'react';
 import apiClient from '../util/apiClient';
 import { IResponseStructure, IPlace, IPreviewResponseStructure, IPlacesByCity, IPlaceNeedingAttention } from '../model/Interfaces';
 import {
@@ -29,8 +29,14 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
     const [previewData, setPreviewData] = useState<IPreviewResponseStructure | null>(null);
     const [uncheckedPlacesByCity, setUncheckedPlacesByCity] = useState<IPlacesByCity | null>(null);
     const [placesNeedingAttention, setPlacesNeedingAttention] = useState<IPlaceNeedingAttention[] | null>(null);
+
+    // Cache for city data to prevent redundant fetches
+    const cityDataCache = useRef<{ [cityName: string]: IPlacesByCity }>({});
+
     // Add a ref to track ongoing fetches to prevent duplicate calls
     const fetchingRefs = useRef<{ [key: string]: boolean }>({});
+    // Track requests that have already been made
+    const requestsMade = useRef<{ [key: string]: boolean }>({});
 
     const fetchData = useCallback(async (isAdmin: boolean): Promise<void> => {
         console.log("Admin : " + isAdmin);
@@ -108,7 +114,23 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const getUncheckedPlacesByCity = async (cityName: string): Promise<IPlacesByCity> => {
+    const getUncheckedPlacesByCity = useCallback(async (cityName: string): Promise<IPlacesByCity> => {
+        // Check if we already have this data in memory cache
+        if (cityDataCache.current[cityName]) {
+            console.log(`Using in-memory cached data for city: ${cityName}`);
+            setUncheckedPlacesByCity(cityDataCache.current[cityName]);
+            return cityDataCache.current[cityName];
+        }
+
+        // Check if this request has already been made in this session
+        const requestKey = `cityRequest_${cityName}`;
+        if (requestsMade.current[requestKey]) {
+            console.log(`Request for ${cityName} already made, returning current unchecked places`);
+            if (uncheckedPlacesByCity) {
+                return uncheckedPlacesByCity;
+            }
+        }
+
         // Check if a fetch is already in progress for this request
         const fetchKey = `uncheckedByCity_${cityName}`;
         if (fetchingRefs.current[fetchKey]) {
@@ -117,36 +139,47 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
             if (uncheckedPlacesByCity) {
                 return uncheckedPlacesByCity;
             }
+            // Wait for a short time and try again
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return getUncheckedPlacesByCity(cityName);
         }
 
         try {
             fetchingRefs.current[fetchKey] = true;
-            console.log(`Fetching unchecked places for city: ${cityName}`);
+            requestsMade.current[requestKey] = true;
+            console.log(`[CONTEXT] Fetching unchecked places for city: ${cityName}`);
 
             // First, try to get data from IndexedDB
             const cachedCityData = await getUncheckedPlacesByCityFromDB(cityName);
             if (cachedCityData) {
                 console.log('Using cached unchecked places data from IndexedDB');
                 setUncheckedPlacesByCity(cachedCityData);
+                // Store in memory cache too
+                cityDataCache.current[cityName] = cachedCityData;
                 return cachedCityData;
             }
 
             // If no cached data, fetch from API
             const response = await apiClient.get<IPlacesByCity>(`/front/getUncheckedPlacesByCity/${encodeURIComponent(cityName)}`);
-            setUncheckedPlacesByCity(response.data);
-            console.log('Fetched unchecked places from API:', response.data);
+            const responseData = response.data;
+
+            setUncheckedPlacesByCity(responseData);
+            console.log('Fetched unchecked places from API:', responseData);
 
             // Save to IndexedDB for future use
-            await saveUncheckedPlacesByCity(cityName, response.data);
+            await saveUncheckedPlacesByCity(cityName, responseData);
 
-            return response.data;
+            // Store in memory cache
+            cityDataCache.current[cityName] = responseData;
+
+            return responseData;
         } catch (error) {
             console.error(`Error fetching unchecked places for city ${cityName}:`, error);
             return Promise.reject(error);
         } finally {
             fetchingRefs.current[fetchKey] = false;
         }
-    };
+    }, [uncheckedPlacesByCity]);
 
     const getPlacesNeedingAttention = async (): Promise<IPlaceNeedingAttention[]> => {
         // Check if a fetch is already in progress for this request
@@ -285,21 +318,33 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // Create a stable value for the context
+    const contextValue = useMemo(() => ({
+        data,
+        previewData,
+        uncheckedPlacesByCity,
+        placesNeedingAttention,
+        updatePlaces,
+        findPlaceById,
+        updateSinglePlace,
+        getPreview,
+        getUncheckedPlacesByCity,
+        getPlacesNeedingAttention
+    }), [
+        data,
+        previewData,
+        uncheckedPlacesByCity,
+        placesNeedingAttention,
+        updatePlaces,
+        findPlaceById,
+        updateSinglePlace,
+        getPreview,
+        getUncheckedPlacesByCity,
+        getPlacesNeedingAttention
+    ]);
+
     return (
-        <PlaceContext.Provider
-            value={{
-                data,
-                previewData,
-                uncheckedPlacesByCity,
-                placesNeedingAttention,
-                updatePlaces,
-                findPlaceById,
-                updateSinglePlace,
-                getPreview,
-                getUncheckedPlacesByCity,
-                getPlacesNeedingAttention
-            }}
-        >
+        <PlaceContext.Provider value={contextValue}>
             {children}
         </PlaceContext.Provider>
     );

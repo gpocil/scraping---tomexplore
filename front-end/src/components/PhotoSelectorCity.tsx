@@ -17,7 +17,7 @@ interface PhotoSelectorCityProps {
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
     const navigate = useNavigate();
     const { checkCookie } = useUser();
-    const { updatePlaces } = usePlaces();
+    const { updatePlaces, getUncheckedPlacesByCity } = usePlaces();
     const [currentPlaceId, setCurrentPlaceId] = useState(places[0]?.place_id);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -31,6 +31,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const totalImages = currentPlace?.images?.length || 0;
     const user = useUser().user;
     const [displayedImages, setDisplayedImages] = useState<IImage[]>([]);
+    const [isPlaceStarted, setIsPlaceStarted] = useState<{ [key: string]: boolean }>({});
+    const [dataInitialized, setDataInitialized] = useState(false);
 
     useEffect(() => {
         if (!checkCookie()) {
@@ -38,14 +40,13 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         }
     }, [checkCookie, navigate]);
 
-    // Replace this useEffect that's causing the infinite loop
+    // Remove the previous city data loading effect that used updatePlaces
+    // and replace with a simplified initialization flag
     useEffect(() => {
-        // Only fetch data once when the component mounts
-        if (user && !isScraping) {
-            // Don't call updatePlaces here - it's causing a refresh loop
-            // Instead we'll rely on the initial data load or explicit refresh actions
+        if (!dataInitialized && cityName) {
+            setDataInitialized(true);
         }
-    }, [user]);
+    }, [cityName, dataInitialized]);
 
     // Added a separate useEffect to handle the initial data load only once
     useEffect(() => {
@@ -105,12 +106,15 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     }, [currentPlace?.instagram_link]);
 
     useEffect(() => {
-        if (user && currentPlace) {
-            // Only call updatePlaceStart when the currentPlace changes, not on every render
-            updatePlaceStart(currentPlace.place_id, user?.userId);
-            console.log('start');
+        if (user && currentPlace && !isPlaceStarted[currentPlace.place_id]) {
+            // Only call updatePlaceStart when the place hasn't been started yet
+            // and only if we have a valid user ID
+            if (user.userId) {
+                updatePlaceStart(currentPlace.place_id, user.userId);
+                setIsPlaceStarted(prev => ({ ...prev, [currentPlace.place_id]: true }));
+            }
         }
-    }, [currentPlace?.place_id, user?.userId]); // Fixed dependency array
+    }, [currentPlace?.place_id, user, isPlaceStarted]);
 
     const handleNext = () => {
         const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
