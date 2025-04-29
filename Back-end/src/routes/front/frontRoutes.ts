@@ -8,7 +8,6 @@ const router = Router();
 router.get('/:placeId/images', ImageController.getImagesByPlaceId);
 router.get('/getAllImages', ImageController.getPlacesWithImages);
 router.get('/getPreview', ImageController.getPreview);
-router.post('/updateSinglePlace', ImageController.updatePlace);
 router.get('/getUncheckedPlacesByCity/:cityName', ImageController.getUncheckedPlacesByCity);
 router.get('/getAllPlacesNeedingAttention', ImageController.getAllPlacesNeedingAttention);
 router.post('/deleteImages', ImageController.deleteImagesUser);
@@ -20,6 +19,7 @@ router.post('/setPlaceToBeDeleted', ImageController.setPlaceToBeDeleted);
 router.post('/updateInstagram', ImageController.updateInstagram);
 router.post('/updateWikimedia', ImageController.updateWikimedia);
 router.post('/updateGoogle', ImageController.updateGoogleMaps);
+router.post('/updatePlace', ImageController.updatePlace);
 router.get('/getPlace/:id', ImageController.getSinglePlace);
 
 export default router;

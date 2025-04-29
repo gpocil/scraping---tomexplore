@@ -842,95 +842,116 @@ export const getAllPlacesNeedingAttention = async (req: Request, res: Response) 
     }
 };
 
-export const updatePlace = async (req: Request, res: Response) => {
-    const updatedPlaceData = req.body;
-    const placeId = updatedPlaceData.id;
+interface UpdatePlaceRequest {
+    place_id: number;
+    name_eng?: string;
+    name_original?: string;
+    wikipedia_link?: string;
+    google_maps_link?: string;
+    instagram_link?: string;
+    unsplash_link?: string;
+    details?: string;
+    type?: string;
+    checked?: boolean;
+    needs_attention?: boolean;
+    to_be_deleted?: boolean;
+    top_images?: number[];
+    images_to_delete?: number[];
+}
 
-    if (!placeId) {
-        return res.status(400).json({ error: 'Place ID is required in request body' });
+export const updatePlace = async (req: Request, res: Response) => {
+    const placeData: UpdatePlaceRequest = req.body;
+
+    if (!placeData.place_id) {
+        return res.status(400).json({ error: 'Place ID is required' });
     }
 
     try {
-        const place = await Place.findByPk(placeId);
+        console.log(`Updating place with ID: ${placeData.place_id}`);
 
+        // Get place
+        const place = await Place.findByPk(placeData.place_id);
         if (!place) {
-            console.log(`Place not found for ID: ${placeId}`);
             return res.status(404).json({ error: 'Place not found' });
         }
 
-        // List of fields that can be updated
-        const allowedFields = [
-            'name_eng',
-            'name_original',
-            'type',
-            'checked',
-            'needs_attention',
-            'to_be_deleted',
-            'folder',
-            'wikipedia_link',
-            'unsplash_link',
-            'instagram_link',
-            'google_maps_link',
-            'details',
-            'instagram_updated',
-            'has_needed_attention',
-        ] as const;
+        // Step 1: Handle image deletions if any
+        if (placeData.images_to_delete && placeData.images_to_delete.length > 0) {
+            console.log(`Deleting images: ${placeData.images_to_delete.join(', ')}`);
+            await deleteImages(placeData.images_to_delete);
 
-        // Replace the fields with new values instead of selective updating
-        allowedFields.forEach((field) => {
-            if (updatedPlaceData[field] !== undefined) {
-                (place as any)[field] = updatedPlaceData[field];
-            }
-        });
-
-        // Always update the last_modification date
-        place.last_modification = new Date();
-
-        // Handle image updates if provided
-        if (updatedPlaceData.images) {
-            // Handle deleted images
-            if (updatedPlaceData.images.deletedIds && Array.isArray(updatedPlaceData.images.deletedIds) && updatedPlaceData.images.deletedIds.length > 0) {
-                console.log(`Deleting images with IDs: ${updatedPlaceData.images.deletedIds.join(', ')}`);
-                await deleteImages(updatedPlaceData.images.deletedIds);
-
-                // If all images have been deleted, mark the place accordingly
-                const remainingImages = await Image.count({ where: { place_id: placeId } });
-                if (remainingImages === 0) {
-                    place.photos_deleted = true;
-                }
-            }
-
-            // Handle top images - completely replace previous top attributes
-            if (updatedPlaceData.images.topIds && Array.isArray(updatedPlaceData.images.topIds)) {
-                console.log(`Setting top images for place ID ${placeId}: ${updatedPlaceData.images.topIds.join(', ')}`);
-                // Reset all top values for this place
-                await Image.update({ top: 0 }, { where: { place_id: placeId } });
-
-                // Set new top values
-                const topIds = updatedPlaceData.images.topIds.slice(0, 3);
-                await updateTopAttributes(topIds, Number(placeId));
+            // If all images are deleted, mark the place
+            const remainingImages = await Image.count({ where: { place_id: placeData.place_id } });
+            if (remainingImages === 0) {
+                place.photos_deleted = true;
             }
         }
 
+        // Step 2: Update top images if provided
+        if (placeData.top_images && placeData.top_images.length > 0) {
+            console.log(`Setting top images: ${placeData.top_images.join(', ')}`);
+            await updateTopAttributes(placeData.top_images, placeData.place_id);
+        }
+
+        // Step 3: Update place attributes
+        const updateableFields = [
+            'name_eng', 'name_original', 'wikipedia_link', 'google_maps_link',
+            'instagram_link', 'unsplash_link', 'details', 'type'
+        ];
+
+        updateableFields.forEach(field => {
+            if (placeData[field as keyof UpdatePlaceRequest] !== undefined) {
+                (place as any)[field] = placeData[field as keyof UpdatePlaceRequest];
+            }
+        });
+
+        // Set status flags
+        if (placeData.to_be_deleted) {
+            place.to_be_deleted = true;
+            place.checked = false;
+            place.needs_attention = false;
+        } else if (placeData.checked) {
+            if (place.needs_attention) {
+                place.has_needed_attention = true;
+            }
+            place.checked = true;
+            place.needs_attention = false;
+        } else if (placeData.needs_attention) {
+            place.needs_attention = true;
+            place.checked = false;
+        }
+
+        // Always update last_modification
+        place.last_modification = new Date();
+
+        // Save all changes
         await place.save();
-        console.log(`Place with ID ${placeId} updated successfully.`);
 
-        // Fetch the updated place with its images to return in the response
-        const updatedPlace = await Place.findByPk(placeId, {
-            include: [{
-                model: Image,
-                as: 'images',
-                attributes: ['id', 'image_name', 'top']
-            }]
+        // Get updated place with images
+        const updatedPlace = await Place.findByPk(placeData.place_id, {
+            include: [
+                {
+                    model: Image,
+                    as: 'images',
+                    attributes: ['id', 'image_name', 'top', 'original_url']
+                },
+                {
+                    model: City,
+                    as: 'city'
+                }
+            ]
         });
 
-        res.status(200).json({
+        const response = {
             message: 'Place updated successfully',
-            place: updatedPlace
-        });
+            place: updatedPlace,
+            images: updatedPlace?.getDataValue('images') || []
+        };
+
+        console.log(`Successfully updated place ID: ${placeData.place_id}`);
+        res.status(200).json(response);
     } catch (error) {
         console.error('Error updating place:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'An error occurred while updating the place' });
     }
 };
-
