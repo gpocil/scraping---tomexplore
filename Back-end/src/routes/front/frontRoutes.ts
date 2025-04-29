@@ -8,7 +8,7 @@ const router = Router();
 router.get('/:placeId/images', ImageController.getImagesByPlaceId);
 router.get('/getAllImages', ImageController.getPlacesWithImages);
 router.get('/getPreview', ImageController.getPreview);
-router.put('/updatePlace/:id', ImageController.updatePlace);
+router.put('/updateSinglePlace/:id', ImageController.updatePlace);
 router.get('/getUncheckedPlacesByCity/:cityName', ImageController.getUncheckedPlacesByCity);
 router.get('/getAllPlacesNeedingAttention', ImageController.getAllPlacesNeedingAttention);
 router.post('/deleteImages', ImageController.deleteImagesUser);
