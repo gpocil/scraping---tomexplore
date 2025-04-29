@@ -876,7 +876,7 @@ export const updatePlace = async (req: Request, res: Response) => {
             'has_needed_attention',
         ] as const;
 
-        // Update only the fields that are present in the request and allowed
+        // Replace the fields with new values instead of selective updating
         allowedFields.forEach((field) => {
             if (updatedPlaceData[field] !== undefined) {
                 (place as any)[field] = updatedPlaceData[field];
@@ -900,10 +900,13 @@ export const updatePlace = async (req: Request, res: Response) => {
                 }
             }
 
-            // Handle top images
+            // Handle top images - completely replace previous top attributes
             if (updatedPlaceData.images.topIds && Array.isArray(updatedPlaceData.images.topIds)) {
                 console.log(`Setting top images for place ID ${placeId}: ${updatedPlaceData.images.topIds.join(', ')}`);
-                // Limit to max 3 top images
+                // Reset all top values for this place
+                await Image.update({ top: 0 }, { where: { place_id: placeId } });
+
+                // Set new top values
                 const topIds = updatedPlaceData.images.topIds.slice(0, 3);
                 await updateTopAttributes(topIds, Number(placeId));
             }
