@@ -7,7 +7,6 @@ import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal';
 import { Spinner } from 'react-bootstrap';
-import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 
 interface PhotoSelectorPlaceProps {
     place: IPlace;
@@ -47,7 +46,7 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 const sourceB = sourceOrder.indexOf(b.source);
                 return sourceA - sourceB;
             });
-   
+
             setDisplayedImages(sortedImages.slice(0, 15));
         }
     }, [place]);
@@ -58,29 +57,13 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
 
     const totalImages = place?.images?.length || 0;
 
-    useEffect(() => {
-        if (user) {
-            updatePlaceStart(place.place_id, user?.userId);
-        }
-    }, [user, place]);
+
 
     useEffect(() => {
         if (!isScraping) {
             updateSinglePlace(place.place_id);
         }
     }, [isScraping]);
-
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            if (place) {
-                updatePlaceAbort(place.place_id);
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, [place]);
 
     const remainingImagesCount = (): number => {
         return totalImages - selectedImages.length;
@@ -168,19 +151,19 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 imageIds: topImages.map((image) => image.id),
                 place_id: place?.place_id
             });
-    
+
             if (response.status === 200 && place) {
                 // Filter out the IDs of images to keep (top 3 + displayed 15)
                 const idsToKeep = [
                     ...topImages.map((image) => image.id),
                     ...displayedImages.map((image) => image.id)
                 ];
-    
+
                 // Collect IDs of images that are not in the selected top or displayed images
                 const imagesToDelete = place.images
                     .filter((image) => !idsToKeep.includes(image.id))
                     .map((image) => image.id);
-    
+
                 if (imagesToDelete.length > 0) {
                     // Call the deleteImages endpoint to remove unwanted images
                     await apiClient.post('/front/deleteImages', {
@@ -188,20 +171,19 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                         place_id: place?.place_id
                     });
                 }
-    
-                updatePlaceEnd(place.place_id);
+
                 setTopImages([]);
                 setIsStepOne(true);
-                setIsPlaceComplete(true);            }
+                setIsPlaceComplete(true);
+            }
         } catch (error) {
             console.error('Error setting top images:', error);
             alert('Failed to set top images');
         }
     };
-    
+
 
     const handleSetNeedsAttention = () => {
-        updatePlaceAbort(place.place_id);
         setShowModal(true);
     };
 
@@ -256,7 +238,6 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                 <button
                     className="btn btn-primary"
                     onClick={() => {
-                        updatePlaceAbort(place.place_id);
                         onComplete();
                     }}
                     disabled={isScraping}
@@ -308,8 +289,8 @@ const PhotoSelectorPlace: React.FC<PhotoSelectorPlaceProps> = ({ place, onComple
                                 <button
                                     className="btn btn-primary mt-3"
                                     onClick={() => {
-                                            handleStepTwoTransition();  // Passe à l'étape suivante si aucune image à supprimer
-                                        
+                                        handleStepTwoTransition();  // Passe à l'étape suivante si aucune image à supprimer
+
                                     }}
                                     disabled={isScraping}
                                 >

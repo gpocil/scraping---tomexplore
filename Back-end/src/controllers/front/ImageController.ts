@@ -842,3 +842,92 @@ export const getAllPlacesNeedingAttention = async (req: Request, res: Response) 
     }
 };
 
+export const updatePlace = async (req: Request, res: Response) => {
+    const placeId = req.params.id;
+    const updatedPlaceData = req.body;
+
+    if (!placeId) {
+        return res.status(400).json({ error: 'Place ID is required' });
+    }
+
+    try {
+        const place = await Place.findByPk(placeId);
+
+        if (!place) {
+            console.log(`Place not found for ID: ${placeId}`);
+            return res.status(404).json({ error: 'Place not found' });
+        }
+
+        // List of fields that can be updated
+        const allowedFields = [
+            'name_eng',
+            'name_original',
+            'type',
+            'checked',
+            'needs_attention',
+            'to_be_deleted',
+            'folder',
+            'wikipedia_link',
+            'unsplash_link',
+            'instagram_link',
+            'google_maps_link',
+            'details',
+            'instagram_updated',
+            'has_needed_attention',
+        ] as const;
+
+        // Update only the fields that are present in the request and allowed
+        allowedFields.forEach((field) => {
+            if (updatedPlaceData[field] !== undefined) {
+                (place as any)[field] = updatedPlaceData[field];
+            }
+        });
+
+        // Always update the last_modification date
+        place.last_modification = new Date();
+
+        // Handle image updates if provided
+        if (updatedPlaceData.images) {
+            // Handle deleted images
+            if (updatedPlaceData.images.deletedIds && Array.isArray(updatedPlaceData.images.deletedIds) && updatedPlaceData.images.deletedIds.length > 0) {
+                console.log(`Deleting images with IDs: ${updatedPlaceData.images.deletedIds.join(', ')}`);
+                await deleteImages(updatedPlaceData.images.deletedIds);
+
+                // If all images have been deleted, mark the place accordingly
+                const remainingImages = await Image.count({ where: { place_id: placeId } });
+                if (remainingImages === 0) {
+                    place.photos_deleted = true;
+                }
+            }
+
+            // Handle top images
+            if (updatedPlaceData.images.topIds && Array.isArray(updatedPlaceData.images.topIds)) {
+                console.log(`Setting top images for place ID ${placeId}: ${updatedPlaceData.images.topIds.join(', ')}`);
+                // Limit to max 3 top images
+                const topIds = updatedPlaceData.images.topIds.slice(0, 3);
+                await updateTopAttributes(topIds, Number(placeId));
+            }
+        }
+
+        await place.save();
+        console.log(`Place with ID ${placeId} updated successfully.`);
+
+        // Fetch the updated place with its images to return in the response
+        const updatedPlace = await Place.findByPk(placeId, {
+            include: [{
+                model: Image,
+                as: 'images',
+                attributes: ['id', 'image_name', 'top']
+            }]
+        });
+
+        res.status(200).json({
+            message: 'Place updated successfully',
+            place: updatedPlace
+        });
+    } catch (error) {
+        console.error('Error updating place:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+

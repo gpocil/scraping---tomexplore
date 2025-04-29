@@ -2,7 +2,6 @@ import { Router } from 'express';
 import * as ImageController from '../../controllers/front/ImageController';
 import * as LoginController from '../../controllers/front/LoginController';
 import upload from '../../controllers/front/MulterController';
-import * as UserStatsController from '../../controllers/front/UserStatsController'
 
 const router = Router();
 
@@ -20,10 +19,7 @@ router.post('/setPlaceToBeDeleted', ImageController.setPlaceToBeDeleted);
 router.post('/updateInstagram', ImageController.updateInstagram);
 router.post('/updateWikimedia', ImageController.updateWikimedia);
 router.post('/updateGoogle', ImageController.updateGoogleMaps);
-router.post('/placeAbort', UserStatsController.updatePlaceAbort);
-router.post('/placeEnd', UserStatsController.updatePlaceEnd);
-router.post('/placeStart', UserStatsController.updatePlaceStart);
-router.get('/userStats', UserStatsController.getUsersInfo);
 router.get('/getPlace/:id', ImageController.getSinglePlace);
+router.put('/updatePlace/:id', ImageController.updatePlace);
 
 export default router;

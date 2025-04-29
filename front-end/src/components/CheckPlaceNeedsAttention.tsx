@@ -7,7 +7,6 @@ import DeletePlaceModal from './modals/DeletePlaceModal';
 import { Button, Container, Row, Col, Form, Spinner } from 'react-bootstrap';
 import './styles/CheckPlaceNeedsAttention.css';
 import { usePlaces } from '../context/PlacesContext';
-import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 import { useUser } from '../context/UserContext';
 
 interface CheckPlaceNeedsAttentionProps {
@@ -73,27 +72,12 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     }, [place.images]);
 
 
-    useEffect(() => {
-        if (user) {
-            updatePlaceStart(place.place_id, user?.userId)
-        }
-    }, []);
+
     const imagesToDeleteCount = (): number => {
         return totalImages > 15 ? totalImages - 15 : 0;
     };
 
 
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            if (place) {
-                updatePlaceAbort(place.place_id);
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, [place]);
 
     const totalImages = images.length || 0;
 
@@ -194,8 +178,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
     // New function to update place status and remove from "needs_attention"
     const updatePlacesAfterValidation = async (placeId: number) => {
         await updateSinglePlace(placeId);  // This will update the cache (IndexedDB) and memory
-        if(user)
-        updatePlaces(user?.admin);  // Trigger re-fetching the data to refresh the UI
+        if (user)
+            updatePlaces(user?.admin);  // Trigger re-fetching the data to refresh the UI
     };
 
 
@@ -218,8 +202,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
             console.log('Upload response:', response);
             if (response.status === 200) {
-                if(user)
-                updatePlaces(user?.admin);
+                if (user)
+                    updatePlaces(user?.admin);
                 alert('Photos uploaded successfully');
             }
         } catch (error) {
@@ -236,9 +220,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
-                updatePlaceEnd(place.place_id);
-                if(user)
-                updatePlaces(user?.admin);
+                if (user)
+                    updatePlaces(user?.admin);
                 handleBackClick();
             }
         } catch (error) {
@@ -258,8 +241,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             });
 
             if (response.status === 200) {
-                if(user)
-                await updatePlaces(user?.admin);
+                if (user)
+                    await updatePlaces(user?.admin);
                 await updateImages();
                 alert('Images Instagram récupérées');
             }
@@ -283,8 +266,8 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
             if (response.status === 200) {
                 await updateImages();
-                if(user)
-                updatePlaces(user?.admin);
+                if (user)
+                    updatePlaces(user?.admin);
                 alert('Wikimedia updated and images scraped successfully');
             }
         } catch (error) {
@@ -329,7 +312,6 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
             <Row>
                 <Col md={2} className="d-flex flex-column align-items-start">
                     <Button className="mb-3 w-100" variant="primary" onClick={() => {
-                        updatePlaceAbort(place.place_id);
                         navigate('/places-needing-attention');
                     }} disabled={isScraping}>
                         🔙 Retour

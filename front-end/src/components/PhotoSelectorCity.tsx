@@ -7,7 +7,6 @@ import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
 import { Spinner } from 'react-bootstrap';
-import { updatePlaceStart, updatePlaceEnd, updatePlaceAbort } from '../util/UserStatsUpdate';
 
 interface PhotoSelectorCityProps {
     places: IPlace[];
@@ -15,9 +14,11 @@ interface PhotoSelectorCityProps {
 }
 
 const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName }) => {
+    console.log('PhotoSelectorCity rendering with places:', places.length, 'cityName:', cityName);
+
     const navigate = useNavigate();
     const { checkCookie } = useUser();
-    const { updatePlaces, getUncheckedPlacesByCity } = usePlaces();
+    const { updatePlaces, getUncheckedPlacesByCity, updatePlace } = usePlaces();
     const [currentPlaceId, setCurrentPlaceId] = useState(places[0]?.place_id);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -36,6 +37,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         if (!checkCookie()) {
+            console.log('No valid cookie found, redirecting to login');
             navigate('/login');
         }
     }, [checkCookie, navigate]);
@@ -44,6 +46,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     // and replace with a simplified initialization flag
     useEffect(() => {
         if (!dataInitialized && cityName) {
+            console.log('Initializing data for city:', cityName);
             setDataInitialized(true);
         }
     }, [cityName, dataInitialized]);
@@ -52,12 +55,15 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     useEffect(() => {
         // Run only once when component mounts
         const initialLoad = async () => {
+            console.log('Initial load running, user:', user?.userId, 'places:', places.length);
             if (user && places.length > 0 && currentPlaceId) {
                 // Ensure we have a current place selected
                 const currentPlaceExists = places.some(
                     (place) => place.place_id === currentPlaceId
                 );
+                console.log('Current place exists:', currentPlaceExists, 'ID:', currentPlaceId);
                 if (!currentPlaceExists && places.length > 0) {
+                    console.log('Setting current place ID to first place:', places[0].place_id);
                     setCurrentPlaceId(places[0].place_id);
                 }
             }
@@ -67,10 +73,13 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         const currentPlaceExists = places.some((place) => place.place_id === currentPlaceId);
+        console.log('Checking if current place exists:', currentPlaceExists, 'ID:', currentPlaceId);
         if (!currentPlaceExists) {
             if (places.length > 0) {
+                console.log('Setting current place ID to first place:', places[0].place_id);
                 setCurrentPlaceId(places[0].place_id);
             } else {
+                console.log('No places left, marking city as complete');
                 setIsCityComplete(true);
             }
         }
@@ -78,6 +87,7 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     useEffect(() => {
         if (currentPlace) {
+            console.log('Sorting images for current place:', currentPlace.place_id, 'Total images:', currentPlace.images.length);
             const sortedImages = currentPlace.images.slice().sort((a, b) => {
                 const sourceOrder = ['Instagram', 'Google', 'Wikimedia', 'Unsplash', null];
                 const sourceA = sourceOrder.indexOf(a.source);
@@ -86,59 +96,47 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             });
 
             setDisplayedImages(sortedImages.slice(0, 15));
+            console.log('Displaying first 15 images');
         }
     }, [currentPlace]);
 
-    useEffect(() => {
-        const handleBeforeUnload = () => {
-            if (currentPlace && !isCityComplete) {
-                updatePlaceAbort(currentPlace.place_id);
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, [currentPlace, isCityComplete]);
 
     useEffect(() => {
         setInstagramLink(currentPlace?.instagram_link || '');
     }, [currentPlace?.instagram_link]);
 
-    useEffect(() => {
-        if (user && currentPlace && !isPlaceStarted[currentPlace.place_id]) {
-            // Only call updatePlaceStart when the place hasn't been started yet
-            // and only if we have a valid user ID
-            if (user.userId) {
-                updatePlaceStart(currentPlace.place_id, user.userId);
-                setIsPlaceStarted(prev => ({ ...prev, [currentPlace.place_id]: true }));
-            }
-        }
-    }, [currentPlace?.place_id, user, isPlaceStarted]);
+
 
     const handleNext = () => {
+        console.log('Moving to next place');
         const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
         if (currentIndex < places.length - 1) {
+            console.log('Setting current place ID to next place:', places[currentIndex + 1].place_id);
             setCurrentPlaceId(places[currentIndex + 1].place_id);
             resetSelection();
         } else {
+            console.log('No more places, marking city as complete');
             setIsCityComplete(true);
         }
     };
 
     const handlePrev = () => {
+        console.log('Moving to previous place');
         const currentIndex = places.findIndex((place) => place.place_id === currentPlaceId);
         if (currentIndex > 0) {
-            updatePlaceAbort(currentPlaceId);
+            console.log('Aborting work on current place:', currentPlaceId);
+            console.log('Setting current place ID to previous place:', places[currentIndex - 1].place_id);
             setCurrentPlaceId(places[currentIndex - 1].place_id);
             resetSelection();
         }
     };
 
     const handleImageClick = (image: IImage) => {
+        console.log('Image clicked:', image.id, 'Step:', isStepOne ? 'Delete' : 'Top selection');
         if (isStepOne) {
             setSelectedImages((prevSelectedImages) => {
                 const isSelected = prevSelectedImages.some((img) => img.id === image.id);
+                console.log('Image already selected for deletion:', isSelected);
                 if (isSelected) {
                     return prevSelectedImages.filter((img) => img.id !== image.id);
                 } else {
@@ -148,9 +146,11 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
         } else {
             setTopImages((prevTopImages) => {
                 const isSelected = prevTopImages.some((img) => img.id === image.id);
+                console.log('Image already selected for top:', isSelected);
                 if (isSelected) {
                     return prevTopImages.filter((img) => img.id !== image.id);
                 } else {
+                    console.log('Adding to top images, current count:', prevTopImages.length);
                     return prevTopImages.length < 3 ? [...prevTopImages, image] : prevTopImages;
                 }
             });
@@ -158,21 +158,31 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleDeleteImages = async () => {
+        console.log('Deleting selected images:', selectedImages.length);
         try {
-            const response = await apiClient.post('/front/deleteImages', {
-                imageIds: selectedImages.map((image) => image.id),
+            if (selectedImages.length === 0) return;
+
+            // Just send the place_id and an array of imageIds to be deleted
+            const imageIds = selectedImages.map(image => image.id);
+            await apiClient.post('/front/deleteImages', {
+                imageIds: imageIds,
                 place_id: currentPlace?.place_id
             });
 
-            if (response.status === 200 && currentPlace) {
+            if (currentPlace) {
+                // Update the local state to reflect the deleted images
                 currentPlace.images = currentPlace.images.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                 );
 
                 const updatedDisplayedImages = currentPlace.images.slice(0, 15);
+                console.log('Updating displayed images, new count:', updatedDisplayedImages.length);
                 setDisplayedImages(updatedDisplayedImages);
                 setSelectedImages([]);
+
+                // If no images left, move to next place
                 if (updatedDisplayedImages.length === 0) {
+                    console.log('No images left after deletion, moving to next place');
                     await handleValidateImages();
                 }
             }
@@ -190,12 +200,17 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const handleValidateImages = async () => {
         try {
             const unseenImageIds = currentPlace?.images.slice(15).map((image) => image.id) || [];
+            console.log('Validating images, deleting unseen images:', unseenImageIds.length);
+
             if (unseenImageIds.length > 0) {
+                // Use the existing endpoint to delete images
                 await apiClient.post('/front/deleteImages', {
                     imageIds: unseenImageIds,
                     place_id: currentPlace?.place_id
                 });
+                console.log('Unseen images deleted successfully');
             }
+
             handleNext();
         } catch (error) {
             console.error('Error validating images:', error);
@@ -204,38 +219,40 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleSelectTop = async () => {
+        console.log('Selecting top images:', topImages.length);
         try {
-            // Select image IDs for the top 3
-            const response = await apiClient.post('/front/setTop', {
+            // Use existing setTop endpoint
+            await apiClient.post('/front/setTop', {
                 imageIds: topImages.map((image) => image.id),
                 place_id: currentPlace?.place_id
             });
 
-            if (response.status === 200 && currentPlace) {
-                // Filter out the IDs of images to keep (top 3 + displayed 15)
-                const idsToKeep = [
-                    ...topImages.map((image) => image.id),
-                    ...displayedImages.map((image) => image.id)
-                ];
+            console.log('Top images set successfully');
 
-                // Collect IDs of images that are not in the selected top or displayed images
-                const imagesToDelete = currentPlace.images
-                    .filter((image) => !idsToKeep.includes(image.id))
-                    .map((image) => image.id);
+            // Get IDs of images that are not displayed or top
+            const idsToKeep = [
+                ...topImages.map((image) => image.id),
+                ...displayedImages.map((image) => image.id)
+            ];
 
-                if (imagesToDelete.length > 0) {
-                    // Call the deleteImages endpoint to remove unwanted images
-                    await apiClient.post('/front/deleteImages', {
-                        imageIds: imagesToDelete,
-                        place_id: currentPlace?.place_id
-                    });
-                }
+            // Find images to delete (not in top or displayed)
+            const imagesToDelete = currentPlace?.images
+                .filter((image) => !idsToKeep.includes(image.id))
+                .map((image) => image.id) || [];
 
-                updatePlaceEnd(currentPlace.place_id);
-                setTopImages([]);
-                setIsStepOne(true);
-                handleNext();
+            // Delete non-essential images if there are any
+            if (imagesToDelete.length > 0) {
+                await apiClient.post('/front/deleteImages', {
+                    imageIds: imagesToDelete,
+                    place_id: currentPlace?.place_id
+                });
+                console.log('Non-top images deleted successfully');
             }
+
+            console.log('Marking place as complete:', currentPlace?.place_id);
+            setTopImages([]);
+            setIsStepOne(true);
+            handleNext();
         } catch (error) {
             console.error('Error setting top images:', error);
             alert('Failed to set top images');
@@ -243,19 +260,19 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     };
 
     const handleSetNeedsAttention = () => {
-        updatePlaceAbort(currentPlaceId);
         setShowModal(true);
     };
 
     const handleModalSubmit = async (details: string) => {
         try {
-            const response = await apiClient.put('/front/setNeedsAttention', {
-                place_id: currentPlace?.place_id,
+            // Use updatePlace to set needs_attention status
+            await updatePlace(currentPlace?.place_id as number, {
+                needs_attention: true,
+                checked: false,
                 details: details
             });
-            if (response.status === 200) {
-                handleNext();
-            }
+
+            handleNext();
         } catch (error) {
             console.error('Error setting as needing attention:', error);
             alert('Failed to set needing attention');
@@ -321,7 +338,6 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 <button
                     className="btn btn-primary"
                     onClick={() => {
-                        updatePlaceAbort(currentPlaceId);
                         navigate('/');
                     }}
                     disabled={isScraping}
