@@ -353,8 +353,14 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         try {
             fetchingRefs.current[fetchKey] = true;
 
-            // Send the update to the server
-            const response = await apiClient.put<{ message: string, place: any }>(`/front/updatePlace/${placeId}`, placeData);
+            // Create the request body with the ID included
+            const requestData = {
+                id: placeId,
+                ...placeData
+            };
+
+            // Send the update to the server with ID in the body instead of URL
+            const response = await apiClient.put<{ message: string, place: any }>('/front/updateSinglePlace', requestData);
             const updatedServerPlace = response.data.place;
             console.log('[PlacesContext] Place updated on server:', updatedServerPlace);
 

@@ -265,8 +265,12 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const handleModalSubmit = async (details: string) => {
         try {
+            if (!currentPlace?.place_id) {
+                throw new Error('No current place ID available');
+            }
+
             // Use updatePlace to set needs_attention status
-            await updatePlace(currentPlace?.place_id as number, {
+            await updatePlace(currentPlace.place_id, {
                 needs_attention: true,
                 checked: false,
                 details: details

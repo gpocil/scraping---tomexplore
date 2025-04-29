@@ -843,11 +843,11 @@ export const getAllPlacesNeedingAttention = async (req: Request, res: Response) 
 };
 
 export const updatePlace = async (req: Request, res: Response) => {
-    const placeId = req.params.id;
     const updatedPlaceData = req.body;
+    const placeId = updatedPlaceData.id;
 
     if (!placeId) {
-        return res.status(400).json({ error: 'Place ID is required' });
+        return res.status(400).json({ error: 'Place ID is required in request body' });
     }
 
     try {
