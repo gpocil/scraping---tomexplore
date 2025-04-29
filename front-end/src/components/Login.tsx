@@ -15,7 +15,7 @@ const Login: React.FC = () => {
     const [loading, setLoading] = useState(false); // État pour gérer le chargement
     const navigate = useNavigate();
     const { setUser } = useUser();
-    const { updatePlaces } = usePlaces();
+    const { getPreview } = usePlaces(); // Use getPreview instead of updatePlaces
 
     const handleLogin = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -34,7 +34,10 @@ const Login: React.FC = () => {
             if (userLogin && userId) {
                 setUser({ login: userLogin, userId, admin });
                 Cookies.set('user', JSON.stringify({ login: userLogin, userId, admin }), { expires: 1 / 12 }); // 2h
-                await updatePlaces(admin); 
+
+                // Fetch preview data instead of all data
+                await getPreview(admin);
+
                 navigate('/');
             } else {
                 setError('Invalid login or password');

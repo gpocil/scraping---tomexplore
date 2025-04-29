@@ -25,12 +25,16 @@ import './models';
 const app = express();
 const port = 3000;
 
-// const sslOptions = {
-//     key: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/privkey.pem'),
-//     cert: fs.readFileSync('/etc/letsencrypt/live/monblogdevoyage.com/fullchain.pem')
-// };
+// Define CORS options - allow all origins
+const corsOptions: CorsOptions = {
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+    optionsSuccessStatus: 204
+};
 
-app.use(cors());
+// Apply CORS middleware with options
+app.use(cors(corsOptions));
 console.log('CORS middleware is now applied to all origins.');
 
 app.use(bodyParser.json());

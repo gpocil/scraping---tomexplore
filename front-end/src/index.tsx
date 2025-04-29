@@ -11,3 +11,4 @@ root.render(
     <App />
   </React.StrictMode>
 );
+// "start": "WDS_SOCKET_PORT=0 PORT=3001 react-scripts start --disable-host-check", package.json

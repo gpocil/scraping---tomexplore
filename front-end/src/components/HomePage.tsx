@@ -6,9 +6,10 @@ import PhotoSelectorCity from './PhotoSelectorCity';
 import PhotoSelectorPlace from './PhotoSelectorPlace';
 import { useUser } from '../context/UserContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { Spinner } from 'react-bootstrap';
 
 const HomePage: React.FC = () => {
-    const { data: places } = usePlaces()
+    const { data: places, previewData, updatePlaces, getPreview, getUncheckedPlacesByCity } = usePlaces();
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
@@ -16,30 +17,51 @@ const HomePage: React.FC = () => {
     const [selectedCityPlaces, setSelectedCityPlaces] = useState<IPlace[]>([]);
     const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
     const [viewChecked, setViewChecked] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
-    const user = useUser().user; // Access the user object
+    const user = useUser().user;
 
+    // Check authentication
     useEffect(() => {
         if (!checkCookie()) {
             navigate('/login');
+        } else if (!previewData) {
+            // If user is authenticated but preview data isn't loaded, load it
+            if (user) {
+                getPreview(user.admin || false);
+            }
         }
+    }, [checkCookie, navigate, previewData, user, getPreview]);
 
-    }, [checkCookie, navigate]);
-
-
-
+    // Reset selected place when returning to homepage
     useEffect(() => {
         if (location.pathname === '/' || location.pathname === "") {
             setSelectedPlace(null);
         }
     }, [location]);
 
+    // Handle search
     useEffect(() => {
-        if (searchQuery) {
+        if (searchQuery && searchQuery.length >= 3) {
+            setIsLoading(true);
+            // If user is searching, load the full data to enable search functionality
+            updatePlaces(user?.admin || false)
+                .then(() => {
+                    setIsLoading(false);
+                })
+                .catch(() => {
+                    setIsLoading(false);
+                });
+        }
+    }, [searchQuery, updatePlaces, user?.admin]);
+
+    // Filter search results
+    useEffect(() => {
+        if (searchQuery && searchQuery.length >= 3 && places) {
             const newFilteredPlaces: { country: string; city: string; place: IPlace; status: string }[] = [];
 
-            ['unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => { // Exclut 'checked' pour non-admin
+            ['unchecked', 'needs_attention', 'to_be_deleted'].forEach(status => {
                 for (const country of Object.keys(places[status])) {
                     for (const city of Object.keys(places[status][country])) {
                         for (const place of Object.values(places[status][country][city] || {}).flat()) {
@@ -54,7 +76,7 @@ const HomePage: React.FC = () => {
                 }
             });
 
-            if (user?.admin) { // Inclut 'checked' uniquement pour admin
+            if (user?.admin) {
                 for (const country of Object.keys(places.checked)) {
                     for (const city of Object.keys(places.checked[country])) {
                         for (const place of Object.values(places.checked[country][city] || {}).flat()) {
@@ -75,14 +97,34 @@ const HomePage: React.FC = () => {
         }
     }, [searchQuery, places, user?.admin]);
 
-
+    // Load city data when navigating to a city
     useEffect(() => {
         if (countryName && cityName) {
-            const cityPlaces = viewChecked
-                ? places.checked[countryName]?.[cityName] || {}
-                : places.unchecked[countryName]?.[cityName] || {};
-            const flattenedPlaces = Object.values(cityPlaces).flat() as IPlace[];
+            setIsLoading(true);
+            if (viewChecked) {
+                // If viewing checked places, load full data since preview doesn't include details
+                updatePlaces(true).then(() => {
+                    setIsLoading(false);
+                });
+            } else {
+                // If viewing unchecked places, use our optimized endpoint
+                getUncheckedPlacesByCity(cityName)
+                    .then(data => {
+                        setSelectedCityPlaces(data.places);
+                        setIsLoading(false);
+                    })
+                    .catch(() => {
+                        setIsLoading(false);
+                    });
+            }
+        }
+    }, [countryName, cityName, viewChecked, updatePlaces, getUncheckedPlacesByCity]);
 
+    // Update selected city places from full data if needed
+    useEffect(() => {
+        if (countryName && cityName && viewChecked && places) {
+            const cityPlaces = places.checked[countryName]?.[cityName] || {};
+            const flattenedPlaces = Object.values(cityPlaces).flat() as IPlace[];
             setSelectedCityPlaces(flattenedPlaces);
         }
     }, [countryName, cityName, places, viewChecked]);
@@ -98,7 +140,19 @@ const HomePage: React.FC = () => {
         navigate('/');
     };
 
-    const getTotalCounts = () => {
+    // Calculate totals directly from previewData
+    const calculateTotals = () => {
+        if (!previewData) {
+            return {
+                totalCountries: 0,
+                totalCities: 0,
+                totalPlacesUnchecked: 0,
+                totalPlacesChecked: 0,
+                totalPlacesNeedsAttention: 0,
+                totalPlacesToBeDeleted: 0
+            };
+        }
+
         const uniqueCountries = new Set<string>();
         const uniqueCities = new Set<string>();
         let totalPlacesUnchecked = 0;
@@ -106,28 +160,51 @@ const HomePage: React.FC = () => {
         let totalPlacesNeedsAttention = 0;
         let totalPlacesToBeDeleted = 0;
 
-        const statuses = user?.admin ? ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'] : ['unchecked', 'needs_attention', 'to_be_deleted'];
-        
-        statuses.forEach(status => {
-            for (const country of Object.keys(places[status])) {
+        // Process unchecked places
+        for (const country of Object.keys(previewData.unchecked)) {
+            uniqueCountries.add(country);
+            for (const city of Object.keys(previewData.unchecked[country])) {
+                uniqueCities.add(`${country}-${city}`);
+                for (const placeName of Object.keys(previewData.unchecked[country][city])) {
+                    totalPlacesUnchecked += previewData.unchecked[country][city][placeName].place_count;
+                }
+            }
+        }
+
+        // Process needs_attention places
+        for (const country of Object.keys(previewData.needs_attention)) {
+            uniqueCountries.add(country);
+            for (const city of Object.keys(previewData.needs_attention[country])) {
+                uniqueCities.add(`${country}-${city}`);
+                for (const placeName of Object.keys(previewData.needs_attention[country][city])) {
+                    totalPlacesNeedsAttention += previewData.needs_attention[country][city][placeName].place_count;
+                }
+            }
+        }
+
+        // Process to_be_deleted places
+        for (const country of Object.keys(previewData.to_be_deleted)) {
+            uniqueCountries.add(country);
+            for (const city of Object.keys(previewData.to_be_deleted[country])) {
+                uniqueCities.add(`${country}-${city}`);
+                for (const placeName of Object.keys(previewData.to_be_deleted[country][city])) {
+                    totalPlacesToBeDeleted += previewData.to_be_deleted[country][city][placeName].place_count;
+                }
+            }
+        }
+
+        // Only process checked places if admin
+        if (user?.admin) {
+            for (const country of Object.keys(previewData.checked)) {
                 uniqueCountries.add(country);
-                for (const city of Object.keys(places[status][country])) {
+                for (const city of Object.keys(previewData.checked[country])) {
                     uniqueCities.add(`${country}-${city}`);
-
-                    const placesInCity = Object.values(places[status][country][city] || {}).flat();
-
-                    if (status === 'checked') {
-                        totalPlacesChecked += placesInCity.length;
-                    } else if (status === 'unchecked') {
-                        totalPlacesUnchecked += placesInCity.length;
-                    } else if (status === 'needs_attention') {
-                        totalPlacesNeedsAttention += placesInCity.length;
-                    } else if (status === 'to_be_deleted') {
-                        totalPlacesToBeDeleted += placesInCity.length;
+                    for (const placeName of Object.keys(previewData.checked[country][city])) {
+                        totalPlacesChecked += previewData.checked[country][city][placeName].place_count;
                     }
                 }
             }
-        });
+        }
 
         return {
             totalCountries: uniqueCountries.size,
@@ -139,28 +216,48 @@ const HomePage: React.FC = () => {
         };
     };
 
+    // Get counts for a country directly from previewData
     const getCountsForCountry = (countryName: string, viewChecked: boolean) => {
-        const countryData = viewChecked ? places.checked[countryName] : places.unchecked[countryName];
+        if (!previewData) return { cityCount: 0, placeCount: 0 };
+
+        const countryData = viewChecked ? previewData.checked[countryName] : previewData.unchecked[countryName];
         const cityCount = Object.keys(countryData || {}).length;
         let placeCount = 0;
 
         for (const city of Object.keys(countryData || {})) {
-            const placesInCity = Object.values(countryData[city] || {}).flat() as IPlace[];
-
-            placeCount += placesInCity.length;
+            for (const placeName of Object.keys(countryData[city] || {})) {
+                placeCount += countryData[city][placeName].place_count;
+            }
         }
 
         return { cityCount, placeCount };
     };
 
+    // Get counts for a city directly from previewData
     const getCountsForCity = (countryName: string, cityName: string, viewChecked: boolean) => {
-        const cityData = viewChecked ? places.checked[countryName]?.[cityName] : places.unchecked[countryName]?.[cityName];
-        const placesInCity = Object.values(cityData || {}).flat() as IPlace[];
+        if (!previewData) return 0;
 
-        return placesInCity.length;
+        const cityData = viewChecked ? previewData.checked[countryName]?.[cityName] : previewData.unchecked[countryName]?.[cityName];
+        let placeCount = 0;
+
+        for (const placeName of Object.keys(cityData || {})) {
+            placeCount += cityData[placeName].place_count;
+        }
+
+        return placeCount;
     };
 
-    const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention, totalPlacesToBeDeleted } = getTotalCounts();
+    const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention, totalPlacesToBeDeleted } = calculateTotals();
+
+    if (isLoading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <Spinner animation="border" role="status">
+                    <span className="visually-hidden">Chargement...</span>
+                </Spinner>
+            </div>
+        );
+    }
 
     if (selectedPlace) {
         return <PhotoSelectorPlace place={selectedPlace} onComplete={handlePlaceComplete} />;
@@ -168,6 +265,16 @@ const HomePage: React.FC = () => {
 
     if (countryName && cityName && selectedCityPlaces.length > 0) {
         return <PhotoSelectorCity places={selectedCityPlaces} cityName={cityName} />;
+    }
+
+    if (!previewData) {
+        return (
+            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <Spinner animation="border" role="status">
+                    <span className="visually-hidden">Chargement...</span>
+                </Spinner>
+            </div>
+        );
     }
 
     return (
@@ -218,10 +325,9 @@ const HomePage: React.FC = () => {
                         <strong>🍻 Lieux à traiter :</strong> {totalPlacesUnchecked}
                     </li>
                     {user?.admin && (
-
-                    <li className="list-group-item">
-                        <strong>🍻 Lieux traités :</strong> {totalPlacesChecked}
-                    </li>
+                        <li className="list-group-item">
+                            <strong>🍻 Lieux traités :</strong> {totalPlacesChecked}
+                        </li>
                     )}
                     <li className="list-group-item">
                         <strong>🚨 Lieux nécessitant une attention :</strong> {totalPlacesNeedsAttention}
@@ -236,12 +342,12 @@ const HomePage: React.FC = () => {
                 <input
                     type="text"
                     className="form-control w-50"
-                    placeholder="Chercher un lieu par nom ou ID"
+                    placeholder="Chercher un lieu par nom ou ID (min. 3 caractères)"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                 />
             </div>
-            {searchQuery && (
+            {searchQuery && searchQuery.length >= 3 && (
                 <div className="d-flex justify-content-center">
                     <ul className="list-group w-50">
                         {filteredPlaces.map(({ country, city, place, status }) => (
@@ -255,11 +361,16 @@ const HomePage: React.FC = () => {
                                 </div>
                             </li>
                         ))}
+                        {filteredPlaces.length === 0 && searchQuery.length >= 3 && (
+                            <li className="list-group-item text-center">
+                                Aucun résultat trouvé
+                            </li>
+                        )}
                     </ul>
                 </div>
             )}
             <div className="row">
-                {Object.keys(places[viewChecked ? 'checked' : 'unchecked']).map(countryName => {
+                {Object.keys(previewData[viewChecked ? 'checked' : 'unchecked']).map(countryName => {
                     const { cityCount, placeCount } = getCountsForCountry(countryName, viewChecked);
                     return (
                         <div key={countryName} className="col-md-4 mb-4">
@@ -270,7 +381,7 @@ const HomePage: React.FC = () => {
                                     </h5>
                                 </div>
                                 <div className="card-body">
-                                    {Object.keys(places[viewChecked ? 'checked' : 'unchecked'][countryName]).map(cityName => (
+                                    {Object.keys(previewData[viewChecked ? 'checked' : 'unchecked'][countryName]).map(cityName => (
                                         <div key={cityName} className="mb-2">
                                             <h6 className="text-secondary">
                                                 {viewChecked ? (

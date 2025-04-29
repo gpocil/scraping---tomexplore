@@ -50,6 +50,116 @@ interface ResponseStructure {
 
 }
 
+interface CountResponse {
+    place_count: number;
+    image_count: number;
+}
+
+interface CityCountResponse {
+    [placeName: string]: CountResponse;
+}
+
+interface CountryCountResponse {
+    [cityName: string]: CityCountResponse;
+}
+
+interface PreviewResponseStructure {
+    checked: { [countryName: string]: CountryCountResponse };
+    unchecked: { [countryName: string]: CountryCountResponse };
+    needs_attention: { [countryName: string]: CountryCountResponse };
+    to_be_deleted: { [countryName: string]: CountryCountResponse };
+}
+
+export const getPreview = async (req: Request, res: Response) => {
+    try {
+        const isAdmin = req.query.admin === 'true';
+        console.log('Getting preview with admin =', isAdmin);
+
+        // Condition pour exclure les lieux "checked" si l'utilisateur n'est pas admin
+        const whereCondition = isAdmin ? {} : { checked: false };
+
+        const places = await Place.findAll({
+            where: whereCondition,
+            include: [
+                {
+                    model: Image,
+                    as: 'images',
+                    attributes: ['id'],
+                    required: false,
+                },
+                {
+                    model: City,
+                    as: 'city',
+                    attributes: ['name', 'country_id'],
+                    include: [
+                        {
+                            model: Country,
+                            as: 'country',
+                            attributes: ['name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!places.length) {
+            return res.status(404).json({ error: 'No places found' });
+        }
+
+        const response: PreviewResponseStructure = { checked: {}, unchecked: {}, needs_attention: {}, to_be_deleted: {} };
+
+        places.forEach(place => {
+            const city = place.getDataValue('city');
+            const country = city ? city.getDataValue('country') : null;
+            const images = place.getDataValue('images') || [];
+            const checked = place.getDataValue('checked');
+            const needsAttention = place.getDataValue('needs_attention');
+            const toBeDeleted = place.getDataValue('to_be_deleted');
+
+            let checkedStatus: 'checked' | 'unchecked' | 'needs_attention' | 'to_be_deleted';
+            if (toBeDeleted) {
+                checkedStatus = 'to_be_deleted';
+            } else if (checked) {
+                checkedStatus = 'checked';
+            } else if (needsAttention) {
+                checkedStatus = 'needs_attention';
+            } else {
+                checkedStatus = 'unchecked';
+            }
+
+            if (country) {
+                if (!response[checkedStatus][country.name]) {
+                    response[checkedStatus][country.name] = {};
+                }
+
+                if (city) {
+                    if (!response[checkedStatus][country.name][city.name]) {
+                        response[checkedStatus][country.name][city.name] = {};
+                    }
+
+                    if (!response[checkedStatus][country.name][city.name][place.name_eng]) {
+                        response[checkedStatus][country.name][city.name][place.name_eng] = {
+                            place_count: 0,
+                            image_count: 0
+                        };
+                    }
+
+                    // Increment the place count
+                    response[checkedStatus][country.name][city.name][place.name_eng].place_count += 1;
+
+                    // Add image count
+                    response[checkedStatus][country.name][city.name][place.name_eng].image_count += images.length;
+                }
+            }
+        });
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching places preview:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 export const getPlacesWithImages = async (req: Request, res: Response) => {
     try {
         const isAdmin = req.query.admin === 'true';
@@ -136,7 +246,7 @@ export const getPlacesWithImages = async (req: Request, res: Response) => {
                         has_needed_attention: place.has_needed_attention,
                         details: place.details,
                         type: place.type,
-                        photos_deleted:place.photos_deleted
+                        photos_deleted: place.photos_deleted
                     };
 
                     if (!response[checkedStatus][country.name][city.name][place.name_eng]) {
@@ -578,6 +688,156 @@ export const updateGoogleMaps = async (req: Request, res: Response) => {
         res.status(200).json({ message: 'Google maps images scraped successfully', place, scrapeResult });
     } catch (error) {
         console.error('Error updating Google maps images:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const getUncheckedPlacesByCity = async (req: Request, res: Response) => {
+    const cityName = req.params.cityName;
+    console.log(`Fetching unchecked places for city: ${cityName}`);
+
+    if (!cityName) {
+        return res.status(400).json({ error: 'City name is required' });
+    }
+
+    try {
+        // Find city by name first
+        const city = await City.findOne({
+            where: { name: cityName },
+            include: [
+                {
+                    model: Country,
+                    as: 'associatedCountry',
+                    attributes: ['name']
+                }
+            ]
+        });
+
+        if (!city) {
+            return res.status(404).json({ error: `City not found: ${cityName}` });
+        }
+
+        // Find all unchecked places for this city
+        const places = await Place.findAll({
+            where: {
+                city_id: city.id,
+                checked: false,
+                to_be_deleted: false
+            },
+            include: [
+                {
+                    model: Image,
+                    as: 'images',
+                    attributes: ['id', 'image_name', 'original_url']
+                }
+            ]
+        });
+
+        if (!places.length) {
+            return res.status(404).json({ error: `No unchecked places found for city: ${cityName}` });
+        }
+
+        // Format the response
+        const response = places.map(place => {
+            const images = place.getDataValue('images') || [];
+
+            return {
+                place_id: place.id_tomexplore,
+                place_name: place.name_eng,
+                place_name_original: place.name_original,
+                wikipedia_link: place.wikipedia_link || '',
+                google_maps_link: place.google_maps_link || '',
+                instagram_link: place.instagram_link || '',
+                unsplash_link: place.unsplash_link || '',
+                type: place.type,
+                needs_attention: place.needs_attention,
+                details: place.details,
+                images: images.map((image: { id: number, image_name: string, original_url: string }) => ({
+                    id: image.id,
+                    image_name: image.image_name,
+                    url: `https://monblogdevoyage.com/images/${encodeURIComponent(place.folder)}/${image.image_name}`,
+                    source: image.original_url
+                }))
+            };
+        });
+
+        const countryName = city.getDataValue('associatedCountry')?.name || 'Unknown';
+
+        res.json({
+            city: cityName,
+            country: countryName,
+            places: response
+        });
+    } catch (error) {
+        console.error('Error fetching unchecked places by city:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+export const getAllPlacesNeedingAttention = async (req: Request, res: Response) => {
+    console.log('Fetching all places needing attention');
+
+    try {
+        // Find all places marked as needing attention
+        const places = await Place.findAll({
+            where: {
+                needs_attention: true
+            },
+            include: [
+                {
+                    model: Image,
+                    as: 'images',
+                    attributes: ['id', 'image_name', 'original_url']
+                },
+                {
+                    model: City,
+                    as: 'city',
+                    attributes: ['name'],
+                    include: [
+                        {
+                            model: Country,
+                            as: 'country',
+                            attributes: ['name']
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (!places.length) {
+            return res.status(404).json({ error: 'No places needing attention found' });
+        }
+
+        // Format the response to include city and country info
+        const response = places.map(place => {
+            const images = place.getDataValue('images') || [];
+            const city = place.getDataValue('city');
+            const country = city ? city.getDataValue('country') : null;
+
+            return {
+                place_id: place.id_tomexplore,
+                place_name: place.name_eng,
+                place_name_original: place.name_original,
+                wikipedia_link: place.wikipedia_link || '',
+                google_maps_link: place.google_maps_link || '',
+                instagram_link: place.instagram_link || '',
+                unsplash_link: place.unsplash_link || '',
+                type: place.type,
+                details: place.details,
+                city_name: city ? city.name : '',
+                country_name: country ? country.name : '',
+                images: images.map((image: { id: number, image_name: string, original_url: string }) => ({
+                    id: image.id,
+                    image_name: image.image_name,
+                    url: `https://monblogdevoyage.com/images/${encodeURIComponent(place.folder)}/${image.image_name}`,
+                    source: image.original_url
+                }))
+            };
+        });
+
+        res.json(response);
+    } catch (error) {
+        console.error('Error fetching places needing attention:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
