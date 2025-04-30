@@ -7,6 +7,7 @@ import {
     getUncheckedPlacesByCity as getUncheckedPlacesByCityFromDB, saveUncheckedPlacesByCity,
     getPlacesNeedingAttention as getPlacesNeedingAttentionFromDB, savePlacesNeedingAttention,
     getSinglePlace, saveSinglePlace,
+    clearAllData,
 } from '../util/indexedDBService';
 
 interface PlaceContextType {
@@ -20,6 +21,7 @@ interface PlaceContextType {
     getPreview: (isAdmin: boolean) => Promise<void>;
     getUncheckedPlacesByCity: (cityName: string) => Promise<IPlacesByCity>;
     getPlacesNeedingAttention: () => Promise<IPlaceNeedingAttention[]>;
+    refreshAllData: (isAdmin: boolean) => Promise<void>;
 }
 
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
@@ -338,6 +340,56 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // Add a new function to refresh all data
+    const refreshAllData = useCallback(async (isAdmin: boolean): Promise<void> => {
+        console.log("[PlacesContext] refreshAllData called - Admin:", isAdmin);
+        const refreshKey = `refreshAll_${isAdmin}`;
+
+        if (fetchingRefs.current[refreshKey]) {
+            console.log('[PlacesContext] A refresh is already in progress');
+            return Promise.resolve();
+        }
+
+        try {
+            fetchingRefs.current[refreshKey] = true;
+            console.log('[PlacesContext] Clearing all IndexedDB data');
+
+            // Clear all IndexedDB data
+            await clearAllData();
+
+            // Reset cache references
+            cityDataCache.current = {};
+            requestsMade.current = {};
+
+            // Fetch fresh preview data
+            console.log('[PlacesContext] Fetching fresh preview data');
+            const previewUrl = `/front/getPreview?admin=${isAdmin}`;
+            const previewResponse = await apiClient.get<IPreviewResponseStructure>(previewUrl);
+            setPreviewData(previewResponse.data);
+            await savePreviewData(previewResponse.data, isAdmin);
+
+            // Fetch fresh places data (if we're in a state where we need it)
+            console.log('[PlacesContext] Fetching fresh places data');
+            const placesUrl = `/front/getAllImages?admin=${isAdmin}`;
+            const placesResponse = await apiClient.get<IResponseStructure>(placesUrl);
+            setData(placesResponse.data);
+            await savePlacesData(placesResponse.data, isAdmin);
+
+            // Fetch fresh places needing attention
+            console.log('[PlacesContext] Fetching fresh places needing attention');
+            const attentionResponse = await apiClient.get<IPlaceNeedingAttention[]>('/front/getAllPlacesNeedingAttention');
+            setPlacesNeedingAttention(attentionResponse.data);
+            await savePlacesNeedingAttention(attentionResponse.data);
+
+            console.log('[PlacesContext] All data refreshed successfully');
+            return Promise.resolve();
+        } catch (error) {
+            console.error('[PlacesContext] Error refreshing data:', error);
+            return Promise.reject(error);
+        } finally {
+            fetchingRefs.current[refreshKey] = false;
+        }
+    }, []);
 
     console.log('[PlacesContext] Context rendering with data lengths:',
         Object.keys(data.unchecked).length,
@@ -355,6 +407,7 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         getPreview,
         getUncheckedPlacesByCity,
         getPlacesNeedingAttention,
+        refreshAllData,
     }), [
         data,
         previewData,
@@ -365,7 +418,8 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         updateSinglePlace,
         getPreview,
         getUncheckedPlacesByCity,
-        getPlacesNeedingAttention
+        getPlacesNeedingAttention,
+        refreshAllData
     ]);
 
     return (

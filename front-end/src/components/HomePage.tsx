@@ -9,7 +9,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { Spinner } from 'react-bootstrap';
 
 const HomePage: React.FC = () => {
-    const { data: places, previewData, updatePlaces, getPreview, getUncheckedPlacesByCity } = usePlaces();
+    const { data: places, previewData, updatePlaces, getPreview, getUncheckedPlacesByCity, refreshAllData } = usePlaces();
     const [searchQuery, setSearchQuery] = useState('');
     const { checkCookie, setUser } = useUser();
     const [filteredPlaces, setFilteredPlaces] = useState<{ country: string; city: string; place: IPlace; status: string }[]>([]);
@@ -18,6 +18,7 @@ const HomePage: React.FC = () => {
     const [selectedPlace, setSelectedPlace] = useState<IPlace | null>(null);
     const [viewChecked, setViewChecked] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const user = useUser().user;
@@ -247,6 +248,29 @@ const HomePage: React.FC = () => {
         return placeCount;
     };
 
+    // Handle refresh all data
+    const handleRefreshAll = () => {
+        if (isRefreshing) return;
+
+        setIsRefreshing(true);
+        refreshAllData(user?.admin || false)
+            .then(() => {
+                setIsRefreshing(false);
+                // If we're on a city page, reload the city data
+                if (countryName && cityName) {
+                    getUncheckedPlacesByCity(cityName)
+                        .then(data => {
+                            setSelectedCityPlaces(data.places);
+                        })
+                        .catch(error => console.error('Error refreshing city data:', error));
+                }
+            })
+            .catch(error => {
+                console.error('Error refreshing all data:', error);
+                setIsRefreshing(false);
+            });
+    };
+
     const { totalCountries, totalCities, totalPlacesUnchecked, totalPlacesChecked, totalPlacesNeedsAttention, totalPlacesToBeDeleted } = calculateTotals();
 
     if (isLoading) {
@@ -279,15 +303,32 @@ const HomePage: React.FC = () => {
 
     return (
         <div className="container mt-5">
-            <button
-                className="btn btn-danger"
-                onClick={() => {
-                    setUser(null);
-                    document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                }}
-            >
-                Déconnexion
-            </button>
+            <div className="d-flex justify-content-between mb-4">
+                <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                        setUser(null);
+                        document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                    }}
+                >
+                    Déconnexion
+                </button>
+
+                <button
+                    className="btn btn-success"
+                    onClick={handleRefreshAll}
+                    disabled={isRefreshing}
+                >
+                    {isRefreshing ? (
+                        <>
+                            <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" />
+                            <span className="ms-2">Rafraîchissement...</span>
+                        </>
+                    ) : (
+                        "🔄 Rafraîchir toutes les données"
+                    )}
+                </button>
+            </div>
 
             <h1 className="mb-4 text-center">{viewChecked ? 'Lieux traités ✅' : 'Lieux à traiter ❌'}</h1>
             {user?.admin && (

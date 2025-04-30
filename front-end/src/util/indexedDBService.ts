@@ -115,6 +115,43 @@ const getData = async <T>(storeName: string, key: string): Promise<T | null> => 
     }
 };
 
+// Clear all data from IndexedDB
+export const clearAllData = async (): Promise<void> => {
+    console.log('[IndexedDB] Clearing all data from database');
+    try {
+        const db = await initDB();
+        return new Promise((resolve, reject) => {
+            const storeNames = Object.values(STORES);
+            let completedStores = 0;
+
+            storeNames.forEach(storeName => {
+                const transaction = db.transaction(storeName, 'readwrite');
+                const store = transaction.objectStore(storeName);
+                const request = store.clear();
+
+                request.onsuccess = () => {
+                    console.log(`[IndexedDB] Successfully cleared store: ${storeName}`);
+                    completedStores++;
+                    if (completedStores === storeNames.length) {
+                        console.log('[IndexedDB] All stores cleared successfully');
+                        db.close();
+                        resolve();
+                    }
+                };
+
+                request.onerror = () => {
+                    console.error(`[IndexedDB] Error clearing store: ${storeName}`, request.error);
+                    db.close();
+                    reject(request.error);
+                };
+            });
+        });
+    } catch (error) {
+        console.error('[IndexedDB] Error clearing database:', error);
+        throw error;
+    }
+};
+
 // Specific functions for the different data types
 export const savePlacesData = (data: IResponseStructure, isAdmin: boolean): Promise<void> => {
     console.log(`[IndexedDB] Saving all places data, isAdmin: ${isAdmin}`);
