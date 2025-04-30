@@ -19,7 +19,6 @@ router.post('/setPlaceToBeDeleted', ImageController.setPlaceToBeDeleted);
 router.post('/updateInstagram', ImageController.updateInstagram);
 router.post('/updateWikimedia', ImageController.updateWikimedia);
 router.post('/updateGoogle', ImageController.updateGoogleMaps);
-router.post('/updatePlace', ImageController.updatePlace);
 router.get('/getPlace/:id', ImageController.getSinglePlace);
 
 export default router;

@@ -7,6 +7,7 @@ import { usePlaces } from '../context/PlacesContext';
 import { useUser } from '../context/UserContext';
 import NeedsAttentionDetails from './modals/NeedsAttentionModal'; // Import du modal
 import { Spinner } from 'react-bootstrap';
+import { saveSinglePlace } from '../util/indexedDBService'; // Import for IndexedDB sync
 
 interface PhotoSelectorCityProps {
     places: IPlace[];
@@ -18,7 +19,6 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
     const navigate = useNavigate();
     const { checkCookie } = useUser();
-    const { updatePlaces, getUncheckedPlacesByCity, updatePlace } = usePlaces();
     const [currentPlaceId, setCurrentPlaceId] = useState(places[0]?.place_id);
     const [selectedImages, setSelectedImages] = useState<IImage[]>([]);
     const [topImages, setTopImages] = useState<IImage[]>([]);
@@ -171,14 +171,27 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
             if (currentPlace) {
                 // Update the local state to reflect the deleted images
-                currentPlace.images = currentPlace.images.filter(
+                const updatedImages = currentPlace.images.filter(
                     (image) => !selectedImages.some((selectedImage) => selectedImage.id === image.id)
                 );
 
-                const updatedDisplayedImages = currentPlace.images.slice(0, 15);
+                // Create an updated place object
+                const updatedPlace = {
+                    ...currentPlace,
+                    images: updatedImages
+                };
+
+                // Update the displayed images for the UI
+                const updatedDisplayedImages = updatedImages.slice(0, 15);
                 console.log('Updating displayed images, new count:', updatedDisplayedImages.length);
                 setDisplayedImages(updatedDisplayedImages);
                 setSelectedImages([]);
+
+                // Sync with IndexedDB
+                if (currentPlace.place_id) {
+                    console.log('Syncing updated place with IndexedDB:', currentPlace.place_id);
+                    await saveSinglePlace(currentPlace.place_id, updatedPlace);
+                }
 
                 // If no images left, move to next place
                 if (updatedDisplayedImages.length === 0) {
@@ -269,12 +282,22 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
                 throw new Error('No current place ID available');
             }
 
-            // Use updatePlace to set needs_attention status
-            await updatePlace(currentPlace.place_id, {
-                needs_attention: true,
-                checked: false,
+            // Use the correct endpoint for setting a place as needing attention
+            await apiClient.put('/front/setNeedsAttention', {
+                place_id: currentPlace.place_id,
                 details: details
             });
+
+            // Create an updated place object with the needs_attention flag
+            const updatedPlace = {
+                ...currentPlace,
+                needs_attention: true,
+                details: details
+            };
+
+            // Sync with IndexedDB
+            console.log('Syncing place needing attention with IndexedDB:', currentPlace.place_id);
+            await saveSinglePlace(currentPlace.place_id, updatedPlace);
 
             handleNext();
         } catch (error) {
@@ -299,12 +322,25 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
     const handleInstagramUpdate = async () => {
         setIsScraping(true);
         try {
+            // Update the Instagram link in the database
             const response = await apiClient.post('/front/updateInstagram', {
                 place_id: currentPlace?.place_id,
                 instagram_link: instagramLink
             });
 
             if (response.status === 200) {
+                // Create an updated place object with the new Instagram link
+                if (currentPlace) {
+                    const updatedPlace = {
+                        ...currentPlace,
+                        instagram_link: instagramLink
+                    };
+
+                    // Sync with IndexedDB
+                    console.log('Syncing updated Instagram link with IndexedDB:', currentPlace.place_id);
+                    await saveSinglePlace(currentPlace.place_id, updatedPlace);
+                }
+
                 alert('Images Instagram récupérées');
             }
         } catch (error) {

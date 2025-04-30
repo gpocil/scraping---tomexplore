@@ -1,13 +1,8 @@
 import { Request, Response } from 'express';
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import https from 'https';
 import * as ProxyController from '../ProxyController';
-import path from 'path';
-import fs from 'fs';
 
-puppeteer.use(StealthPlugin());
-
-export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
+export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string, source?: string }> {
   const username = req ? req.body.username as string : '';
 
   if (!username) {
@@ -19,172 +14,87 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
     return { urls: [], count: 0, error };
   }
 
+  return new Promise((resolve, reject) => {
+    try {
+      console.log(`Fetching Instagram images for user: ${username}`);
 
-  let browser;
-  try {
-    const proxy = ProxyController.getRandomProxy();
-    console.log("Using proxy: " + proxy.address);
-
-    browser = await puppeteer.launch({
-      headless: "new",
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--start-fullscreen',
-        `--proxy-server=${proxy.address}`,
-      ],
-    });
-    console.log('Browser launched');
-
-    const page = await browser.newPage();
-    console.log('New page opened');
-
-    // Set the viewport to a larger resolution
-    await page.setViewport({
-      width: 1920,  // Increase the width
-      height: 1080, // Increase the height
-    });
-    console.log('Viewport set to 1920x1080');
-
-
-    await page.authenticate({ username: proxy.username, password: proxy.pw });
-    console.log('Proxy authenticated');
-
-
-    await page.goto(`https://www.picuki.com/profile/${username}/`, {
-      waitUntil: 'networkidle2',
-    });
-    console.log(`Navigated to picuki page of ${username}`);
-
-
-    const pageNotFound = await page.evaluate(() => {
-      return document.body.textContent?.includes("Sorry, this page isn't available.") ||
-        document.querySelector('h1')?.textContent === '404' ||
-        false;
-    });
-
-    if (pageNotFound) {
-      const error = "No Instagram account found, check spelling";
-      console.log(error);
-
-      if (res) {
-        res.status(500).json({ error });
-      }
-      await browser.close();
-      console.log('Browser closed');
-      return { urls: [], count: 0, error };
-    }
-
-    await page.waitForSelector('div.photo');
-    console.log('Image container detected');
-
-
-    const targetDivSelector = '.box-photo';
-    await page.waitForSelector(targetDivSelector);
-    const targetDiv = await page.$(targetDivSelector);
-    console.log('Target div detected');
-
-
-    if (targetDiv) {
-      await targetDiv.hover();
-      console.log('Hovered over the target div');
-
-      let imageUrls: string[] = [];
-      let attempts = 0;
-      const maxAttempts = 4;
-
-      while (attempts < maxAttempts) {
-        if (imageUrls.length === 12) {
-          const loadMoreButton = await page.$('button.pagination-failed-retry');
-
-          if (loadMoreButton) {
-            console.log('Clicking "Load More" button');
-
-            await page.evaluate((btn) => btn.style.display = 'block', loadMoreButton);
-            await loadMoreButton.click();
-
-            await page.evaluate((btn) => {
-              btn.style.display = 'block';
-              btn.scrollIntoView();
-            }, loadMoreButton);
-
-            await page.waitForTimeout(500);
-
-            for (let i = 0; i < 3; i++) {
-              await page.mouse.wheel({ deltaY: 1000 });
-              console.log(`Scrolled down ${i + 1} times after clicking "Load More" button`);
-              await page.waitForTimeout(742);
-            }
-
-
-            const isVisible = await page.evaluate((btn) => {
-              const rect = btn.getBoundingClientRect();
-              return rect.width > 0 && rect.height > 0 && rect.top >= 0;
-            }, loadMoreButton);
-
-            if (isVisible) {
-              await loadMoreButton.click();
-              console.log('Button clicked');
-            } else {
-              console.log('Button is not visible, skipping click');
-            }
-
-            await page.waitForTimeout(823);
-            attempts++;
-            continue;
-          }
+      const options = {
+        method: 'GET',
+        hostname: 'instagram230.p.rapidapi.com',
+        port: null,
+        path: `/user/posts?username=${encodeURIComponent(username)}`,
+        headers: {
+          'x-rapidapi-key': 'fec6d0631bmshcf4428bf097f45bp13dc75jsn39ecb3f96346',
+          'x-rapidapi-host': 'instagram230.p.rapidapi.com'
         }
-
-        for (let i = 0; i < 3; i++) {
-          await page.mouse.wheel({ deltaY: 1000 });
-          console.log(`Scrolled down ${i + 1} times`);
-          await page.waitForTimeout(482);
-        }
-
-        await page.waitForTimeout(1682);
-        imageUrls = await page.evaluate(() => {
-          const imgs = Array.from(document.querySelectorAll('div.photo img'));
-          return imgs
-            .filter(img => !(img as HTMLImageElement).alt.includes('©'))
-            .map(img => (img as HTMLImageElement).src);
-        });
-
-        console.log(`Found ${imageUrls.length} image URLs after scrolling`);
-        attempts++;
-      }
-
-      const result = {
-        urls: imageUrls,
-        count: imageUrls.length,
       };
 
-      if (res) {
-        res.json(result);
-      }
+      const apiReq = https.request(options, (apiRes) => {
+        const chunks: Buffer[] = [];
 
-      await browser.close();
-      console.log('Browser closed');
-      return result;
-    } else {
-      const error = 'Target div not found';
-      console.log(error);
+        apiRes.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
 
+        apiRes.on('end', () => {
+          try {
+            const body = Buffer.concat(chunks).toString();
+            const data = JSON.parse(body);
+
+            if (!data.items || !Array.isArray(data.items)) {
+              const error = 'Invalid response format from Instagram API';
+              console.error(error);
+              if (res) {
+                res.status(500).json({ error });
+              }
+              resolve({ urls: [], count: 0, error, source: 'Instagram' });
+              return;
+            }
+
+            // Extract image URLs from the display_uri field
+            const imageUrls = data.items
+              .filter((item: { display_uri: any; image_versions2: { candidates: any; }; }) => item.display_uri || (item.image_versions2 && item.image_versions2.candidates))
+              .map((item: { display_uri: any; image_versions2: { candidates: { url: any; }[]; }; }) => item.display_uri || (item.image_versions2.candidates[0]?.url))
+              .filter(Boolean);
+
+            console.log(`Found ${imageUrls.length} Instagram images for user ${username}`);
+
+            const result = {
+              urls: imageUrls,
+              count: imageUrls.length,
+              source: 'Instagram'
+            };
+
+            if (res) {
+              res.json(result);
+            }
+
+            resolve(result);
+          } catch (error: any) {
+            console.error(`Error parsing Instagram API response: ${error.message}`);
+            if (res) {
+              res.status(500).json({ error: error.message });
+            }
+            resolve({ urls: [], count: 0, error: error.message, source: 'Instagram' });
+          }
+        });
+      });
+
+      apiReq.on('error', (error) => {
+        console.error(`Error fetching Instagram images: ${error.message}`);
+        if (res) {
+          res.status(500).json({ error: error.message });
+        }
+        resolve({ urls: [], count: 0, error: error.message, source: 'Instagram' });
+      });
+
+      apiReq.end();
+    } catch (error: any) {
+      console.error(`Error in Instagram API request: ${error.message}`);
       if (res) {
-        res.status(500).json({ error });
+        res.status(500).json({ error: error.message });
       }
-      await browser.close();
-      console.log('Browser closed');
-      return { urls: [], count: 0, error };
+      resolve({ urls: [], count: 0, error: error.message, source: 'Instagram' });
     }
-  } catch (error: any) {
-    console.error(`Error fetching Instagram images: ${error.message}`);
-    if (browser) {
-      await browser.close();
-      console.log('Browser closed');
-    }
-    if (res) {
-      res.status(500).json({ error: error.message });
-    }
-    return { urls: [], count: 0, error: error.message };
-  }
+  });
 }

@@ -7,7 +7,6 @@ import {
     getUncheckedPlacesByCity as getUncheckedPlacesByCityFromDB, saveUncheckedPlacesByCity,
     getPlacesNeedingAttention as getPlacesNeedingAttentionFromDB, savePlacesNeedingAttention,
     getSinglePlace, saveSinglePlace,
-    updatePlaceInIndexedDB
 } from '../util/indexedDBService';
 
 interface PlaceContextType {
@@ -21,7 +20,6 @@ interface PlaceContextType {
     getPreview: (isAdmin: boolean) => Promise<void>;
     getUncheckedPlacesByCity: (cityName: string) => Promise<IPlacesByCity>;
     getPlacesNeedingAttention: () => Promise<IPlaceNeedingAttention[]>;
-    updatePlace: (placeId: number, placeData: Partial<IPlace>) => Promise<IPlace>;
 }
 
 const PlaceContext = createContext<PlaceContextType | undefined>(undefined);
@@ -340,176 +338,6 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const updatePlace = async (placeId: number, placeData: Partial<IPlace>): Promise<IPlace> => {
-        console.log('[PlacesContext] updatePlace called for ID:', placeId, 'with data:', placeData);
-
-        // Check if a fetch is already in progress for this request
-        const fetchKey = `updatePlace_${placeId}`;
-        if (fetchingRefs.current[fetchKey]) {
-            console.log('[PlacesContext] An update is already in progress for:', fetchKey);
-            return Promise.reject(new Error('An update is already in progress for this place'));
-        }
-
-        try {
-            fetchingRefs.current[fetchKey] = true;
-
-            // Create the request body with the ID included
-            const requestData = {
-                id: placeId,
-                ...placeData
-            };
-
-            // Send the update to the server with ID in the body instead of URL
-            const response = await apiClient.put<{ message: string, place: any }>('/front/updateSinglePlace', requestData);
-            const updatedServerPlace = response.data.place;
-            console.log('[PlacesContext] Place updated on server:', updatedServerPlace);
-
-            // Find the existing place in our data
-            const existingPlace = findPlaceById(placeId);
-            if (!existingPlace) {
-                console.warn('[PlacesContext] Place not found in local data, updating server only');
-                return updatedServerPlace;
-            }
-
-            // Create updated place with the new data but keep existing structure
-            const updatedPlace: IPlace = {
-                ...existingPlace,
-                ...placeData,
-                // Ensure these fields are present
-                place_id: placeId,
-                place_name: placeData.place_name || existingPlace.place_name,
-                place_name_original: placeData.place_name_original || existingPlace.place_name_original,
-                images: existingPlace.images // Keep the existing images
-            };
-
-            // Update IndexedDB
-            await updatePlaceInIndexedDB(placeId, updatedPlace);
-            console.log('[PlacesContext] Place updated in IndexedDB:', placeId);
-
-            // Update the state
-            setData(prevData => {
-                const newData = { ...prevData };
-
-                // Determine the current status category of the place
-                let currentStatus: 'checked' | 'unchecked' | 'needs_attention' | 'to_be_deleted' = 'unchecked';
-                let currentCountry = '';
-                let currentCity = '';
-                let currentPlaceKey = '';
-                let placeIndex = -1;
-
-                // Find the place in the current state
-                outerLoop: for (const status of ['checked', 'unchecked', 'needs_attention', 'to_be_deleted'] as const) {
-                    for (const countryName in newData[status]) {
-                        for (const cityName in newData[status][countryName]) {
-                            const cityPlaces = newData[status][countryName][cityName] as any;
-                            for (const placeName in cityPlaces) {
-                                const places = cityPlaces[placeName] as IPlace[];
-                                const index = places.findIndex(p => p.place_id === placeId);
-                                if (index !== -1) {
-                                    currentStatus = status;
-                                    currentCountry = countryName;
-                                    currentCity = cityName;
-                                    currentPlaceKey = placeName;
-                                    placeIndex = index;
-                                    break outerLoop;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // If the place was found in the data
-                if (placeIndex !== -1) {
-                    // Determine the new status based on the updated fields
-                    let newStatus: 'checked' | 'unchecked' | 'needs_attention' | 'to_be_deleted' = currentStatus;
-
-                    if (placeData.to_be_deleted === true) {
-                        newStatus = 'to_be_deleted';
-                    } else if (placeData.checked === true) {
-                        newStatus = 'checked';
-                    } else if (placeData.needs_attention === true) {
-                        newStatus = 'needs_attention';
-                    } else if (placeData.checked === false && placeData.needs_attention === false) {
-                        newStatus = 'unchecked';
-                    }
-
-                    // Get the places array
-                    const places = (newData[currentStatus][currentCountry][currentCity] as any)[currentPlaceKey] as IPlace[];
-
-                    // If the status is changing
-                    if (newStatus !== currentStatus) {
-                        console.log(`[PlacesContext] Moving place from ${currentStatus} to ${newStatus}`);
-
-                        // Remove from current category
-                        places.splice(placeIndex, 1);
-
-                        // Clean up empty arrays/objects
-                        if (places.length === 0) {
-                            delete (newData[currentStatus][currentCountry][currentCity] as any)[currentPlaceKey];
-
-                            if (Object.keys(newData[currentStatus][currentCountry][currentCity]).length === 0) {
-                                delete newData[currentStatus][currentCountry][currentCity];
-
-                                if (Object.keys(newData[currentStatus][currentCountry]).length === 0) {
-                                    delete newData[currentStatus][currentCountry];
-                                }
-                            }
-                        }
-
-                        // Ensure target category structure exists
-                        if (!newData[newStatus][currentCountry]) {
-                            newData[newStatus][currentCountry] = {};
-                        }
-
-
-                        // Use the updated place name if it changed
-                        const newPlaceKey = placeData.place_name || currentPlaceKey;
-
-                        if (!(newData[newStatus][currentCountry][currentCity] as any)[newPlaceKey]) {
-                            (newData[newStatus][currentCountry][currentCity] as any)[newPlaceKey] = [];
-                        }
-
-                        // Add to new category
-                        (newData[newStatus][currentCountry][currentCity] as any)[newPlaceKey].push(updatedPlace);
-                    } else {
-                        // Just update in place
-                        places[placeIndex] = updatedPlace;
-
-                        // If place name changed, we need to move it to a new key
-                        if (placeData.place_name && placeData.place_name !== currentPlaceKey) {
-                            console.log(`[PlacesContext] Changing place key from ${currentPlaceKey} to ${placeData.place_name}`);
-
-                            // Remove from current key
-                            places.splice(placeIndex, 1);
-
-                            // Clean up if needed
-                            if (places.length === 0) {
-                                delete (newData[currentStatus][currentCountry][currentCity] as any)[currentPlaceKey];
-                            }
-
-                            // Add to new key
-                            if (!(newData[currentStatus][currentCountry][currentCity] as any)[placeData.place_name]) {
-                                (newData[currentStatus][currentCountry][currentCity] as any)[placeData.place_name] = [];
-                            }
-
-                            (newData[currentStatus][currentCountry][currentCity] as any)[placeData.place_name].push(updatedPlace);
-                        }
-                    }
-                } else {
-                    console.warn('[PlacesContext] Place not found in state, cannot update UI');
-                }
-
-                return newData;
-            });
-
-            return updatedPlace;
-        } catch (error) {
-            console.error('[PlacesContext] Error updating place:', error);
-            return Promise.reject(error);
-        } finally {
-            fetchingRefs.current[fetchKey] = false;
-        }
-    };
 
     console.log('[PlacesContext] Context rendering with data lengths:',
         Object.keys(data.unchecked).length,
@@ -527,7 +355,6 @@ export const PlaceProvider = ({ children }: { children: ReactNode }) => {
         getPreview,
         getUncheckedPlacesByCity,
         getPlacesNeedingAttention,
-        updatePlace
     }), [
         data,
         previewData,
