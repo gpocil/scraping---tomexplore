@@ -722,7 +722,8 @@ export const getUncheckedPlacesByCity = async (req: Request, res: Response) => {
             where: {
                 city_id: city.id,
                 checked: false,
-                to_be_deleted: false
+                to_be_deleted: false,
+                needs_attention: false
             },
             include: [
                 {
@@ -781,7 +782,8 @@ export const getAllPlacesNeedingAttention = async (req: Request, res: Response) 
         // Find all places marked as needing attention
         const places = await Place.findAll({
             where: {
-                needs_attention: true
+                needs_attention: true,
+                checked: false        // Only include places that haven't been checked yet
             },
             include: [
                 {
