@@ -242,24 +242,8 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
 
             console.log('Top images set successfully');
 
-            // Only delete images that are still in the displayedImages array
-            // This ensures we don't try to delete already deleted images
-            const currentImageIds = new Set(displayedImages.map(img => img.id));
-            const topImageIds = new Set(topImages.map(img => img.id));
-
-            // Find images that are displayed but not in top selection
-            const imagesToDelete = displayedImages
-                .filter(image => !topImageIds.has(image.id))
-                .map(image => image.id);
-
-            // Delete non-essential images if there are any
-            if (imagesToDelete.length > 0) {
-                await apiClient.post('/front/deleteImages', {
-                    imageIds: imagesToDelete,
-                    place_id: currentPlace?.place_id
-                });
-                console.log('Non-top images deleted successfully');
-            }
+            // Since we want to keep all displayed images and just mark some as "top",
+            // we don't need to delete any additional images at this point
 
             console.log('Marking place as complete:', currentPlace?.place_id);
             setTopImages([]);
@@ -270,7 +254,6 @@ const PhotoSelectorCity: React.FC<PhotoSelectorCityProps> = ({ places, cityName 
             alert('Failed to set top images');
         }
     };
-
 
     const handleSetNeedsAttention = () => {
         setShowModal(true);
