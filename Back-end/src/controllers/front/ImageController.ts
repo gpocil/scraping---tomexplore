@@ -344,7 +344,6 @@ export const getImagesByPlaceId = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 export const deleteImagesUser = async (req: Request, res: Response) => {
     console.log(`[DELETE] Received request to delete images`);
     console.log(`[DELETE] Request body: ${JSON.stringify(req.body)}`);
@@ -363,14 +362,14 @@ export const deleteImagesUser = async (req: Request, res: Response) => {
         console.log(`[DELETE] Querying images before deletion`);
         const imagesToDelete = await Image.findAll({
             where: { id: imageIds },
-            include: [{ model: Place, as: 'associatedPlace', attributes: ['id', 'folder'] }]
+            include: [{ model: Place, as: 'associatedPlace', attributes: ['id_tomexplore', 'folder'] }]
         });
 
         console.log(`[DELETE] Found ${imagesToDelete.length} out of ${imageIds.length} requested images`);
         console.log(`[DELETE] Image details before deletion: ${JSON.stringify(imagesToDelete.map(img => ({
             id: img.id,
             name: img.image_name,
-            placeId: img.getDataValue('associatedPlace')?.id,
+            placeId: img.getDataValue('associatedPlace')?.id_tomexplore,
             placeFolder: img.getDataValue('associatedPlace')?.folder
         })))}`);
 
@@ -400,7 +399,7 @@ export const deleteImagesUser = async (req: Request, res: Response) => {
             details: errorMessage
         });
     }
-}
+};
 
 const updateTopAttributes = async (imageIds: number[], placeId: number) => {
     try {
