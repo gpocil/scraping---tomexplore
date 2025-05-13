@@ -345,24 +345,62 @@ export const getImagesByPlaceId = async (req: Request, res: Response) => {
     }
 };
 
-
-
 export const deleteImagesUser = async (req: Request, res: Response) => {
+    console.log(`[DELETE] Received request to delete images`);
+    console.log(`[DELETE] Request body: ${JSON.stringify(req.body)}`);
+
     const { imageIds } = req.body;
 
     if (!Array.isArray(imageIds) || imageIds.length === 0) {
+        console.log(`[DELETE] Invalid image IDs provided: ${JSON.stringify(imageIds)}`);
         return res.status(400).json({ error: 'A list of image IDs is required' });
     }
 
+    console.log(`[DELETE] Processing deletion request for image IDs: ${JSON.stringify(imageIds)}`);
+
     try {
-        console.log(imageIds);
+        // Query images before deletion for comparison
+        console.log(`[DELETE] Querying images before deletion`);
+        const imagesToDelete = await Image.findAll({
+            where: { id: imageIds },
+            include: [{ model: Place, as: 'associatedPlace', attributes: ['id', 'folder'] }]
+        });
+
+        console.log(`[DELETE] Found ${imagesToDelete.length} out of ${imageIds.length} requested images`);
+        console.log(`[DELETE] Image details before deletion: ${JSON.stringify(imagesToDelete.map(img => ({
+            id: img.id,
+            name: img.image_name,
+            placeId: img.getDataValue('associatedPlace')?.id,
+            placeFolder: img.getDataValue('associatedPlace')?.folder
+        })))}`);
+
         await deleteImages(imageIds);
-        res.status(200).json({ message: 'Images deleted successfully and place set to checked' });
+
+        // Verify database state after deletion
+        console.log(`[DELETE] Verifying database state after deletion`);
+        const remainingImages = await Image.findAll({
+            where: { id: imageIds }
+        });
+
+        console.log(`[DELETE] Remaining images after deletion: ${remainingImages.length}`);
+        if (remainingImages.length > 0) {
+            console.log(`[DELETE] Warning: Some images still exist in database: ${JSON.stringify(remainingImages.map(img => img.id))}`);
+        }
+
+        res.status(200).json({
+            message: 'Images deleted successfully',
+            deletedCount: imageIds.length,
+            deletedIds: imageIds
+        });
     } catch (error) {
-        console.error('Error deleting images or updating place:', error);
-        res.status(500).json({ error: 'An error occurred while deleting images or updating place' });
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[DELETE] Error in deleteImagesUser:`, error);
+        res.status(500).json({
+            error: 'An error occurred while deleting images',
+            details: errorMessage
+        });
     }
-};
+}
 
 const updateTopAttributes = async (imageIds: number[], placeId: number) => {
     try {

@@ -63,7 +63,7 @@ export function deleteFolderRecursiveHelper(folderPath: string): void {
 }
 export async function deleteImagesByID(imageIds: number[]): Promise<void> {
 
-    await Image.destroy({ where: { id: imageIds } });   
+    await Image.destroy({ where: { id: imageIds } });
 
 
 
@@ -112,7 +112,7 @@ interface ImageUrl {
     license?: string;
     author?: string;
     generatedName: string;
-    source?:string;
+    source?: string;
 }
 
 const sleep = promisify(setTimeout);
@@ -172,35 +172,116 @@ export async function downloadPhotosTouristAttraction(
 }
 
 export async function deleteImages(imageIds: number[]): Promise<void> {
+    console.log(`[DELETE] Starting deletion process for image IDs: ${JSON.stringify(imageIds)}`);
+
     // Include Place model to access the folder property
+    console.log(`[DELETE] Fetching images and their associated places from database`);
     const images = await Image.findAll({
         where: { id: imageIds },
         include: [{ model: Place, as: 'associatedPlace', attributes: ['folder'] }]
     });
 
+    console.log(`[DELETE] Found ${images.length} images in database`);
+    console.log(`[DELETE] Image details: ${JSON.stringify(images.map(img => ({
+        id: img.id,
+        name: img.image_name,
+        placeFolder: img.getDataValue('associatedPlace')?.folder || 'NO_FOLDER'
+    })))}`);
+
     if (images.length === 0) {
+        console.log(`[DELETE] No images found for the provided IDs: ${JSON.stringify(imageIds)}`);
         throw new Error('No images found for the provided IDs');
     }
 
-    // Delete images from database
-    await Image.destroy({ where: { id: imageIds } });
-
-    // Delete image files from server
-    images.forEach(image => {
+    // Verify image files exist before deleting from database
+    console.log(`[DELETE] Verifying image files exist on server`);
+    const fileCheckResults = images.map(image => {
         try {
-            const folder = image.getDataValue('associatedPlace').folder;
-            const imagePath = path.join(__dirname, '../../../dist', 'temp', folder, image.image_name);
-            console.log(`Deleting image file: ${imagePath}`);
-
-            if (fs.existsSync(imagePath)) {
-                fs.unlinkSync(imagePath);
+            const folder = image.getDataValue('associatedPlace')?.folder;
+            if (!folder) {
+                console.log(`[DELETE] Warning: Image ID ${image.id} has no associated place folder`);
+                return { id: image.id, exists: false, path: 'NO_FOLDER' };
             }
-        } catch (error) {
-            const folder = image.getDataValue('associatedPlace').folder;
+
             const imagePath = path.join(__dirname, '../../../dist', 'temp', folder, image.image_name);
-            console.error(`Failed to delete image file for ID ${image.id}: ${imagePath}`, error);
+            const exists = fs.existsSync(imagePath);
+            console.log(`[DELETE] Image file check - ID: ${image.id}, Path: ${imagePath}, Exists: ${exists}`);
+            return { id: image.id, exists, path: imagePath };
+        } catch (error) {
+            console.error(`[DELETE] Error checking file existence for image ID ${image.id}:`, error);
+            return { id: image.id, exists: false, path: 'ERROR' };
         }
     });
+
+    console.log(`[DELETE] File check results: ${JSON.stringify(fileCheckResults)}`);
+
+    // Delete images from database
+    console.log(`[DELETE] Deleting images from database`);
+    const deleteResult = await Image.destroy({ where: { id: imageIds } });
+    console.log(`[DELETE] Database deletion result: ${deleteResult} records deleted`);
+
+    // Delete image files from server
+    console.log(`[DELETE] Starting file deletion process`);
+    const fileDeletionResults = [];
+
+    for (const image of images) {
+        try {
+            const folder = image.getDataValue('associatedPlace')?.folder;
+            if (!folder) {
+                console.log(`[DELETE] Skipping file deletion for image ID ${image.id} - no folder found`);
+                fileDeletionResults.push({ id: image.id, success: false, reason: 'No folder found' });
+                continue;
+            }
+
+            const imagePath = path.join(__dirname, '../../../dist', 'temp', folder, image.image_name);
+            console.log(`[DELETE] Attempting to delete file: ${imagePath}`);
+
+            if (fs.existsSync(imagePath)) {
+                try {
+                    // Read file details before deletion for verification
+                    const stats = fs.statSync(imagePath);
+                    console.log(`[DELETE] File details before deletion - Size: ${stats.size} bytes, Created: ${stats.birthtime}`);
+
+                    fs.unlinkSync(imagePath);
+                    console.log(`[DELETE] Successfully deleted image file: ${imagePath}`);
+                    fileDeletionResults.push({ id: image.id, success: true, path: imagePath });
+                } catch (unlinkError) {
+                    console.error(`[DELETE] Failed to unlink file ${imagePath}:`, unlinkError);
+                    const errorMessage = unlinkError instanceof Error ? unlinkError.message : 'Unknown error';
+                    fileDeletionResults.push({ id: image.id, success: false, error: errorMessage });
+                }
+            } else {
+                console.log(`[DELETE] Image file does not exist: ${imagePath}`);
+                fileDeletionResults.push({ id: image.id, success: false, reason: 'File does not exist' });
+            }
+        } catch (error) {
+            const errorDetails = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`[DELETE] Error processing deletion for image ID ${image.id}:`, error);
+            fileDeletionResults.push({ id: image.id, success: false, error: errorDetails });
+        }
+    }
+
+    console.log(`[DELETE] File deletion results: ${JSON.stringify(fileDeletionResults)}`);
+
+    // Verify final state - check if any files still exist
+    console.log(`[DELETE] Performing final verification`);
+    const finalCheck = images.map(image => {
+        try {
+            const folder = image.getDataValue('associatedPlace')?.folder;
+            if (!folder) return { id: image.id, stillExists: false, path: 'NO_FOLDER' };
+
+            const imagePath = path.join(__dirname, '../../../dist', 'temp', folder, image.image_name);
+            const stillExists = fs.existsSync(imagePath);
+            console.log(`[DELETE] Final check - ID: ${image.id}, Path: ${imagePath}, Still exists: ${stillExists}`);
+            return { id: image.id, stillExists, path: imagePath };
+        } catch (error) {
+            console.error(`[DELETE] Error in final check for image ID ${image.id}:`, error);
+            return { id: image.id, error: true };
+        }
+    });
+
+    console.log(`[DELETE] Final verification results: ${JSON.stringify(finalCheck)}`);
+    console.log(`[DELETE] Deletion process completed`);
 }
 
 
