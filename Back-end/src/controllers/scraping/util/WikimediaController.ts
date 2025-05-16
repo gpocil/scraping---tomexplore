@@ -19,7 +19,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
     }
 
     let searchTerm = encodeURIComponent(name);
-    
+
     // Remplacer manuellement les apostrophes par %27
     searchTerm = searchTerm.replace(/'/g, '%27');
 
@@ -29,7 +29,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         console.log("Using proxy: " + proxy.address);
 
         browser = await puppeteer.launch({
-            headless: "new",
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
