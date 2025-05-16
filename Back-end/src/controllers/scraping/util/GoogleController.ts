@@ -38,7 +38,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -244,6 +244,23 @@ async function scrapeImageUrls(page: Page): Promise<string[]> {
 }
 
 function formatAddressForURL(address: string): string {
+  // Check if the input is a Google Maps URL
+  if (address.startsWith('https://www.google.com/maps')) {
+    try {
+      // Extract the place name and address from the URL
+      const placeMatch = address.match(/place\/([^/@]+)/);
+      if (placeMatch && placeMatch[1]) {
+        // Decode the URL-encoded place string
+        const decodedPlace = decodeURIComponent(placeMatch[1]);
+        // Replace URL-specific characters with spaces
+        return decodedPlace.replace(/[+]/g, ' ').replace(/,/g, ' ');
+      }
+    } catch (error) {
+      console.error('Error parsing Google Maps URL:', error);
+    }
+  }
+
+  // If not a URL or if extraction fails, proceed with the original function
   return address.replace(/[^a-zA-Z0-9\s]/g, '');
 }
 
@@ -272,7 +289,7 @@ export async function fetchGoogleBusinessAttributes(req: Request, res: Response)
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -397,7 +414,7 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: false,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
