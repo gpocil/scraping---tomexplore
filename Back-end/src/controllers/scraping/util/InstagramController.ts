@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import https from 'https';
 import * as ProxyController from '../ProxyController';
-
 export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string, source?: string }> {
   const username = req ? req.body.username as string : '';
 
@@ -40,6 +39,17 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
           try {
             const body = Buffer.concat(chunks).toString();
             const data = JSON.parse(body);
+
+            console.log('Instagram API Response:', {
+              statusCode: apiRes.statusCode,
+              headers: apiRes.headers,
+              bodyLength: body.length,
+              dataStructure: {
+                hasItems: !!data.items,
+                itemsCount: data.items?.length || 0,
+                firstItem: data.items?.[0] ? JSON.stringify(data.items[0]).slice(0, 200) + '...' : null
+              }
+            });
 
             if (!data.items || !Array.isArray(data.items)) {
               const error = 'Invalid response format from Instagram API';
