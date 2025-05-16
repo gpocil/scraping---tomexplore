@@ -161,21 +161,39 @@ async function checkIfBusinessClosed(page: Page): Promise<boolean> {
 
 async function clickPhotosDuProprietaireButton(page: Page): Promise<void> {
   try {
-    const photosButtonSelector = 'button[aria-label="By owner"]';
-    await page.waitForSelector(photosButtonSelector, { visible: true, timeout: 5000 });
-    const photosButton = await page.$(photosButtonSelector);
-    if (photosButton) {
-      await photosButton.click();
-      console.log('Clicked on the "Photos du propriétaire" button');
-      await page.waitForTimeout(randomTimeout()); // Wait for photos to load
-    } else {
-      const error = '"Photos du propriétaire" button not found';
-      console.log(error);
-      throw new Error(error);
+    const possibleSelectors = [
+      'button[aria-label="By owner"]',
+      'button[aria-label="Photos du propriétaire"]',
+      'button[aria-label="Fotos del propietario"]',
+      'button[aria-label="Vom Inhaber"]',
+      'button[aria-label="Dal proprietario"]',
+      'button[aria-label="By the owner"]',
+      'button[aria-label="Owner photos"]',
+      'button[aria-label="Photos by owner"]',
+      'button[aria-label="Eigenaarsfoto\'s"]',
+      'button[aria-label="Fotos do proprietário"]'
+    ];
+
+    // Try each selector until one works
+    let photosButton = null;
+    for (const selector of possibleSelectors) {
+      photosButton = await page.$(selector);
+      if (photosButton) {
+        await photosButton.click();
+        console.log(`Clicked on button with selector: ${selector}`);
+        await page.waitForTimeout(randomTimeout()); // Wait for photos to load
+        return;
+      }
     }
+
+    // If no button was found
+    const error = 'Owner photos button not found in any language';
+    console.log(error);
+    throw new Error(error);
+
   } catch (clickError: any) {
-    console.error(`Error clicking on "Photos du propriétaire" button: ${clickError.message}`);
-    throw new Error(`Error clicking on "Photos du propriétaire" button: ${clickError.message}`);
+    console.error(`Error clicking on owner photos button: ${clickError.message}`);
+    throw new Error(`Error clicking on owner photos button: ${clickError.message}`);
   }
 }
 
