@@ -31,7 +31,7 @@
     "mysql2": "^3.10.2",
     "path": "^0.12.7",
     "proxy-chain": "^2.5.1",
-    "puppeteer": "^19.11.1",
+    "puppeteer": "^18.2.1",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "request-promise": "^4.2.6",
