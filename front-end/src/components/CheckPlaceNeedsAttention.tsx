@@ -330,10 +330,14 @@ const CheckPlaceNeedsAttention: React.FC<CheckPlaceNeedsAttentionProps> = () => 
 
 
                     {isDeleting && (
-                        <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0 || isScraping} >
-                            🗑️ Confirmer suppression
-                        </Button>
-
+                        <>
+                            <Button className="mb-3 w-100" variant="secondary" onClick={() => setSelectedImages([...images])} disabled={isScraping || images.length === 0}>
+                                🔍 Sélectionner toutes les photos
+                            </Button>
+                            <Button className="mb-3 w-100" variant="danger" onClick={handleDeleteImages} disabled={selectedImages.length === 0 || isScraping} >
+                                🗑️ Confirmer suppression
+                            </Button>
+                        </>
                     )}
                     {imagesToDeleteCount() > 0 && (
                         <p className="text-danger mb-3">
