@@ -82,7 +82,7 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         console.log(`Using Wikipedia language: ${countryExtension} for country: ${country}`);
 
         browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

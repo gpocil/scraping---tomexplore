@@ -29,7 +29,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         console.log("Using proxy: " + proxy.address);
 
         browser = await puppeteer.launch({
-            headless: false,
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

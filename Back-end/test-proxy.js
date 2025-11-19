@@ -10,7 +10,7 @@ async function testProxy() {
     console.log('Testing proxy:', proxy.address);
     
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
