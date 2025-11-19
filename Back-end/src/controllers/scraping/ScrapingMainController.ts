@@ -53,7 +53,7 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
             let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
             let googleImages: ImageResultBusiness = { urls: [], count: 0 };
             let errors: string[] = [];
-            let location_full_address = `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
+            let location_full_address = google_maps_link || `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
             console.log("location full address : " + location_full_address);
 
             try {
@@ -237,7 +237,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
             let wikipediaUrl: string = '';
             let originalName: string = '';
             let errors: string[] = [];
-            let location_full_address = `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
+            let location_full_address = google_maps_link || `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
 
             try {
                 let country, city;
@@ -267,7 +267,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
 
                 // Fetch Wikimedia Images
                 try {
-                    originalName = await GoogleController.getOriginalName({ body: { name_eng: name_en, country: countryName, city:cityName } } as Request);
+                    originalName = await GoogleController.getOriginalName({ body: { location_full_address } } as Request);
                     if (originalName !== '') { // Recherche avec nom original si possible
                         wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName, city: cityName } } as Request);
                         wikiMediaResult.source = 'Wikimedia';
@@ -516,7 +516,7 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
 
 export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
     const placeData = req.body;
-    const { id_tomexplore, name_en, address, cityName, countryName } = placeData;
+    const { id_tomexplore, name_en, address, cityName, countryName, link_maps } = placeData;
 
     if (!id_tomexplore) {
         console.log('Missing required fields:', placeData);
@@ -525,7 +525,7 @@ export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
 
     let googleMapsImages: any = { urls: [], count: 0 };
     let errors: string[] = [];
-    let location_full_address = `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
+    let location_full_address = link_maps || `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
 
     try {
         try {
@@ -549,7 +549,7 @@ export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
         let place = await Place.findOne({ where: { id_tomexplore } });
         if (place) {
             await place.update({
-                google_maps_link: `https://www.google.com/maps/search/?api=1&query=${location_full_address}`,
+                google_maps_link: link_maps || location_full_address,
                 last_modification: new Date()
             });
             console.log(`Updated place with new Google Maps link: ${place.id_tomexplore}`);
