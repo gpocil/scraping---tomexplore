@@ -286,9 +286,24 @@ function randomTimeout(): number {
 
 export async function fetchGoogleBusinessAttributes(req: Request, res: Response) {
   const { location_full_address } = req.body;
-  const formattedAddress = formatAddressForURL(location_full_address);
-  const url = `https://www.google.com/maps/search/?api=1&query=${formattedAddress}`;
-  console.log(`url: ${url}`);
+  console.log("location full address : " + location_full_address);
+
+  let url: string;
+  
+  // If it's already a Google Maps URL, use it directly
+  if (location_full_address.startsWith('https://www.google.com/maps')) {
+    url = location_full_address;
+    console.log("Using provided Google Maps URL directly");
+  } else {
+    // Otherwise, format as address and create search URL
+    const formattedAddress = formatAddressForURL(location_full_address);
+    console.log("formatted address : " + formattedAddress);
+    const encodedAddress = encodeURIComponent(formattedAddress);
+    url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    console.log("encoded address : " + encodedAddress);
+  }
+  
+  console.log("url : " + url);
 
   if (!url) {
     const error = 'URL is required';
@@ -416,21 +431,32 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
   let browser: Browser | null = null;
 
   try {
-    let { name_eng, country, city } = req.body;
+    const { location_full_address } = req.body;
+    console.log("location full address : " + location_full_address);
 
-    if (!name_eng || !country || !city) {
+    if (!location_full_address) {
       if (res) {
-        res.status(400).json({ error: "name_eng, country, and city are required in the request body" });
+        res.status(400).json({ error: "location_full_address is required in the request body" });
       }
-      throw new Error("name_eng, country, and city are required in the request body");
+      throw new Error("location_full_address is required in the request body");
     }
 
-    name_eng = name_eng.replace(/\s+/g, '+');
-    country = country.replace(/\s+/g, '+');
-    city = city.replace(/\s+/g, '+');
-
-    const searchQuery = `${name_eng}+${city}+${country}`;
-    const url = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+    let url: string;
+    
+    // If it's already a Google Maps URL, use it directly
+    if (location_full_address.startsWith('https://www.google.com/maps')) {
+      url = location_full_address;
+      console.log("Using provided Google Maps URL directly");
+    } else {
+      // Otherwise, format as address and create search URL
+      const formattedAddress = formatAddressForURL(location_full_address);
+      console.log("formatted address : " + formattedAddress);
+      const encodedAddress = encodeURIComponent(formattedAddress);
+      url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+      console.log("encoded address : " + encodedAddress);
+    }
+    
+    console.log("url : " + url);
 
     const proxy = ProxyController.getRandomProxy();
     console.log("Using proxy: " + proxy.address);
@@ -492,20 +518,6 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
       }
     });
 
-    // If name is equal to city, try to extract the name from h1
-    if (name === city) {
-      console.log('Extracted name matches city, attempting to get h1 element instead');
-      name = await page.evaluate(() => {
-        const h1Element = document.querySelector('h1.DUwDvf.lfPIob');
-        if (h1Element) {
-          console.log('h1 element found after matching with city');
-          return h1Element.textContent?.trim() || '';
-        } else {
-          console.log('h1 element not found after matching with city');
-          return '';
-        }
-      });
-    }
 
     if (!name) {
       // Wait for the page to load after clicking the link
