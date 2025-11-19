@@ -10,11 +10,6 @@ const username = process.env.PROXY_USERNAME || '';
 const pw = process.env.PROXY_PASSWORD || '';
 
 console.log('[ProxyController] Proxy configuration loaded:');
-console.log(`[ProxyController] - Proxy list count: ${proxyList.length}`);
-console.log(`[ProxyController] - Proxy addresses: ${proxyList.join(', ')}`);
-console.log(`[ProxyController] - Username configured: ${username ? 'Yes' : 'No'}`);
-console.log(`[ProxyController] - Password configured: ${pw ? 'Yes' : 'No'}`);
-
 export async function getPuppeteerIP(page: Page): Promise<string> {
     console.log('[ProxyController] Fetching current IP address...');
     
@@ -60,7 +55,6 @@ export function getRandomProxy() {
     };
     
     console.log(`[ProxyController] Selected proxy at index ${randomIndex}: ${selectedProxy.address}`);
-    console.log(`[ProxyController] Proxy credentials - Username: ${username ? '***' : 'None'}, Password: ${pw ? '***' : 'None'}`);
     
     return selectedProxy;
 }

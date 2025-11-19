@@ -213,7 +213,7 @@ async function scrapeImageUrls(page: Page): Promise<string[]> {
       }
 
       const imageUrls = await page.evaluate(() => {
-        const divs = Array.from(document.querySelectorAll('div.Uf0tqf.loaded'));
+        const divs = Array.from(document.querySelectorAll('div.Uf0tqf.ch8jbf'));
         const urls = divs.map(div => {
           const style = window.getComputedStyle(div);
           const backgroundImage = style.backgroundImage;

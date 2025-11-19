@@ -120,20 +120,67 @@ const sleep = promisify(setTimeout);
 async function fetchWithRetry(url: string, retries = 3, delay = 2000): Promise<Buffer | null> {
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await axios.get(url, { responseType: 'arraybuffer' });
+            const response = await axios.get(url, { 
+                responseType: 'arraybuffer',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Referer': 'https://commons.wikimedia.org/',
+                    'Sec-Fetch-Dest': 'image',
+                    'Sec-Fetch-Mode': 'no-cors',
+                    'Sec-Fetch-Site': 'same-site'
+                }
+            });
             return Buffer.from(response.data);
         } catch (error: any) {
-            if (error.response?.status === 429 && i < retries - 1) {
-                console.warn(`429 error, retrying in ${delay}ms...`);
+            if ((error.response?.status === 429 || error.response?.status === 403) && i < retries - 1) {
+                console.warn(`[RETRY ${i + 1}/${retries - 1}] ${error.response?.status} error for ${url.substring(0, 80)}..., waiting ${delay}ms`);
                 await sleep(delay);
                 delay *= 2; // Exponential backoff
-            } else {
-                console.error(`Failed to download image from ${url}: ${error.message}`);
+            } else if (i === retries - 1) {
+                console.error(`[FAILED] Could not download after ${retries} attempts: ${url.substring(0, 80)}...`);
                 return null;
             }
         }
     }
     return null;
+}
+
+async function downloadWithConcurrency(
+    imageUrls: { url: string, source: string }[],
+    downloadDir: string,
+    id_tomexplore: number,
+    concurrency: number = 5
+): Promise<{ filename: string, source: string }[]> {
+    const results: { filename: string, source: string }[] = [];
+    let downloadedCount = 0;
+    let failedCount = 0;
+
+    const downloadImage = async (item: { url: string, source: string }) => {
+        const imageBuffer = await fetchWithRetry(item.url);
+        if (imageBuffer) {
+            const filename = `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
+            const outputPath = path.join(downloadDir, filename);
+            await sharp(imageBuffer).toFile(outputPath);
+            downloadedCount++;
+            console.log(`[${downloadedCount + failedCount}/${imageUrls.length}] ✓ Downloaded from ${item.source}`);
+            return { filename, source: item.source };
+        } else {
+            failedCount++;
+            console.log(`[${downloadedCount + failedCount}/${imageUrls.length}] ✗ Failed from ${item.source}`);
+            return null;
+        }
+    };
+
+    // Process in batches with concurrency limit
+    for (let i = 0; i < imageUrls.length; i += concurrency) {
+        const batch = imageUrls.slice(i, i + concurrency);
+        const batchResults = await Promise.all(batch.map(downloadImage));
+        results.push(...batchResults.filter((r): r is { filename: string, source: string } => r !== null));
+    }
+
+    return results;
 }
 
 export async function downloadPhotosTouristAttraction(
@@ -155,18 +202,10 @@ export async function downloadPhotosTouristAttraction(
         ...googleImages.urls.map(url => ({ url, source: googleImages.source }))
     ];
 
-    const imageNames: { filename: string, source: string }[] = [];
-    for (const { url, source } of imageUrls) {
-        console.log("retrying");
-        const imageBuffer = await fetchWithRetry(url);
-        if (imageBuffer) {
-            const filename = `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
-            const outputPath = path.join(downloadDir, filename);
-            await sharp(imageBuffer).toFile(outputPath);
-            imageNames.push({ filename, source });
-        }
-    }
+    console.log(`Starting parallel download of ${imageUrls.length} images (concurrency: 5)...`);
+    const imageNames = await downloadWithConcurrency(imageUrls, downloadDir, id_tomexplore, 5);
 
+    console.log(`Download complete: ${imageNames.length}/${imageUrls.length} successful`);
     console.log(`Download directory: ${downloadDir}`);
     return { downloadDir, imageCount: imageNames.length, imageNames };
 }

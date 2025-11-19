@@ -77,6 +77,10 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         const proxy = ProxyController.getRandomProxy();
         console.log("Using proxy: " + proxy.address);
 
+        // Get country-specific Wikipedia extension
+        const countryExtension = wikiExtensions.find(([c, ext]) => c.toLowerCase() === country.toLowerCase())?.[1] || 'en';
+        console.log(`Using Wikipedia language: ${countryExtension} for country: ${country}`);
+
         browser = await puppeteer.launch({
             headless: false,
             args: [
@@ -91,56 +95,121 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         console.log('New page opened');
 
         await page.authenticate({ username: proxy.username, password: proxy.pw });
-        console.log('Proxy authenticated');;
-        console.log('Navigating to Google');
-        await page.goto(`https://www.google.com/`, {
+        console.log('Proxy authenticated');
+        
+        // Navigate directly to country-specific Wikipedia
+        const wikipediaUrl = `https://${countryExtension}.wikipedia.org/`;
+        console.log(`Navigating to Wikipedia: ${wikipediaUrl}`);
+        await page.goto(wikipediaUrl, {
             waitUntil: 'networkidle2',
         });
-        await handleConsentPage(page);
 
-        console.log(`Typing search query: ${name} ${city} wikipedia`);
-        await page.waitForSelector('textarea#APjFqb', { visible: true });
-        console.log('Clicking on the text area to focus');
-        await page.click('textarea#APjFqb'); // Click on the text area to focus
+        console.log(`Searching for: ${name}`);
+        
+        // Click the search button to open the search interface
+        const searchButtonSelectors = [
+            'a.search-toggle',
+            '.cdx-button--icon-only.search-toggle',
+            'a[title*="Rechercher"]',
+            'a[title*="Search"]'
+        ];
+        
+        let searchButtonClicked = false;
+        for (const selector of searchButtonSelectors) {
+            try {
+                await page.waitForSelector(selector, { visible: true, timeout: 5000 });
+                console.log(`Found search button with selector: ${selector}`);
+                await page.click(selector);
+                searchButtonClicked = true;
+                console.log('Search button clicked');
+                await page.waitForTimeout(1000); // Wait for search input to appear
+                break;
+            } catch (error) {
+                console.log(`Search button selector ${selector} not found, trying next...`);
+            }
+        }
 
-        console.log('Entering search query in the text area');
-        await page.type('textarea#APjFqb', name + " wikipedia", { delay: 100 });
+        if (!searchButtonClicked) {
+            console.log('Could not find search button, trying direct input search...');
+        }
+
+        // Wait for and type in the search input
+        const searchInputSelectors = [
+            '.cdx-text-input__input[name="search"]',
+            'input.cdx-text-input__input[type="search"]',
+            'input[name="search"]',
+            '#searchInput',
+            'input[type="search"]'
+        ];
+        
+        let searchInput = null;
+        for (const selector of searchInputSelectors) {
+            try {
+                await page.waitForSelector(selector, { visible: true, timeout: 5000 });
+                searchInput = selector;
+                console.log(`Found search input with selector: ${selector}`);
+                break;
+            } catch (error) {
+                console.log(`Search input selector ${selector} not found, trying next...`);
+            }
+        }
+
+        if (!searchInput) {
+            throw new Error('Could not find Wikipedia search input');
+        }
+
+        // Type the search query
+        console.log(`Typing search query: ${name}`);
+        await page.click(searchInput);
+        await page.type(searchInput, name, { delay: 100 });
         await page.keyboard.press('Enter');
 
-        console.log('Waiting for search results to load');
-        await page.waitForSelector('a[jsname="UWckNb"]');
-
-        console.log('Collecting Wikipedia URLs from search results');
-        const links = await page.evaluate(() => {
-            return Array.from(document.querySelectorAll('a[jsname="UWckNb"]')).map(anchor => (anchor as HTMLAnchorElement).href);
-        });
-
-        console.log('Found links:', links);
-
-        console.log(`Prioritizing ${country} specific Wikipedia URL`);
-        const countryExtension = wikiExtensions.find(([c, ext]) => c.toLowerCase() === country.toLowerCase())?.[1];
-        let preferredWikiUrl = links.find(link => link.includes(`${countryExtension}.wikipedia.org`));
-
-        if (!preferredWikiUrl) {
-            console.log(`No specific Wikipedia URL found for country: ${country}, falling back to en.wikipedia.org`);
-            preferredWikiUrl = links.find(link => link.includes('en.wikipedia.org')) || links.find(link => link.includes('wikipedia.org'));
+        console.log('Waiting for article page to load');
+        // Wait for the table of contents (Sommaire) to appear, indicating article loaded
+        try {
+            await page.waitForSelector('nav.vector-toc-landmark, #vector-toc, .vector-toc', { timeout: 10000 });
+            console.log('Article page loaded (table of contents found)');
+        } catch (error) {
+            console.log('Table of contents not found, waiting for page load...');
+            await page.waitForTimeout(3000);
         }
-
-        if (!preferredWikiUrl) {
-            throw new Error('No Wikipedia URL found');
-        }
-
-        console.log(`Navigating to Wikipedia URL: ${preferredWikiUrl}`);
-        await page.goto(preferredWikiUrl, {
-            waitUntil: 'networkidle2',
-        });
 
         const finalUrl = page.url();
-        if (res) {
-            res.json({ url: finalUrl });
+        
+        // Check if we landed on an article or search results page
+        if (finalUrl.includes('/wiki/') && !finalUrl.includes('Special:Search')) {
+            console.log(`Found Wikipedia article URL: ${finalUrl}`);
+        } else {
+            console.log(`Landed on search results page: ${finalUrl}`);
+            
+            // Try to click the first search result
+            try {
+                const firstResultSelectors = [
+                    '.mw-search-result-heading a',
+                    '.searchresult a',
+                    '.mw-search-results a'
+                ];
+                
+                for (const selector of firstResultSelectors) {
+                    const firstResult = await page.$(selector);
+                    if (firstResult) {
+                        console.log(`Clicking first search result with selector: ${selector}`);
+                        await firstResult.click();
+                        await page.waitForTimeout(2000);
+                        break;
+                    }
+                }
+            } catch (error: any) {
+                console.log(`Could not click first result: ${error.message}`);
+            }
         }
-        console.log(`Found Wikipedia URL: ${finalUrl}`);
-        return finalUrl;
+
+        const resultUrl = page.url();
+        if (res) {
+            res.json({ url: resultUrl });
+        }
+        console.log(`Final Wikipedia URL: ${resultUrl}`);
+        return resultUrl;
 
     } catch (error: any) {
         console.error(`Error during search process: ${error.message}`);
@@ -158,23 +227,6 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
     }
 }
 
-async function handleConsentPage(page: Page): Promise<void> {
-    try {
-        const consentButtonSelector = '#L2AGLb';
-        console.log('Checking for consent page');
-        const consentButton = await page.$(consentButtonSelector);
-        if (consentButton) {
-            console.log('Consent button found');
-            console.log('Clicking consent accept button');
-            await page.click(consentButtonSelector);
-        } else {
-            console.log('Consent button not found, skipping step');
-        }
-    } catch (error: any) {
-        console.error(`Error handling consent page: ${error.message}`);
-        // Pas d'erreur levée ici pour que le processus continue
-    }
-}
 
 
 
