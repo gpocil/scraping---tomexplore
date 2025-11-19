@@ -404,8 +404,9 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                             license = wikiMediaResult.urls[index][2];
                         } 
                         else if (index < wikiMediaResult.urls.length + unsplashResult.urls.length && unsplashResult.source) {
-                            author = unsplashResult.urls[index][1];
-                            license = unsplashResult.urls[index][2];
+                            const unsplashIndex = index - wikiMediaResult.urls.length;
+                            author = unsplashResult.urls[unsplashIndex][1];
+                            license = unsplashResult.urls[unsplashIndex][2];
                         } 
                         return saveImage(generatedName.source, author, license, generatedName.filename);
 
