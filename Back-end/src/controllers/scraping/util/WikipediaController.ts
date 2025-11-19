@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import puppeteer, { Page } from 'puppeteer';
 import * as ProxyController from '../ProxyController';
+import { config } from '../../../config';
 
 const wikiExtensions = [
     ["Ireland", "en"],
@@ -82,7 +83,7 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         console.log(`Using Wikipedia language: ${countryExtension} for country: ${country}`);
 
         browser = await puppeteer.launch({
-            headless: true,
+            headless: config.headless,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

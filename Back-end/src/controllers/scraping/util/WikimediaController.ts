@@ -3,6 +3,7 @@ import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as ProxyController from '../ProxyController';
+import { config } from '../../../config';
 
 puppeteer.use(StealthPlugin());
 
@@ -29,7 +30,7 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         console.log("Using proxy: " + proxy.address);
 
         browser = await puppeteer.launch({
-            headless: true,
+            headless: config.headless,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',

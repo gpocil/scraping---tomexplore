@@ -3,6 +3,7 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser, Page } from 'puppeteer';
 import * as ProxyController from '../ProxyController';
+import { config } from '../../../config';
 
 puppeteer.use(StealthPlugin());
 
@@ -13,12 +14,21 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
   const { location_full_address } = req ? req.body : { location_full_address: '' };
   console.log("location full address : " + location_full_address);
 
-  const formattedAddress = formatAddressForURL(location_full_address);
-  console.log("formatted address : " + formattedAddress);
-
-  const encodedAddress = encodeURIComponent(formattedAddress);
-  const url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-  console.log("encoded address : " + encodedAddress);
+  let url: string;
+  
+  // If it's already a Google Maps URL, use it directly
+  if (location_full_address.startsWith('https://www.google.com/maps')) {
+    url = location_full_address;
+    console.log("Using provided Google Maps URL directly");
+  } else {
+    // Otherwise, format as address and create search URL
+    const formattedAddress = formatAddressForURL(location_full_address);
+    console.log("formatted address : " + formattedAddress);
+    const encodedAddress = encodeURIComponent(formattedAddress);
+    url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    console.log("encoded address : " + encodedAddress);
+  }
+  
   console.log("url : " + url);
 
   if (!url) {
@@ -38,7 +48,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: config.headless,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -54,9 +64,13 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     console.log('Proxy authenticated');
 
 
+    console.log('=== NAVIGATING TO URL ===');
+    console.log('Initial URL:', url);
     await page.goto(url, {
       waitUntil: 'networkidle2',
     });
+    const currentUrl = page.url();
+    console.log('Current URL after navigation:', currentUrl);
     console.log('Page navigated to URL');
 
     await handleConsentPage(page);
@@ -111,6 +125,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
 
 async function handleConsentPage(page: Page): Promise<string> {
   let currentUrl = page.url();
+  console.log('Checking for consent page. Current URL:', currentUrl);
   if (currentUrl.includes('consent')) {
     try {
       console.log('Consent page detected, handling consent...');
@@ -120,6 +135,7 @@ async function handleConsentPage(page: Page): Promise<string> {
         await acceptButton.click();
         await page.waitForNavigation({ waitUntil: 'networkidle2' });
         currentUrl = page.url();
+        console.log('=== CONSENT ACCEPTED ===');
         console.log(`URL after accepting consent: ${currentUrl}`);
       } else {
         const error = 'Consent accept button not found';
@@ -289,7 +305,7 @@ export async function fetchGoogleBusinessAttributes(req: Request, res: Response)
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: config.headless,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -304,10 +320,16 @@ export async function fetchGoogleBusinessAttributes(req: Request, res: Response)
     await page.authenticate({ username: proxy.username, password: proxy.pw });
     console.log('Proxy authenticated');
 
+    console.log('=== NAVIGATING TO URL (fetchGoogleBusinessAttributes) ===');
+    console.log('Initial URL:', url);
     await page.goto(url, {
       waitUntil: 'networkidle2',
     });
+    const currentUrl = page.url();
+    console.log('Current URL after navigation:', currentUrl);
     console.log('Navigated to URL');
+    await page.waitForTimeout(10000);
+    console.log('Waited 10 seconds after page load');
 
     await handleConsentPage(page);
     await page.waitForTimeout(randomTimeout());
@@ -414,7 +436,7 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
     console.log("Using proxy: " + proxy.address);
 
     browser = await puppeteer.launch({
-      headless: true,
+      headless: config.headless,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -429,8 +451,14 @@ export async function getOriginalName(req: Request, res?: Response): Promise<str
     await page.authenticate({ username: proxy.username, password: proxy.pw });
     console.log('Proxy authenticated');
 
+    console.log('=== NAVIGATING TO URL (getOriginalName) ===');
+    console.log('Initial URL:', url);
     await page.goto(url, { waitUntil: 'networkidle2' });
+    const currentUrl = page.url();
+    console.log('Current URL after navigation:', currentUrl);
     console.log('Page navigated to URL');
+    await page.waitForTimeout(10000);
+    console.log('Waited 10 seconds after page load');
 
     await handleConsentPage(page);
     console.log('Consent page handled');
