@@ -4,7 +4,7 @@ import City from './City';
 import User from './User';
 import DailyRedactorStats from './DailyRedactorStats';
 import Image from './Image';
-
+//place
 class Place extends Model {
     public id_tomexplore!: number;
     public name_eng!: string;
