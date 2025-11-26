@@ -46,14 +46,17 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 country: countryName
             } = placeData;
 
-            if (!id_tomexplore || !countryName || !cityName || !name_en) {
-                return { error: 'Missing required fields', placeData };
+            // Use name_fr as fallback if name_en is empty
+            const placeName = name_en || name_fr;
+            
+            if (!id_tomexplore || !countryName || !cityName || !placeName) {
+                return { error: 'Missing required fields (need either name_en or name_fr)', placeData };
             }
 
             let instagramImages: ImageResultBusiness = { urls: [], count: 0 };
             let googleImages: ImageResultBusiness = { urls: [], count: 0 };
             let errors: string[] = [];
-            let location_full_address = google_maps_link || `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
+            let location_full_address = google_maps_link || `${placeName} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
             console.log("location full address : " + location_full_address);
 
             try {
@@ -140,8 +143,8 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 if (!place) {
                     place = await Place.create({
                         id_tomexplore,
-                        name_eng: name_en,
-                        name_fr,
+                        name_eng: name_en || name_fr,
+                        name_fr: name_fr || name_en,
                         type: 'Business',
                         city_id: city.id,
                         checked: false,
@@ -220,6 +223,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 id_tomexplore,
                 famous,
                 name_en,
+                name_fr,
                 address,
                 link_maps: google_maps_link,
                 city: cityName,
@@ -227,8 +231,11 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 country: countryName
             } = placeData;
 
-            if (!id_tomexplore || !name_en || !cityName || !countryName || famous === undefined) {
-                return { error: 'Missing required fields', placeData };
+            // Use name_fr as fallback if name_en is empty
+            const placeName = name_en || name_fr;
+            
+            if (!id_tomexplore || !placeName || !cityName || !countryName || famous === undefined) {
+                return { error: 'Missing required fields (need either name_en or name_fr)', placeData };
             }
             let googleImages: ImageResultBusiness = { urls: [], count: 0 };
             let wikiMediaResult: ImageResultTourist = { urls: [], count: 0, link: '' };
@@ -237,7 +244,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
             let wikipediaUrl: string = '';
             let originalName: string = '';
             let errors: string[] = [];
-            let location_full_address = google_maps_link || `${name_en} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
+            let location_full_address = google_maps_link || `${placeName} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
 
             try {
                 let country, city;
@@ -273,8 +280,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                         wikiMediaResult.source = 'Wikimedia';
                         wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName, city: cityName } } as Request);
                     } else {
-                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: name_en, city: cityName } } as Request);
-                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: name_en, country: countryName, city: cityName } } as Request);
+                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request);
+                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: placeName, country: countryName, city: cityName } } as Request);
                     }
 
                     if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
@@ -310,7 +317,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 // Fetch Unsplash Images if famous is true
                 if (famous === true) {
                     try {
-                        unsplashResult = await UnsplashController.unsplashSearch({ body: { name: name_en } } as Request);
+                        unsplashResult = await UnsplashController.unsplashSearch({ body: { name: placeName } } as Request);
                         unsplashResult.source = 'Unsplash';
 
                         if (unsplashResult.error) errors.push(unsplashResult.error);
@@ -325,7 +332,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
 
                 // Recherche en anglais SN
                 if (wikiMediaResult.urls.length + unsplashResult.urls.length + instagramImages.urls.length < 10 && originalName) {
-                    const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: name_en, city: cityName } } as Request);
+                    const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request);
                     wikiMediaResult.urls = wikiMediaResult.urls.concat(additionalWikiResults.urls);
                     if (famous) {
                         const additionalUnsplashResults = await UnsplashController.unsplashSearch({ body: { name: originalName, city: cityName } } as Request);
@@ -339,7 +346,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     if (!place) {
                         place = await Place.create({
                             id_tomexplore,
-                            name_eng: name_en,
+                            name_eng: name_en || name_fr,
+                            name_fr: name_fr || name_en,
                             name_original: originalName !== '' ? originalName : null,
                             type: 'Tourist Attraction',
                             city_id: city.id,
@@ -370,7 +378,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 if (!place) {
                     place = await Place.create({
                         id_tomexplore,
-                        name_eng: name_en,
+                        name_eng: name_en || name_fr,
+                        name_fr: name_fr || name_en,
                         name_original: originalName !== '' ? originalName : null,
                         type: 'Tourist Attraction',
                         city_id: city.id,
