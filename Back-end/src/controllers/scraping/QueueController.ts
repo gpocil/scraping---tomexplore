@@ -76,46 +76,25 @@ export const launchScraping = async (req: Request, res: Response) => {
             console.log('Tourist results length:', results[1]?.length);
             console.log('Tourist results:', JSON.stringify(results[1], null, 2));
 
-            const updateProcessedEntries = async (entries: Queue[], results: any[]) => {
-                console.log(`\nChecking ${entries.length} entries for successful scraping`);
-                
-                // Create a map of successful IDs (those without errors)
-                const successfulIds = new Set(
-                    results
-                        .filter(result => !result.error)
-                        .map(result => result.placeData?.id_tomexplore)
-                        .filter(Boolean)
-                );
-                
-                console.log(`Successfully scraped: ${successfulIds.size} out of ${entries.length}`);
-                console.log('Successful IDs:', Array.from(successfulIds));
-                
-                // Only update entries that were successfully scraped
+            const updateProcessedEntries = async (entries: Queue[]) => {
+                console.log(`\nMarking ${entries.length} entries as processed`);
                 await Promise.all(entries.map(async (entry) => {
-                    if (successfulIds.has(entry.id_tomexplore)) {
-                        console.log(`✓ Marking as processed: ${entry.id_tomexplore} (${entry.name_en || entry.name_fr})`);
-                        await Queue.update(
-                            {
-                                processed: true,
-                                updatedAt: new Date(),
-                            },
-                            {
-                                where: { id: entry.id },
-                            }
-                        );
-                    } else {
-                        console.log(`✗ NOT marking as processed (failed): ${entry.id_tomexplore} (${entry.name_en || entry.name_fr})`);
-                    }
+                    console.log(`✓ Marking as processed: ${entry.id_tomexplore} (${entry.name_en || entry.name_fr})`);
+                    await Queue.update(
+                        {
+                            processed: true,
+                            updatedAt: new Date(),
+                        },
+                        {
+                            where: { id: entry.id },
+                        }
+                    );
                 }));
             };
 
             console.log('\n=== UPDATING PROCESSED STATUS ===');
-            // Handle business results - could be error object or empty array
-            const businessResults = Array.isArray(results[0]) ? results[0] : [];
-            const touristResults = Array.isArray(results[1]) ? results[1] : [];
-            
-            await updateProcessedEntries(businessEntries, businessResults);
-            await updateProcessedEntries(touristAttractionEntries, touristResults);
+            await updateProcessedEntries(businessEntries);
+            await updateProcessedEntries(touristAttractionEntries);
             console.log('All entries marked as processed');
             console.log('\n=== SCRAPING COMPLETED SUCCESSFULLY ===\n');
             return res.status(200).json({ message: 'Scraping process completed successfully', results });
