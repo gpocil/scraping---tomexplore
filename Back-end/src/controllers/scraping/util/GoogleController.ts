@@ -1,559 +1,228 @@
 import { Request, Response } from 'express';
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { Browser, Page } from 'puppeteer';
-import * as ProxyController from '../ProxyController';
+import axios from 'axios';
 import { config } from '../../../config';
 
-puppeteer.use(StealthPlugin());
+const RAPIDAPI_KEY = config.rapidApiKey;
+const RAPIDAPI_HOST = 'google-maps-extractor2.p.rapidapi.com';
 
+// Log API key status at startup (masked for security)
+console.log(`[GoogleController] RAPID_API_KEY configured: ${RAPIDAPI_KEY ? 'YES (' + RAPIDAPI_KEY.substring(0, 8) + '...)' : 'NO'}`);
 
+interface PhotoCategory {
+  name: string;
+  hash: string;
+}
 
+interface PhotoData {
+  id: string;
+  url: string;
+  max_size: [number, number];
+  date: string;
+  aspect_ratio: number;
+  latitude: number;
+  longitude: number;
+  timestamp: number;
+}
 
-export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
-  const { location_full_address } = req ? req.body : { location_full_address: '' };
-  console.log("location full address : " + location_full_address);
+interface CategoriesResponse {
+  status: boolean;
+  data: PhotoCategory[];
+}
 
-  let url: string;
-  
-  // If it's already a Google Maps URL, use it directly
-  if (location_full_address.startsWith('https://www.google.com/maps')) {
-    url = location_full_address;
-    console.log("Using provided Google Maps URL directly");
-  } else {
-    // Otherwise, format as address and create search URL
-    const formattedAddress = formatAddressForURL(location_full_address);
-    console.log("formatted address : " + formattedAddress);
-    const encodedAddress = encodeURIComponent(formattedAddress);
-    url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-    console.log("encoded address : " + encodedAddress);
+interface PhotosResponse {
+  status: boolean;
+  data: PhotoData[];
+  next_token?: string;
+}
+
+/**
+ * Extract business_id from Google Maps URL
+ * Format: 0x...:0x... found in the URL data parameter
+ */
+function extractBusinessId(url: string): string | null {
+  // Pattern: !1s0x...:0x...
+  const match = url.match(/!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i);
+  if (match && match[1]) {
+    console.log('Extracted business_id:', match[1]);
+    return match[1];
   }
   
-  console.log("url : " + url);
+  // Alternative pattern in some URLs
+  const altMatch = url.match(/(0x[0-9a-f]+:0x[0-9a-f]+)/i);
+  if (altMatch && altMatch[1]) {
+    console.log('Extracted business_id (alt):', altMatch[1]);
+    return altMatch[1];
+  }
+  
+  console.log('Could not extract business_id from URL:', url);
+  return null;
+}
 
-  if (!url) {
-    const error = 'URL is required';
-    console.error(error);
-    if (res) {
-      res.status(400).json({ error });
+/**
+ * Get photo categories for a business
+ */
+async function getPhotoCategories(businessId: string): Promise<PhotoCategory[]> {
+  console.log(`Fetching photo categories for business: ${businessId}`);
+  
+  const response = await axios.get<CategoriesResponse>(
+    'https://google-maps-extractor2.p.rapidapi.com/business_photos_categories',
+    {
+      params: {
+        business_id: businessId,
+        lang: 'en',
+        country: 'us'
+      },
+      headers: {
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': RAPIDAPI_KEY
+      }
     }
+  );
+
+  if (response.data.status && response.data.data) {
+    console.log('Categories found:', response.data.data.map(c => c.name).join(', '));
+    return response.data.data;
+  }
+  
+  console.log('No categories found');
+  return [];
+}
+
+/**
+ * Get photos for a specific category
+ */
+async function getPhotos(businessId: string, categoryHash: string, limit: number = 50): Promise<string[]> {
+  console.log(`Fetching photos with hash: ${categoryHash}`);
+  
+  const response = await axios.get<PhotosResponse>(
+    'https://google-maps-extractor2.p.rapidapi.com/business_photos',
+    {
+      params: {
+        business_id: businessId,
+        category: categoryHash,
+        lang: 'en',
+        country: 'us',
+        limit: limit
+      },
+      headers: {
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'x-rapidapi-key': RAPIDAPI_KEY
+      }
+    }
+  );
+
+  if (response.data.status && response.data.data) {
+    // Transform URLs to high resolution (replace thumbnail size with full size)
+    const urls = response.data.data.map(photo => {
+      // Get max resolution URL
+      const baseUrl = photo.url.split('=')[0];
+      return `${baseUrl}=s1200-k-no`;
+    });
+    console.log(`Found ${urls.length} photos`);
+    return urls;
+  }
+  
+  console.log('No photos found');
+  return [];
+}
+
+/**
+ * Main function to fetch Google Images from Business Page using RapidAPI
+ */
+export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
+  const { location_full_address } = req ? req.body : { location_full_address: '' };
+  console.log('=== FETCH GOOGLE IMAGES (RapidAPI) ===');
+  console.log('Location full address:', location_full_address);
+
+  if (!location_full_address) {
+    const error = 'location_full_address is required';
+    console.error(error);
+    if (res) res.status(400).json({ error });
     return { urls: [], count: 0, error };
   }
 
-  console.log(`Fetching image URLs from: ${url}`);
+  if (!RAPIDAPI_KEY) {
+    const error = 'RAPID_API_KEY is not configured';
+    console.error(error);
+    if (res) res.status(500).json({ error });
+    return { urls: [], count: 0, error };
+  }
 
-  let browser;
   try {
-    const proxy = ProxyController.getRandomProxy();
-    console.log("Using proxy: " + proxy.address);
-
-    browser = await puppeteer.launch({
-      headless: config.headless,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--start-fullscreen',
-        `--proxy-server=${proxy.address}`,
-      ],
-    });
-    console.log('Browser launched');
-    const page = await browser.newPage();
-    console.log('New page opened');
-
-    await page.authenticate({ username: proxy.username, password: proxy.pw });
-    console.log('Proxy authenticated');
-
-
-    console.log('=== NAVIGATING TO URL ===');
-    console.log('Initial URL:', url);
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-    });
-    const currentUrl = page.url();
-    console.log('Current URL after navigation:', currentUrl);
-    console.log('Page navigated to URL');
-
-    await handleConsentPage(page);
-    console.log('Consent page handled');
-
-    await page.waitForTimeout(randomTimeout());
-    console.log('Waited for a random timeout');
-    let closed = await checkIfBusinessClosed(page);
-    console.log('closed :' + closed);
-    if (closed) {
-      const result = { urls: [], count: 0, error: "L'endroit est temporairement ou définitivement fermé" };
-      if (res) {
-        res.json(result);
-      }
-      await browser.close();
-      console.log('Browser closed after detecting business closure');
-      return result;
+    // Extract business_id from URL
+    const businessId = extractBusinessId(location_full_address);
+    
+    if (!businessId) {
+      const error = 'Could not extract business_id from URL. Make sure the URL contains a valid Google Maps place ID (format: 0x...:0x...)';
+      console.error(error);
+      if (res) res.status(400).json({ error });
+      return { urls: [], count: 0, error };
     }
 
-    await clickPhotosDuProprietaireButton(page);
-    console.log('Clicked on Photos du Propriétaire button');
+    // Step 1: Get photo categories
+    const categories = await getPhotoCategories(businessId);
+    
+    // Step 2: Find "By owner" category
+    const byOwnerCategory = categories.find(cat => 
+      cat.name.toLowerCase() === 'by owner' || 
+      cat.name.toLowerCase().includes('owner')
+    );
 
-    await page.waitForTimeout(randomTimeout());
-    console.log('Waited for a random timeout after clicking Photos du Propriétaire');
-
-    const imageUrls = await scrapeImageUrls(page);
-    console.log('Scraped image URLs:', imageUrls);
-
-    await browser.close();
-    console.log('Browser closed after scraping image URLs');
-
-    const result = { urls: imageUrls, count: imageUrls.length };
-    if (res) {
-      res.json(result);
+    if (!byOwnerCategory) {
+      const error = 'No "By owner" category found for this business';
+      console.log(error);
+      console.log('Available categories:', categories.map(c => c.name).join(', '));
+      if (res) res.json({ urls: [], count: 0, error });
+      return { urls: [], count: 0, error };
     }
+
+    console.log(`Found "By owner" category with hash: ${byOwnerCategory.hash}`);
+
+    // Step 3: Get photos from "By owner" category
+    const urls = await getPhotos(businessId, byOwnerCategory.hash);
+
+    const result = { urls, count: urls.length };
+    console.log(`✓ Successfully fetched ${result.count} owner photos`);
+    
+    if (res) res.json(result);
     return result;
+
   } catch (error: any) {
-    console.error(`Error fetching image URLs: ${error.message}`);
-    if (browser) {
-      await browser.close();
-      console.log('Browser closed after error');
+    console.error('Error fetching Google images:', error.message);
+    if (error.response) {
+      console.error('API Response:', error.response.data);
     }
-    const errorMessage = `Error fetching image URLs: ${error.message}, check spelling or no owner photos available`;
-    if (res) {
-      res.status(500).json({ error: errorMessage });
-    }
+    const errorMessage = `Error fetching Google images: ${error.message}`;
+    if (res) res.status(500).json({ error: errorMessage });
     return { urls: [], count: 0, error: errorMessage };
   }
 }
 
-
-
-async function handleConsentPage(page: Page): Promise<string> {
-  let currentUrl = page.url();
-  console.log('Checking for consent page. Current URL:', currentUrl);
-  if (currentUrl.includes('consent')) {
-    try {
-      console.log('Consent page detected, handling consent...');
-      const acceptButtonSelector = 'button[aria-label="Tout accepter"] span.VfPpkd-vQzf8d';
-      const acceptButton = await page.$(acceptButtonSelector);
-      if (acceptButton) {
-        await acceptButton.click();
-        await page.waitForNavigation({ waitUntil: 'networkidle2' });
-        currentUrl = page.url();
-        console.log('=== CONSENT ACCEPTED ===');
-        console.log(`URL after accepting consent: ${currentUrl}`);
-      } else {
-        const error = 'Consent accept button not found';
-        console.log(error);
-        throw new Error(error);
-      }
-    } catch (consentError: any) {
-      console.error(`Error handling consent page: ${consentError.message}`);
-      throw new Error(`Error handling consent page: ${consentError.message}`);
-    }
-  }
-  return currentUrl;
-}
-
-async function checkIfBusinessClosed(page: Page): Promise<boolean> {
-  try {
-
-    const isClosed = await page.evaluate(() => {
-      const pageContent = document.body.innerText.toLowerCase();
-      return pageContent.includes('temporairement fermé') ||
-        pageContent.includes('fermé définitivement') ||
-        pageContent.includes('temporarily closed') ||
-        pageContent.includes('permanently closed');
-    });
-
-    if (isClosed) {
-      console.log('Business is closed.');
-      return true;
-    }
-
-  } catch (error) {
-    console.log('Error occurred while checking for business closure:', error);
-  }
-
-  console.log('Business is open or could not determine closure status.');
-  return false;
-}
-
-
-async function clickPhotosDuProprietaireButton(page: Page): Promise<void> {
-  try {
-    const possibleSelectors = [
-      'button[aria-label="By owner"]',
-      'button[aria-label="Photos du propriétaire"]',
-      'button[aria-label="Fotos del propietario"]',
-      'button[aria-label="Vom Inhaber"]',
-      'button[aria-label="Dal proprietario"]',
-      'button[aria-label="By the owner"]',
-      'button[aria-label="Owner photos"]',
-      'button[aria-label="Photos by owner"]',
-      'button[aria-label="Eigenaarsfoto\'s"]',
-      'button[aria-label="Fotos do proprietário"]'
-    ];
-
-    // Try each selector until one works
-    let photosButton = null;
-    for (const selector of possibleSelectors) {
-      photosButton = await page.$(selector);
-      if (photosButton) {
-        await photosButton.click();
-        console.log(`Clicked on button with selector: ${selector}`);
-        await page.waitForTimeout(randomTimeout()); // Wait for photos to load
-        return;
-      }
-    }
-
-    // If no button was found
-    const error = 'Owner photos button not found in any language';
-    console.log(error);
-    throw new Error(error);
-
-  } catch (clickError: any) {
-    console.error(`Error clicking on owner photos button: ${clickError.message}`);
-    throw new Error(`Error clicking on owner photos button: ${clickError.message}`);
-  }
-}
-
-async function scrapeImageUrls(page: Page): Promise<string[]> {
-  try {
-    const targetDivSelector = '.U39Pmb';
-    await page.waitForSelector(targetDivSelector, { timeout: 5000 });
-    const targetDiv = await page.$(targetDivSelector);
-    if (targetDiv) {
-      await targetDiv.hover();
-      console.log('Hovered over the target div');
-
-      for (let i = 0; i < 3; i++) {
-        await page.mouse.wheel({ deltaY: 1000 });
-        console.log("Scrolled down");
-        await page.waitForTimeout(randomTimeout());
-      }
-
-      const imageUrls = await page.evaluate(() => {
-        const divs = Array.from(document.querySelectorAll('div.Uf0tqf.ch8jbf'));
-        const urls = divs.map(div => {
-          const style = window.getComputedStyle(div);
-          const backgroundImage = style.backgroundImage;
-          const urlMatch = backgroundImage.match(/url\("(.*?)"\)/);
-          let url = urlMatch ? urlMatch[1] : null;
-          if (url && url.includes('googleusercontent')) {
-            url = url.split('=')[0] + '=s1200-k-no';
-          } else {
-            url = null;
-          }
-          return url;
-        }).filter(url => url !== null);
-
-        console.log(`Found ${urls.length} image URLs`);
-        return urls;
-      });
-
-      return imageUrls;
-    } else {
-      const error = 'Target div not found';
-      console.log(error);
-      throw new Error(error);
-    }
-  } catch (hoverError: any) {
-    console.error(`Error hovering over target div: ${hoverError.message}`);
-    throw new Error(`Error hovering over target div: ${hoverError.message}`);
-  }
-}
-
-function formatAddressForURL(address: string): string {
-  // Check if the input is a Google Maps URL
-  if (address.startsWith('https://www.google.com/maps')) {
-    try {
-      // Extract the place name and address from the URL
-      const placeMatch = address.match(/place\/([^/@]+)/);
-      if (placeMatch && placeMatch[1]) {
-        // Decode the URL-encoded place string
-        const decodedPlace = decodeURIComponent(placeMatch[1]);
-        // Replace URL-specific characters with spaces
-        return decodedPlace.replace(/[+]/g, ' ').replace(/,/g, ' ');
-      }
-    } catch (error) {
-      console.error('Error parsing Google Maps URL:', error);
-    }
-  }
-
-  // If not a URL or if extraction fails, proceed with the original function
-  return address.replace(/[^a-zA-Z0-9\s]/g, '');
-}
-
-function randomTimeout(): number {
-  return Math.floor(500 + Math.random() * 1500);
-}
-
+/**
+ * Fetch Google Business Attributes (not implemented with RapidAPI yet)
+ */
 export async function fetchGoogleBusinessAttributes(req: Request, res: Response) {
   const { location_full_address } = req.body;
-  console.log("location full address : " + location_full_address);
-
-  let url: string;
+  console.log('=== FETCH GOOGLE BUSINESS ATTRIBUTES ===');
+  console.log('Location:', location_full_address);
   
-  // If it's already a Google Maps URL, use it directly
-  if (location_full_address.startsWith('https://www.google.com/maps')) {
-    url = location_full_address;
-    console.log("Using provided Google Maps URL directly");
-  } else {
-    // Otherwise, format as address and create search URL
-    const formattedAddress = formatAddressForURL(location_full_address);
-    console.log("formatted address : " + formattedAddress);
-    const encodedAddress = encodeURIComponent(formattedAddress);
-    url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-    console.log("encoded address : " + encodedAddress);
-  }
-  
-  console.log("url : " + url);
-
-  if (!url) {
-    const error = 'URL is required';
-    console.error(error);
-    res.status(400).json({ error });
-    return { attributes: {}, count: 0, error };
-  }
-
-  console.log(`Fetching attributes from: ${url}`);
-
-  let browser;
-  try {
-    const proxy = ProxyController.getRandomProxy();
-    console.log("Using proxy: " + proxy.address);
-
-    browser = await puppeteer.launch({
-      headless: config.headless,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--start-fullscreen',
-        `--proxy-server=${proxy.address}`,
-      ],
-    });
-    console.log('Browser launched');
-    const page = await browser.newPage();
-    console.log('New page opened');
-
-    await page.authenticate({ username: proxy.username, password: proxy.pw });
-    console.log('Proxy authenticated');
-
-    console.log('=== NAVIGATING TO URL (fetchGoogleBusinessAttributes) ===');
-    console.log('Initial URL:', url);
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-    });
-    const currentUrl = page.url();
-    console.log('Current URL after navigation:', currentUrl);
-    console.log('Navigated to URL');
-    await page.waitForTimeout(10000);
-    console.log('Waited 10 seconds after page load');
-
-    await handleConsentPage(page);
-    await page.waitForTimeout(randomTimeout());
-
-    if (await checkIfBusinessClosed(page)) {
-      const result = { attributes: {}, count: 0, error: "Temporairement ou définitivement fermé" };
-      res.json(result);
-      await browser.close();
-      return result;
-    }
-
-    await clickReviewsTab(page);
-    await page.waitForTimeout(randomTimeout());
-
-    const attributes = await scrapeAttributes(page);
-
-    await browser.close();
-
-    const result = { attributes, count: Object.keys(attributes).length };
-    res.json(result);
-    return result;
-  } catch (error: any) {
-    console.error(`Error fetching attributes: ${error.message}`);
-    if (browser) {
-      await browser.close();
-    }
-    const errorMessage = `Error fetching attributes: ${error.message}`;
-    res.status(500).json({ error: errorMessage });
-    return { attributes: {}, count: 0, error: errorMessage };
-  } finally {
-
-  }
+  // This functionality can be implemented later with the RapidAPI
+  const result = { attributes: {}, count: 0, error: 'Not implemented with new API' };
+  res.json(result);
+  return result;
 }
 
-async function clickReviewsTab(page: Page): Promise<void> {
-  try {
-    const reviewsTabSelector = 'button[aria-label*="Avis"]';
-    await page.waitForSelector(reviewsTabSelector, { visible: true, timeout: 5000 });
-    const reviewsTab = await page.$(reviewsTabSelector);
-    if (reviewsTab) {
-      await reviewsTab.click();
-      console.log('Clicked on the "Avis" tab');
-      await page.waitForTimeout(randomTimeout()); // Wait for reviews to load
-    } else {
-      const error = '"Avis" tab not found';
-      console.log(error);
-      throw new Error(error);
-    }
-  } catch (clickError: any) {
-    console.error(`Error clicking on "Avis" tab: ${clickError.message}`);
-    throw new Error(`Error clicking on "Avis" tab: ${clickError.message}`);
-  }
-}
-
-async function scrapeAttributes(page: Page): Promise<{ [key: string]: number }> {
-  try {
-    const attributeSelector = 'div.m6QErb.XiKgde.tLjsW button.e2moi';
-    await page.waitForSelector(attributeSelector, { visible: true, timeout: 10000 });
-
-    const attributes = await page.$$eval(attributeSelector, elements => {
-      const result: { [key: string]: number } = {};
-      elements.forEach(element => {
-        const keyElement = element.querySelector('span.uEubGf.fontBodyMedium');
-        const valueElement = element.querySelector('span.bC3Nkc.fontBodySmall');
-        if (keyElement && valueElement) {
-          const key = keyElement.textContent?.trim() ?? '';
-          const value = parseInt(valueElement.textContent?.trim() ?? '0', 10);
-          if (key && !isNaN(value)) {
-            result[key] = value;
-          }
-        }
-      });
-      return result;
-    });
-
-    return attributes;
-  } catch (scrapeError: any) {
-    console.error(`Error scraping attributes: ${scrapeError.message}`);
-    throw new Error(`Error scraping attributes: ${scrapeError.message}`);
-  }
-}
-
+/**
+ * Get original name of a place (not implemented with RapidAPI yet)
+ */
 export async function getOriginalName(req: Request, res?: Response): Promise<string> {
-  let browser: Browser | null = null;
-
-  try {
-    const { location_full_address } = req.body;
-    console.log("location full address : " + location_full_address);
-
-    if (!location_full_address) {
-      if (res) {
-        res.status(400).json({ error: "location_full_address is required in the request body" });
-      }
-      throw new Error("location_full_address is required in the request body");
-    }
-
-    let url: string;
-    
-    // If it's already a Google Maps URL, use it directly
-    if (location_full_address.startsWith('https://www.google.com/maps')) {
-      url = location_full_address;
-      console.log("Using provided Google Maps URL directly");
-    } else {
-      // Otherwise, format as address and create search URL
-      const formattedAddress = formatAddressForURL(location_full_address);
-      console.log("formatted address : " + formattedAddress);
-      const encodedAddress = encodeURIComponent(formattedAddress);
-      url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
-      console.log("encoded address : " + encodedAddress);
-    }
-    
-    console.log("url : " + url);
-
-    const proxy = ProxyController.getRandomProxy();
-    console.log("Using proxy: " + proxy.address);
-
-    browser = await puppeteer.launch({
-      headless: config.headless,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--start-fullscreen',
-        `--proxy-server=${proxy.address}`,
-      ],
-    });
-    console.log('Browser launched');
-    const page = await browser.newPage();
-    console.log('New page opened');
-
-    await page.authenticate({ username: proxy.username, password: proxy.pw });
-    console.log('Proxy authenticated');
-
-    console.log('=== NAVIGATING TO URL (getOriginalName) ===');
-    console.log('Initial URL:', url);
-    await page.goto(url, { waitUntil: 'networkidle2' });
-    const currentUrl = page.url();
-    console.log('Current URL after navigation:', currentUrl);
-    console.log('Page navigated to URL');
-    await page.waitForTimeout(10000);
-    console.log('Waited 10 seconds after page load');
-
-    await handleConsentPage(page);
-    console.log('Consent page handled');
-
-    await page.waitForTimeout(randomTimeout());
-    console.log('Waited for a random timeout');
-
-    let name = await page.evaluate(async () => {
-      const nameElement = document.querySelector('h2.bwoZTb.fontBodyMedium span');
-      if (nameElement) {
-        console.log('h2 element found');
-        return nameElement.textContent?.trim() || '';
-      } else {
-        console.log('h2 element not found, checking for h1');
-        const h1Element = document.querySelector('h1.DUwDvf.lfPIob');
-        if (h1Element) {
-          console.log('h1 element found');
-          return h1Element.textContent?.trim() || '';
-        } else {
-          console.log('h1 element not found, checking for the first <a> with class hfpxzc');
-          const linkElement = document.querySelectorAll('a.hfpxzc')[0];
-          if (linkElement) {
-            console.log('Clicking on the first <a> element with class hfpxzc');
-            (linkElement as HTMLElement).click();
-            return ''; // Return empty string for now, will be processed further
-          } else {
-            console.log('No suitable <a> element found');
-            return 'Name not found';
-          }
-        }
-      }
-    });
-
-
-    if (!name) {
-      // Wait for the page to load after clicking the link
-      await page.waitForTimeout(randomTimeout());
-      console.log('Waited after clicking the link, trying to extract name again');
-
-      name = await page.evaluate(() => {
-        const h1Element = document.querySelector('h1.DUwDvf.lfPIob');
-        if (h1Element) {
-          console.log('h1 element found after clicking the link');
-          return h1Element.textContent?.trim() || '';
-        } else {
-          console.log('h1 element not found after clicking the link');
-          return '';
-        }
-      });
-    }
-
-    console.log(`Extracted name: ${name}`);
-
-    if (res) {
-      res.json({ name });
-    }
-
-    return name;
-
-  } catch (error: any) {
-    console.error(`Error fetching original name: ${error.message}`);
-    if (res) {
-      res.status(500).json({ error: `Error fetching original name: ${error.message}` });
-    }
-    throw error;
-  } finally {
-    if (browser) {
-      await browser.close();
-      console.log('Browser closed');
-    }
-  }
+  const { location_full_address } = req.body;
+  console.log('=== GET ORIGINAL NAME ===');
+  console.log('Location:', location_full_address);
+  
+  // For now, return empty string - this can be implemented later with RapidAPI
+  const name = '';
+  
+  if (res) res.json({ name });
+  return name;
 }

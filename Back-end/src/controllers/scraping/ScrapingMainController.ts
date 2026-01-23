@@ -85,27 +85,39 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                     cityCache[cityKey] = city;
                 }
 
-                // Fetch Instagram Images if username is provided
-                if (instagram_username && instagram_username !== "") {
-                    try {
-                        instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
-                        if (instagramImages.error) errors.push(instagramImages.error);
-                    } catch (error: any) {
-                        console.error(`Error fetching Instagram images: ${error.message}`);
-                        errors.push(`Error fetching Instagram images: ${error.message}`);
-                        instagramImages.error = `Error fetching Instagram images: ${error.message}`;
-                    }
-                }
+                // Fetch Instagram and Google Images in parallel
+                const [instagramResult, googleResult] = await Promise.all([
+                    // Instagram fetch (only if username provided)
+                    (async () => {
+                        if (instagram_username && instagram_username !== "") {
+                            try {
+                                const result = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
+                                if (result.error) errors.push(result.error);
+                                return result;
+                            } catch (error: any) {
+                                console.error(`Error fetching Instagram images: ${error.message}`);
+                                errors.push(`Error fetching Instagram images: ${error.message}`);
+                                return { urls: [], count: 0, error: `Error fetching Instagram images: ${error.message}` };
+                            }
+                        }
+                        return { urls: [], count: 0 };
+                    })(),
+                    // Google fetch
+                    (async () => {
+                        try {
+                            const result = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
+                            if (result.error) errors.push(result.error);
+                            return result;
+                        } catch (error: any) {
+                            console.error(`Error fetching Google images: ${error.message}`);
+                            errors.push(`Error fetching Google images: ${error.message}`);
+                            return { urls: [], count: 0, error: `Error fetching Google images: ${error.message}` };
+                        }
+                    })()
+                ]);
 
-                // Fetch Google Images
-                try {
-                    googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
-                    if (googleImages.error) errors.push(googleImages.error);
-                } catch (error: any) {
-                    console.error(`Error fetching Google images: ${error.message}`);
-                    errors.push(`Error fetching Google images: ${error.message}`);
-                    googleImages.error = `Error fetching Google images: ${error.message}`;
-                }
+                instagramImages = instagramResult;
+                googleImages = googleResult;
 
                 if (instagramImages.urls.length === 0 && googleImages.urls.length === 0) {
                     let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });
