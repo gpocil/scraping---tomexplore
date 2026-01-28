@@ -185,9 +185,13 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                     })
                 );
 
+                // Build accessible image URLs
+                const imageUrls = result.imageNames.map(imageName => `/images/${id_tomexplore}/${imageName}`);
+
                 return {
                     downloadDir: result.downloadDir.replace(/\\/g, '/'),
                     imageCount: result.imageCount,
+                    imageUrls,
                     instagramError: instagramImages.error,
                     googleError: googleImages.error,
                     errors: errors.length > 0 ? errors : undefined,
@@ -434,9 +438,13 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     })
                 );
 
+                // Build accessible image URLs
+                const imageUrls = result.imageNames.map(img => `/images/${id_tomexplore}/${img.filename}`);
+
                 return {
                     downloadDir: result.downloadDir.replace(/\\/g, '/'),
                     imageCount: result.imageCount,
+                    imageUrls,
                     wikiMediaError: wikiMediaResult.error,
                     unsplashError: unsplashResult.error,
                     errors: errors.length > 0 ? errors : undefined,
