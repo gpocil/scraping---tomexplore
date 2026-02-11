@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import * as InstagramController from './util/InstagramController';
 import * as GoogleController from './util/GoogleController';
 import * as FileController from './FileController';
@@ -20,6 +22,28 @@ interface ImageResultBusiness {
 
 let cityCache: Record<string, any> = {};
 let countryCache: Record<string, any> = {};
+
+/**
+ * Delete an existing place: removes associated images from DB, 
+ * deletes the files folder, then deletes the place record.
+ */
+async function deleteExistingPlace(id_tomexplore: number, transaction: any): Promise<void> {
+    const existingPlace = await Place.findOne({ where: { id_tomexplore }, transaction });
+    if (existingPlace) {
+        console.log(`Place ${id_tomexplore} already exists, deleting it and its data before re-scraping...`);
+        // Delete associated images from DB
+        await Image.destroy({ where: { place_id: id_tomexplore }, transaction });
+        // Delete files folder
+        const folderPath = path.join(__dirname, '../../../dist', 'temp', id_tomexplore.toString());
+        if (fs.existsSync(folderPath)) {
+            FileController.deleteFolderRecursiveHelper(folderPath);
+            console.log(`Deleted folder: ${folderPath}`);
+        }
+        // Delete the place record
+        await existingPlace.destroy({ transaction });
+        console.log(`Deleted place ${id_tomexplore} from DB`);
+    }
+}
 
 export async function getPhotosBusiness(req?: Request, res?: Response): Promise<any> {
     const places = req ? req.body : [];
@@ -60,6 +84,9 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
             console.log("location full address : " + location_full_address);
 
             try {
+                // Delete existing place and all associated data before re-scraping
+                await deleteExistingPlace(id_tomexplore, transaction);
+
                 let country, city;
 
                 // Check for country in cache or database
@@ -120,53 +147,25 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 googleImages = googleResult;
 
                 if (instagramImages.urls.length === 0 && googleImages.urls.length === 0) {
-                    let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });
-                    if (!place) {
-                        place = await Place.create({
-                            id_tomexplore,
-                            name_eng: name_en,
-                            name_fr,
-                            type: 'Business',
-                            city_id: city.id,
-                            checked: false,
-                            needs_attention: true,
-                            folder: id_tomexplore,
-                            google_maps_link,
-                            instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
-                            wikipedia_link: '',
-                            details: errors.join(', '),
-                            last_modification: new Date()
-                        }, { transaction });
-                    } else {
-                        await place.update({
-                            needs_attention: true,
-                            details: errors.join(', '),
-                            last_modification: new Date()
-                        }, { transaction });
-                    }
-
                     return { error: 'Failed to fetch images from both Instagram and Google', details: errors, placeData };
                 }
 
                 const result = await FileController.downloadPhotosBusiness(id_tomexplore, instagramImages, googleImages);
 
-                // Check if Place exists, otherwise create it
-                let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });
-                if (!place) {
-                    place = await Place.create({
-                        id_tomexplore,
-                        name_eng: name_en || name_fr,
-                        name_fr: name_fr || name_en,
-                        type: 'Business',
-                        city_id: city.id,
-                        checked: false,
-                        folder: id_tomexplore,
-                        google_maps_link,
-                        instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
-                        wikipedia_link: '',
-                        last_modification: new Date()
-                    }, { transaction });
-                }
+                // Create the Place (any existing one was already deleted before scraping)
+                const place = await Place.create({
+                    id_tomexplore,
+                    name_eng: name_en || name_fr,
+                    name_fr: name_fr || name_en,
+                    type: 'Business',
+                    city_id: city.id,
+                    checked: false,
+                    folder: id_tomexplore,
+                    google_maps_link,
+                    instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
+                    wikipedia_link: '',
+                    last_modification: new Date()
+                }, { transaction });
 
                 // Save images in the database with the generated names
                 const saveImage = async (url: string, source: string, generatedName: string) => {
@@ -263,6 +262,9 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
             let location_full_address = google_maps_link || `${placeName} ${address ? address + ' ' : ''}${cityName} ${countryName}`;
 
             try {
+                // Delete existing place and all associated data before re-scraping
+                await deleteExistingPlace(id_tomexplore, transaction);
+
                 let country, city;
 
                 // Check for country in cache or database
@@ -356,28 +358,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     }
                 }
 
-                // Check if both calls failed
+                // Check if all sources failed
                 if (wikiMediaResult.urls.length === 0 && unsplashResult.urls.length === 0 && instagramImages.urls.length === 0) {
-                    let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });
-                    if (!place) {
-                        place = await Place.create({
-                            id_tomexplore,
-                            name_eng: name_en || name_fr,
-                            name_fr: name_fr || name_en,
-                            name_original: originalName !== '' ? originalName : null,
-                            type: 'Tourist Attraction',
-                            city_id: city.id,
-                            checked: false,
-                            needs_attention: true,
-                            folder: id_tomexplore,
-                            google_maps_link,
-                            unsplash_link: unsplashResult.link,
-                            wikipedia_link: wikipediaUrl,
-                            instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
-                            details: errors.toString(),
-                            last_modification: new Date()
-                        }, { transaction });
-                    }
                     return { error: 'Failed to fetch images from both Wikimedia, Unsplash and Instagram', details: errors, placeData };
                 }
 
@@ -389,26 +371,22 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     { ...googleImages, source: googleImages.source ?? 'Google' }
                 );
                 
-                // Check if Place exists, otherwise create it
-                let place = await Place.findOne({ where: { id_tomexplore, city_id: city.id }, transaction });
-                if (!place) {
-                    place = await Place.create({
-                        id_tomexplore,
-                        name_eng: name_en || name_fr,
-                        name_fr: name_fr || name_en,
-                        name_original: originalName !== '' ? originalName : null,
-                        type: 'Tourist Attraction',
-                        city_id: city.id,
-                        checked: false,
-                        folder: id_tomexplore,
-                        google_maps_link,
-                        unsplash_link: unsplashResult.link,
-                        instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
-                        wikipedia_link: wikipediaUrl,
-                        last_modification: new Date()
-
-                    }, { transaction });
-                }
+                // Create the Place (any existing one was already deleted before scraping)
+                const place = await Place.create({
+                    id_tomexplore,
+                    name_eng: name_en || name_fr,
+                    name_fr: name_fr || name_en,
+                    name_original: originalName !== '' ? originalName : null,
+                    type: 'Tourist Attraction',
+                    city_id: city.id,
+                    checked: false,
+                    folder: id_tomexplore,
+                    google_maps_link,
+                    unsplash_link: unsplashResult.link,
+                    instagram_link: instagram_username && instagram_username !== "" ? "https://instagram.com/" + instagram_username : null,
+                    wikipedia_link: wikipediaUrl,
+                    last_modification: new Date()
+                }, { transaction });
                 // Save images in the database with the generated names
                 const saveImage = async (source: string, author: string | null, license: string | null, generatedName: string) => {
                     return Image.create({
