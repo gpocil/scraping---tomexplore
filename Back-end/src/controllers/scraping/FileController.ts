@@ -88,9 +88,9 @@ export async function downloadPhotosBusiness(id_tomexplore: number, instagramIma
 
         const successfulNames: string[] = [];
 
-        // Download in batches of 2 with a different proxy per batch
-        for (let i = 0; i < imageUrls.length; i += 2) {
-            const batch = imageUrls.slice(i, i + 2);
+        // Download in batches of 5 through proxy
+        for (let i = 0; i < imageUrls.length; i += 5) {
+            const batch = imageUrls.slice(i, i + 5);
             const batchResults = await Promise.all(batch.map(async ({ url, generatedName }) => {
                 try {
                     const imageBuffer = await fetchWithRetry(url);
@@ -109,8 +109,8 @@ export async function downloadPhotosBusiness(id_tomexplore: number, instagramIma
             }));
             successfulNames.push(...batchResults.filter((n): n is string => n !== null));
 
-            if (i + 2 < imageUrls.length) {
-                await sleep(1000);
+            if (i + 5 < imageUrls.length) {
+                await sleep(500);
             }
         }
 
@@ -140,11 +140,10 @@ function getProxyAgent(): HttpsProxyAgent<string> | undefined {
 }
 
 async function fetchWithRetry(url: string, retries = 3, delay = 2000): Promise<Buffer | null> {
-    // Use more conservative settings for Wikimedia to avoid 429 rate limiting
+    // Slightly more conservative for Wikimedia
     const isWikimedia = url.includes('wikimedia.org') || url.includes('wikipedia.org');
     if (isWikimedia) {
-        retries = Math.max(retries, 5);
-        delay = Math.max(delay, 5000);
+        delay = Math.max(delay, 3000);
     }
 
     for (let i = 0; i < retries; i++) {
@@ -245,10 +244,10 @@ export async function downloadPhotosTouristAttraction(
         ...googleImages.urls.map(url => ({ url, source: googleImages.source }))
     ];
 
-    console.log(`Starting download of ${allImageUrls.length} images (batches of 2, new proxy per batch, 1.5s delay)...`);
+    console.log(`Starting download of ${allImageUrls.length} images (batches of 5, proxied, 500ms delay)...`);
 
-    // Download all images in batches of 2 — each batch gets a different proxy
-    const imageNames = await downloadWithConcurrency(allImageUrls, downloadDir, id_tomexplore, 2, 1500);
+    // Download all images in batches of 5 — each request goes through a random proxy
+    const imageNames = await downloadWithConcurrency(allImageUrls, downloadDir, id_tomexplore, 5, 500);
 
     console.log(`Download complete: ${imageNames.length}/${allImageUrls.length} successful`);
     console.log(`Download directory: ${downloadDir}`);
