@@ -299,6 +299,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                         wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName, city: cityName } } as Request);
                     } else {
                         wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request);
+                        wikiMediaResult.source = 'Wikimedia';
                         wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: placeName, country: countryName, city: cityName } } as Request);
                     }
 

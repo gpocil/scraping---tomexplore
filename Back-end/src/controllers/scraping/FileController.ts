@@ -7,6 +7,7 @@ import { Image } from '../../models';
 import { Place } from '../../models';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { promisify } from 'util';
+import * as ProxyController from './ProxyController';
 
 export function deleteFolderRecursive(req: Request, res: Response): void {
     const name = req.params.name;
@@ -85,24 +86,36 @@ export async function downloadPhotosBusiness(id_tomexplore: number, instagramIma
         const downloadDir = path.join(__dirname, '../../../dist', 'temp', id_tomexplore.toString());
         fs.mkdirSync(downloadDir, { recursive: true });
 
-        await Promise.all(imageUrls.map(async ({ url, generatedName }) => {
-            try {
-                const response = await axios.get(url, { responseType: 'arraybuffer' });
-                const imageBuffer = Buffer.from(response.data);
-                const outputPath = path.join(downloadDir, generatedName);
+        const successfulNames: string[] = [];
 
-                // Delete the file if it already exists
-                if (fs.existsSync(outputPath)) {
-                    fs.unlinkSync(outputPath);
+        // Download in batches of 2 with a different proxy per batch
+        for (let i = 0; i < imageUrls.length; i += 2) {
+            const batch = imageUrls.slice(i, i + 2);
+            const batchResults = await Promise.all(batch.map(async ({ url, generatedName }) => {
+                try {
+                    const imageBuffer = await fetchWithRetry(url);
+                    if (!imageBuffer) return null;
+                    const outputPath = path.join(downloadDir, generatedName);
+
+                    if (fs.existsSync(outputPath)) {
+                        fs.unlinkSync(outputPath);
+                    }
+                    await sharp(imageBuffer).toFile(outputPath);
+                    return generatedName;
+                } catch (error) {
+                    console.error(`Failed to download image at ${url}:`, error);
+                    return null;
                 }
-                await sharp(imageBuffer).toFile(outputPath);
-            } catch (error) {
-                console.error(`Failed to download image at ${url}:`, error);
+            }));
+            successfulNames.push(...batchResults.filter((n): n is string => n !== null));
+
+            if (i + 2 < imageUrls.length) {
+                await sleep(1000);
             }
-        }));
+        }
 
         console.log('download dir : ' + downloadDir);
-        return { downloadDir, imageCount: imageUrls.length, imageNames: imageUrls.map(({ generatedName }) => generatedName) };
+        return { downloadDir, imageCount: successfulNames.length, imageNames: successfulNames };
     }
     return { downloadDir: '', imageCount: 0, imageNames: [] };
 }
@@ -117,21 +130,44 @@ interface ImageUrl {
 
 const sleep = promisify(setTimeout);
 
+function getProxyAgent(): HttpsProxyAgent<string> | undefined {
+    const proxy = ProxyController.getRandomProxy();
+    if (proxy.address) {
+        const proxyUrl = `http://${proxy.username}:${proxy.pw}@${proxy.address}`;
+        return new HttpsProxyAgent(proxyUrl);
+    }
+    return undefined;
+}
+
 async function fetchWithRetry(url: string, retries = 3, delay = 2000): Promise<Buffer | null> {
+    // Use more conservative settings for Wikimedia to avoid 429 rate limiting
+    const isWikimedia = url.includes('wikimedia.org') || url.includes('wikipedia.org');
+    if (isWikimedia) {
+        retries = Math.max(retries, 5);
+        delay = Math.max(delay, 5000);
+    }
+
     for (let i = 0; i < retries; i++) {
         try {
-            const response = await axios.get(url, { 
+            const headers: Record<string, string> = {
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+            };
+
+            if (isWikimedia) {
+                headers['User-Agent'] = 'TomexploreBot/1.0 (tourism image aggregator; https://tomexplore.com)';
+            } else {
+                headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+            }
+
+            // Route ALL downloads through a random proxy
+            const axiosConfig: any = {
                 responseType: 'arraybuffer',
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Referer': 'https://commons.wikimedia.org/',
-                    'Sec-Fetch-Dest': 'image',
-                    'Sec-Fetch-Mode': 'no-cors',
-                    'Sec-Fetch-Site': 'same-site'
-                }
-            });
+                headers,
+                httpsAgent: getProxyAgent(),
+            };
+
+            const response = await axios.get(url, axiosConfig);
             return Buffer.from(response.data);
         } catch (error: any) {
             if ((error.response?.status === 429 || error.response?.status === 403) && i < retries - 1) {
@@ -151,7 +187,8 @@ async function downloadWithConcurrency(
     imageUrls: { url: string, source: string }[],
     downloadDir: string,
     id_tomexplore: number,
-    concurrency: number = 5
+    concurrency: number = 5,
+    delayBetweenBatches: number = 0
 ): Promise<{ filename: string, source: string }[]> {
     const results: { filename: string, source: string }[] = [];
     let downloadedCount = 0;
@@ -178,6 +215,12 @@ async function downloadWithConcurrency(
         const batch = imageUrls.slice(i, i + concurrency);
         const batchResults = await Promise.all(batch.map(downloadImage));
         results.push(...batchResults.filter((r): r is { filename: string, source: string } => r !== null));
+
+        // Add delay between batches to avoid rate limiting
+        if (delayBetweenBatches > 0 && i + concurrency < imageUrls.length) {
+            console.log(`Waiting ${delayBetweenBatches}ms before next batch...`);
+            await sleep(delayBetweenBatches);
+        }
     }
 
     return results;
@@ -195,17 +238,19 @@ export async function downloadPhotosTouristAttraction(
     const downloadDir = path.join(__dirname, '../../../dist', 'temp', id_tomexplore.toString());
     fs.mkdirSync(downloadDir, { recursive: true });
 
-    const imageUrls = [
-        ...wikiMediaUrls.urls.map(([url, license, author]) => ({ url, source: wikiMediaUrls.source })),
+    const allImageUrls = [
+        ...wikiMediaUrls.urls.map(([url]) => ({ url, source: wikiMediaUrls.source })),
         ...unsplashUrls.urls.map(([url]) => ({ url, source: unsplashUrls.source })),
         ...instagramImages.urls.map(url => ({ url, source: instagramImages.source })),
         ...googleImages.urls.map(url => ({ url, source: googleImages.source }))
     ];
 
-    console.log(`Starting parallel download of ${imageUrls.length} images (concurrency: 5)...`);
-    const imageNames = await downloadWithConcurrency(imageUrls, downloadDir, id_tomexplore, 5);
+    console.log(`Starting download of ${allImageUrls.length} images (batches of 2, new proxy per batch, 1.5s delay)...`);
 
-    console.log(`Download complete: ${imageNames.length}/${imageUrls.length} successful`);
+    // Download all images in batches of 2 — each batch gets a different proxy
+    const imageNames = await downloadWithConcurrency(allImageUrls, downloadDir, id_tomexplore, 2, 1500);
+
+    console.log(`Download complete: ${imageNames.length}/${allImageUrls.length} successful`);
     console.log(`Download directory: ${downloadDir}`);
     return { downloadDir, imageCount: imageNames.length, imageNames };
 }

@@ -1,6 +1,16 @@
 import { Request, Response } from 'express';
 import axios from 'axios';
+import { HttpsProxyAgent } from 'https-proxy-agent';
+import * as ProxyController from '../ProxyController';
 import { config } from '../../../config';
+
+function getProxyAgent(): HttpsProxyAgent<string> | undefined {
+    const proxy = ProxyController.getRandomProxy();
+    if (proxy.address) {
+        return new HttpsProxyAgent(`http://${proxy.username}:${proxy.pw}@${proxy.address}`);
+    }
+    return undefined;
+}
 
 const RAPIDAPI_KEY = config.rapidApiKey;
 const RAPIDAPI_HOST = 'google-maps-extractor2.p.rapidapi.com';
@@ -75,7 +85,8 @@ async function getPhotoCategories(businessId: string): Promise<PhotoCategory[]> 
       headers: {
         'x-rapidapi-host': RAPIDAPI_HOST,
         'x-rapidapi-key': RAPIDAPI_KEY
-      }
+      },
+      httpsAgent: getProxyAgent()
     }
   );
 
@@ -107,7 +118,8 @@ async function getPhotos(businessId: string, categoryHash: string, limit: number
       headers: {
         'x-rapidapi-host': RAPIDAPI_HOST,
         'x-rapidapi-key': RAPIDAPI_KEY
-      }
+      },
+      httpsAgent: getProxyAgent()
     }
   );
 
