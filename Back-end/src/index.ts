@@ -74,9 +74,11 @@ sequelize.authenticate()
                 console.log('Database & tables created!');
 
                 // Utilisation de HTTP au lieu de HTTPS, car Nginx gère HTTPS
-                app.listen(port, '0.0.0.0', () => {
+                const server = app.listen(port, '0.0.0.0', () => {
                     console.log(`Server running at http://localhost:${port}/api-docs`);
                 });
+                // 10 min timeout for batch processing routes
+                server.timeout = 600000;
             })
             .catch(err => {
                 console.error('Unable to sync the database:', err);

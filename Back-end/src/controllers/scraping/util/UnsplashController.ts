@@ -1,10 +1,6 @@
 import { Request, Response } from 'express';
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import axios from 'axios';
 import * as ProxyController from '../ProxyController';
-import { config } from '../../../config';
-
-puppeteer.use(StealthPlugin());
 
 interface ImageResultTourist {
     urls: [string, string, string][];
@@ -14,8 +10,7 @@ interface ImageResultTourist {
 }
 
 export async function unsplashSearch(req?: Request, res?: Response): Promise<ImageResultTourist> {
-    const name = req ? (req.body.name as string).replace(/\s+/g, '-') : '';
-    const searchUrl = `https://unsplash.com/s/photos/${name}`;
+    const name = req ? (req.body.name as string) : '';
 
     if (!name) {
         const error = 'Name is required';
@@ -23,73 +18,77 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
             console.log(error);
             res.status(400).json({ error });
         }
-        return { urls: [], count: 0, error, link: "" };
+        return { urls: [], count: 0, error, link: '' };
     }
 
-    let browser;
+    const searchUrl = `https://unsplash.com/s/photos/${name.replace(/\s+/g, '-')}`;
+
     try {
-        const proxy = ProxyController.getRandomProxy();
-        console.log("Using proxy: " + proxy.address);
+        const proxy = ProxyController.getNextProxy();
+        const agent = ProxyController.getCachedAgent(proxy.address);
+        const startTime = Date.now();
 
-        browser = await puppeteer.launch({
-            headless: config.headless,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--start-fullscreen',
-                `--proxy-server=${proxy.address}`,
-            ],
-        });
-        console.log('Browser launched');
-        const page = await browser.newPage();
-        console.log('New page opened');
+        const apiUrl = 'https://unsplash.com/napi/search/photos';
+        const params = {
+            query: name,
+            per_page: '30',
+        };
 
-        await page.authenticate({ username: proxy.username, password: proxy.pw });
+        console.log(`[Unsplash HTTP] Searching for: "${name}"`);
 
-        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
-        console.log(`Navigated to ${searchUrl}`);
-
-        // Fonction de défilement
-        await page.evaluate(async () => {
-            const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-            const scrollHeight = document.body.scrollHeight;
-
-            for (let i = 0; i < scrollHeight / window.innerHeight; i++) {
-                window.scrollBy(0, window.innerHeight);
-                await delay(1000);
-            }
+        const response = await axios.get(apiUrl, {
+            params,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://unsplash.com/',
+                'Accept': 'application/json',
+                'Accept-Language': 'en-US,en;q=0.9',
+            },
+            httpsAgent: agent,
+            timeout: 15000,
         });
 
-        // Attendre le chargement des images après le défilement
-        await page.waitForTimeout(1323);
+        const latency = Date.now() - startTime;
+        if (proxy.address) ProxyController.reportSuccess(proxy.address, latency);
 
-        const imageUrls = await page.evaluate(() => {
-            const images: [string, string, string][] = [];
-            document.querySelectorAll('img').forEach((img: HTMLImageElement) => {
-                const src = img.src;
-                if (src.startsWith('https://images.unsplash.com/photo') || src.startsWith('https://images.unsplash.com/flagged/photo')) {
-                    images.push([src, img.width.toString(), img.height.toString()]);
-                }
-            });
-            return images;
-        });
-
-        console.log('Images extracted:', imageUrls.length);
-
-        if (res) {
-            res.status(200).json({
-                urls: imageUrls,
-                count: imageUrls.length,
-                link: searchUrl
-            });
+        const results = response.data?.results;
+        if (!results || !Array.isArray(results)) {
+            console.log('[Unsplash HTTP] No results found');
+            const result: ImageResultTourist = { urls: [], count: 0, error: 'No images found on Unsplash', link: searchUrl };
+            if (res) res.json(result);
+            return result;
         }
-        return {
+
+        const imageUrls: [string, string, string][] = results
+            .filter((photo: any) => photo.urls?.regular)
+            .map((photo: any) => {
+                const url = photo.urls.regular || photo.urls.full || '';
+                const width = (photo.width || '').toString();
+                const height = (photo.height || '').toString();
+                return [url, width, height] as [string, string, string];
+            });
+
+        console.log(`[Unsplash HTTP] Found ${imageUrls.length} images in ${latency}ms`);
+
+        const result: ImageResultTourist = {
             urls: imageUrls,
             count: imageUrls.length,
-            link: searchUrl
+            link: searchUrl,
         };
-    } catch (error) {
-        console.error('Error:', error);
+
+        if (res) {
+            res.status(200).json(result);
+        }
+        return result;
+
+    } catch (error: any) {
+        console.error(`[Unsplash HTTP] Error: ${error.message}`);
+
+        if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+            const proxy = ProxyController.getNextProxy();
+            if (proxy.address) ProxyController.reportFailure(proxy.address);
+        }
+
         const errorMessage = 'Error occurred during image search';
         if (res) {
             res.status(500).json({ error: errorMessage });
@@ -98,12 +97,7 @@ export async function unsplashSearch(req?: Request, res?: Response): Promise<Ima
             urls: [],
             count: 0,
             error: errorMessage,
-            link: ""
+            link: '',
         };
-    } finally {
-        if (browser) {
-            await browser.close();
-            console.log('Browser closed');
-        }
     }
 }

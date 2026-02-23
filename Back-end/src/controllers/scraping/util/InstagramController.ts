@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
-import https from 'https';
 import axios from 'axios';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import * as ProxyController from '../ProxyController';
+import { config } from '../../../config';
 export async function fetchInstagramImages(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string, source?: string }> {
   const username = req ? req.body.username as string : '';
 
@@ -18,19 +17,16 @@ export async function fetchInstagramImages(req?: Request, res?: Response): Promi
   try {
       console.log(`Fetching Instagram images for user: ${username}`);
 
-      const proxy = ProxyController.getRandomProxy();
-      const proxyAgent = proxy.address
-          ? new HttpsProxyAgent(`http://${proxy.username}:${proxy.pw}@${proxy.address}`)
-          : undefined;
+      const agent = ProxyController.getCachedAgent();
 
       const response = await axios.get(
           `https://instagram230.p.rapidapi.com/user/posts?username=${encodeURIComponent(username)}`,
           {
               headers: {
-                  'x-rapidapi-key': 'fec6d0631bmshcf4428bf097f45bp13dc75jsn39ecb3f96346',
+                  'x-rapidapi-key': config.rapidApiKey,
                   'x-rapidapi-host': 'instagram230.p.rapidapi.com'
               },
-              httpsAgent: proxyAgent
+              httpsAgent: agent
           }
       );
 

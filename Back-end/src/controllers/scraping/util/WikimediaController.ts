@@ -1,11 +1,35 @@
 import { Request, Response } from 'express';
-import { Page } from 'puppeteer';
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import axios from 'axios';
 import * as ProxyController from '../ProxyController';
-import { config } from '../../../config';
 
-puppeteer.use(StealthPlugin());
+// License short names from Wikimedia API → display format
+const LICENSE_MAP: Record<string, string> = {
+    'cc-by-sa-4.0': 'Creative Commons Attribution-Share Alike 4.0',
+    'cc-by-sa-3.0': 'Creative Commons Attribution-Share Alike 3.0',
+    'cc-by-sa-2.0': 'Creative Commons Attribution-Share Alike 2.0',
+    'cc-by-4.0': 'Creative Commons Attribution 4.0',
+    'cc-by-3.0': 'Creative Commons Attribution 3.0',
+    'cc-by-2.0': 'Creative Commons Attribution 2.0',
+};
+
+const ALLOWED_LICENSE_PATTERNS = [
+    'cc-by-sa-4.0', 'cc-by-sa-3.0', 'cc-by-sa-2.0',
+    'cc-by-4.0', 'cc-by-3.0', 'cc-by-2.0',
+];
+
+function stripHtmlTags(html: string): string {
+    return html.replace(/<[^>]*>/g, '').trim();
+}
+
+function matchLicense(licenseValue: string): string | null {
+    const lower = licenseValue.toLowerCase();
+    for (const pattern of ALLOWED_LICENSE_PATTERNS) {
+        if (lower.includes(pattern)) {
+            return LICENSE_MAP[pattern] || null;
+        }
+    }
+    return null;
+}
 
 export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ urls: [string, string, string][], count: number, error?: string }> {
     const name = req ? req.body.name as string : '';
@@ -19,73 +43,80 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return { urls: [], count: 0, error };
     }
 
-    let searchTerm = encodeURIComponent(name);
-
-    // Remplacer manuellement les apostrophes par %27
-    searchTerm = searchTerm.replace(/'/g, '%27');
-
-    let browser;
     try {
-        const proxy = ProxyController.getRandomProxy();
-        console.log("Using proxy: " + proxy.address);
+        const proxy = ProxyController.getNextProxy();
+        const agent = ProxyController.getCachedAgent(proxy.address);
+        const startTime = Date.now();
 
-        browser = await puppeteer.launch({
-            headless: config.headless,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--start-fullscreen',
-                `--proxy-server=${proxy.address}`,
-            ],
-        });
-        console.log('Browser launched');
-        const page = await browser.newPage();
-        console.log('New page opened');
+        const apiUrl = 'https://commons.wikimedia.org/w/api.php';
+        const params = {
+            action: 'query',
+            generator: 'search',
+            gsrsearch: name,
+            gsrnamespace: '6', // File namespace
+            gsrlimit: '50',
+            prop: 'imageinfo',
+            iiprop: 'url|extmetadata',
+            iiurlwidth: '1000',
+            format: 'json',
+            origin: '*',
+        };
 
-        await page.authenticate({ username: proxy.username, password: proxy.pw });
-        console.log('Proxy authenticated');
+        console.log(`[Wikimedia API] Searching for: "${name}"`);
 
-
-        const searchUrl = `https://commons.m.wikimedia.org/w/index.php?go=Go&search=${searchTerm}&title=Special:MediaSearch&type=image`;
-
-        console.log(`Navigating to URL: ${searchUrl}`);
-        await page.goto(searchUrl, {
-            waitUntil: 'networkidle2',
-        });
-
-        // Check for the no results div
-        const noResults = await page.evaluate(() => {
-            return !!document.querySelector('.sdms-no-results');
+        const response = await axios.get(apiUrl, {
+            params,
+            headers: {
+                'User-Agent': 'TomexploreBot/1.0 (tourism image aggregator; https://tomexplore.com)',
+            },
+            httpsAgent: agent,
+            timeout: 15000,
         });
 
-        if (noResults) {
-            const result = { urls: [], count: 0, error: "No images found on Wikimedia commons" };
-            if (res) {
-                res.json(result);
-            }
-            await browser.close();
+        const latency = Date.now() - startTime;
+        if (proxy.address) ProxyController.reportSuccess(proxy.address, latency);
+
+        const pages = response.data?.query?.pages;
+        if (!pages) {
+            console.log('[Wikimedia API] No results found');
+            const result = { urls: [] as [string, string, string][], count: 0, error: 'No images found on Wikimedia commons' };
+            if (res) res.json(result);
             return result;
         }
 
-        await page.waitForSelector('a.sdms-image-result');
+        const results: [string, string, string][] = [];
 
-        for (let i = 0; i < 3; i++) {
-            await page.evaluate(() => {
-                window.scrollBy(0, window.innerHeight);
-            });
-            await page.waitForTimeout(1000);
+        for (const pageId of Object.keys(pages)) {
+            const page = pages[pageId];
+            const imageInfo = page.imageinfo?.[0];
+            if (!imageInfo) continue;
+
+            const metadata = imageInfo.extmetadata || {};
+
+            // Check license
+            const licenseShortName = metadata.LicenseShortName?.value || '';
+            const licenseDisplay = matchLicense(licenseShortName);
+            if (!licenseDisplay) continue;
+
+            // Get image URL — prefer the thumbnail (resized to 1000px width), fallback to full URL
+            const imageUrl = imageInfo.thumburl || imageInfo.url || '';
+            if (!imageUrl) continue;
+
+            // Get author — strip HTML tags
+            let author = metadata.Artist?.value || 'Anonyme';
+            author = stripHtmlTags(author);
+            if (!author) author = 'Anonyme';
+
+            results.push([imageUrl, author, licenseDisplay]);
         }
 
-        const urls = await scrapeImages(page);
-        const urlsWithoutDoubles = checkDuplicateURLs(urls.urls); // Pass only the 'urls' array
+        const urlsWithoutDoubles = checkDuplicateURLs(results);
 
         const result = {
             urls: urlsWithoutDoubles,
             count: urlsWithoutDoubles.length,
         };
-        console.log(result);
-
-        await browser.close();
+        console.log(`[Wikimedia API] Found ${result.count} images with valid licenses in ${latency}ms`);
 
         if (res) {
             res.status(200).json(result);
@@ -94,10 +125,14 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return result;
 
     } catch (error: any) {
-        console.error(`Error during search process: ${error.message}`);
-        if (browser) {
-            await browser.close();
+        console.error(`[Wikimedia API] Error during search: ${error.message}`);
+
+        // Report proxy failure if it's a network error
+        if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+            const proxy = ProxyController.getNextProxy();
+            if (proxy.address) ProxyController.reportFailure(proxy.address);
         }
+
         const errorMessage = `Error during search process: ${error.message}`;
         if (res) {
             res.status(500).json({ error: errorMessage });
@@ -106,139 +141,6 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
     }
 }
 
-
-export async function scrapeImages(page: Page): Promise<{ urls: [string, string, string][], count: number }> {
-    console.log('Collecting image links...');
-
-    try {
-        const imageLinks = await page.evaluate(() => {
-            const links = Array.from(document.querySelectorAll('a.sdms-image-result'));
-            return links.map((link, index) => ({
-                href: (link as HTMLAnchorElement).href,
-                index
-            }));
-        });
-
-        console.log(`Found ${imageLinks.length} image links. Processing `);
-        const results: [string, string, string][] = [];
-        const originalUrl = page.url();
-
-        for (const { index, href } of imageLinks.slice(0, 50)) {
-            console.log(`Processing image ${index + 1}: ${href}`);
-
-            await page.evaluate((i) => {
-                const imageLink = document.querySelectorAll('a.sdms-image-result')[i] as HTMLAnchorElement;
-                imageLink.click();
-            }, index);
-
-            // Wait for either the dynamic panel or a new page to load
-            try {
-                await page.waitForSelector('p.sdms-quick-view__list-item.sdms-quick-view__license', { timeout: 5000 });
-            } catch (error) {
-                if (page.url() !== originalUrl) {
-                    console.log('New page opened, navigating back.');
-                    await page.goBack({ waitUntil: 'networkidle2' });
-                    await page.waitForTimeout(1000);
-                    continue;
-                }
-            }
-
-            const licenseText = await page.evaluate(() => {
-                const licenseElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__license a span');
-                return licenseElement ? licenseElement.textContent : '';
-            });
-
-            console.log(`License for image ${index + 1}: ${licenseText}`);
-            if (licenseText &&
-                (licenseText.includes('Creative Commons Attribution-Share Alike 3.0') ||
-                    licenseText.includes('Creative Commons Attribution-Share Alike 4.0') ||
-                    licenseText.includes('Creative Commons Attribution-Share Alike 2.0') ||
-                    licenseText.includes('Creative Commons Attribution 2.0') ||
-                    licenseText.includes('Creative Commons Attribution 3.0') ||
-                    licenseText.includes('Creative Commons Attribution 4.0'))
-            ) {
-                const { authorText, licenseLink } = await page.evaluate(() => {
-                    const licenseElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__license a span');
-                    const authorElement = document.querySelector('p.sdms-quick-view__list-item.sdms-quick-view__artist bdi span a');
-
-                    const licenseText = licenseElement ? licenseElement.textContent : '';
-                    let authorText = authorElement ? authorElement.textContent : 'Anonyme';
-
-                    if (!authorText) {
-                        authorText = 'Anonyme';
-                    }
-
-                    let licenseLink = '';
-                    if (licenseText) {
-                        if (licenseText.includes('Creative Commons Attribution-Share Alike 3.0')) {
-                            licenseLink = 'Creative Commons Attribution-Share Alike 3.0';
-                        } else if (licenseText.includes('Creative Commons Attribution-Share Alike 2.0')) {
-                            licenseLink = 'Creative Commons Attribution-Share Alike 2.0';
-                        } else if (licenseText.includes('Creative Commons Attribution-Share Alike 4.0')) {
-                            licenseLink = 'Creative Commons Attribution-Share Alike 4.0';
-                        } else if (licenseText.includes('Creative Commons Attribution 2.0')) {
-                            licenseLink = 'Creative Commons Attribution 2.0';
-                        } else if (licenseText.includes('Creative Commons Attribution 3.0')) {
-                            licenseLink = 'Creative Commons Attribution 3.0';
-                        } else if (licenseText.includes('Creative Commons Attribution 4.0')) {
-                            licenseLink = 'Creative Commons Attribution 4.0';
-                        }
-                    }
-
-                    return { authorText, licenseLink };
-                });
-
-                console.log(`Author and License for image ${index + 1}: ${authorText}, ${licenseLink}`);
-
-                const imageUrl = await page.evaluate(() => {
-                    const imageElement = document.querySelector('div.sdms-quick-view__thumbnail-wrapper img.sdms-quick-view__thumbnail') as HTMLImageElement;
-                    if (imageElement) {
-                        const srcset = imageElement.getAttribute('srcset');
-                        if (srcset) {
-                            const urlsSet = new Set<string>();
-                            const urls = srcset.split(',');
-                            for (let url of urls) {
-                                url = url.trim();
-                                // Remplace "640px" par "1600px"
-                                const modifiedUrl = url.replace('640px', '1000px').split(' ')[0];
-                                urlsSet.add(modifiedUrl);
-                            }
-                            return urlsSet.size > 0 ? Array.from(urlsSet)[0] : '';
-                        }
-                    }
-                    return '';
-                });
-
-                console.log(`Image URL for image ${index + 1}: ${imageUrl}`);
-
-                results.push([imageUrl, authorText, licenseLink]);
-            } else {
-                console.log(`Skipping image ${index + 1} due to incompatible license.`);
-            }
-
-            // Check if the URL has changed and navigate back if needed
-            if (page.url() !== originalUrl) {
-                await page.goBack({ waitUntil: 'networkidle2' });
-                await page.waitForTimeout(1000);
-            } else {
-                await page.evaluate(() => {
-                    const closeButton = document.querySelector('button.sdms-quick-view__close') as HTMLButtonElement;
-                    if (closeButton) {
-                        closeButton.click();
-                    }
-                });
-                await page.waitForTimeout(300);
-                await page.waitForSelector('a.sdms-image-result');
-            }
-        }
-
-        console.log('Image processing complete.');
-        return { urls: results, count: results.length };
-    } catch (error: any) {
-        console.error(`Error during image scraping: ${error.message}`);
-        throw new Error(`Error during image scraping: ${error.message}`);
-    }
-}
 function checkDuplicateURLs(results: [string, string, string][]): [string, string, string][] {
     const uniqueUrls = new Map<string, [string, string, string]>();
 

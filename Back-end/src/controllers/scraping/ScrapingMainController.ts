@@ -290,73 +290,103 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     cityCache[cityKey] = city;
                 }
 
-                // Fetch Wikimedia Images
-                try {
-                    originalName = await GoogleController.getOriginalName({ body: { location_full_address } } as Request);
-                    if (originalName !== '') { // Recherche avec nom original si possible
-                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: originalName, city: cityName } } as Request);
-                        wikiMediaResult.source = 'Wikimedia';
-                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: originalName, country: countryName, city: cityName } } as Request);
-                    } else {
-                        wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request);
-                        wikiMediaResult.source = 'Wikimedia';
-                        wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: placeName, country: countryName, city: cityName } } as Request);
-                    }
-
-                    if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
-                } catch (error: any) {
-                    console.error(`Error fetching Wikimedia images: ${error.message}`);
-                    errors.push(`Error fetching Wikimedia images: ${error.message}`);
-                    wikiMediaResult.error = `Error fetching Wikimedia images: ${error.message}`;
-                }
-  // Fetch Google Images
-  try {
-    googleImages = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
-    googleImages.source = 'Google';
-    if (googleImages.error) errors.push(googleImages.error);
-} catch (error: any) {
-    console.error(`Error fetching Google images: ${error.message}`);
-    errors.push(`Error fetching Google images: ${error.message}`);
-    googleImages.error = `Error fetching Google images: ${error.message}`;
-}
-                // Fetch Instagram Images if username is provided
-                if (instagram_username && instagram_username !== "") {
-                    try {
-                        instagramImages = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
-    instagramImages.source = 'Instagram';
-
-                        if (instagramImages.error) errors.push(instagramImages.error);
-                    } catch (error: any) {
-                        console.error(`Error fetching Instagram images: ${error.message}`);
-                        errors.push(`Error fetching Instagram images: ${error.message}`);
-                        instagramImages.error = `Error fetching Instagram images: ${error.message}`;
-                    }
-                }
-
-                // Fetch Unsplash Images if famous is true
-                if (famous === true) {
-                    try {
-                        unsplashResult = await UnsplashController.unsplashSearch({ body: { name: placeName } } as Request);
-                        unsplashResult.source = 'Unsplash';
-
-                        if (unsplashResult.error) errors.push(unsplashResult.error);
-                    } catch (error: any) {
-                        console.error(`Error fetching Unsplash images: ${error.message}`);
-                        errors.push(`Error fetching Unsplash images: ${error.message}`);
-                        unsplashResult.error = `Error fetching Unsplash images: ${error.message}`;
-                    }
-                } else if (famous !== false) {
+                if (famous !== true && famous !== false) {
                     return { error: 'Field "famous" must be "true" or "false"', placeData };
                 }
 
-                // Recherche en anglais SN
+                // Step 1: Get original name (needed before wikimedia/wikipedia searches)
+                try {
+                    originalName = await GoogleController.getOriginalName({ body: { location_full_address } } as Request);
+                } catch (error: any) {
+                    console.error(`Error fetching original name: ${error.message}`);
+                }
+
+                const searchName = originalName || placeName;
+
+                // Step 2: Fetch ALL sources in parallel
+                const [wikimediaRaw, wikipediaRaw, googleRaw, instagramRaw, unsplashRaw] = await Promise.all([
+                    // Wikimedia
+                    (async () => {
+                        try {
+                            const result = await WikimediaController.wikiMediaSearch({ body: { name: searchName, city: cityName } } as Request);
+                            if (result.error) errors.push(result.error);
+                            return result;
+                        } catch (error: any) {
+                            console.error(`Error fetching Wikimedia images: ${error.message}`);
+                            errors.push(`Error fetching Wikimedia images: ${error.message}`);
+                            return { urls: [] as [string, string, string][], count: 0, error: `Error fetching Wikimedia images: ${error.message}` };
+                        }
+                    })(),
+                    // Wikipedia
+                    (async () => {
+                        try {
+                            return await WikipediaController.findWikipediaUrl({ body: { name: searchName, country: countryName, city: cityName } } as Request);
+                        } catch (error: any) {
+                            console.error(`Error fetching Wikipedia URL: ${error.message}`);
+                            errors.push(`Error fetching Wikipedia URL: ${error.message}`);
+                            return '';
+                        }
+                    })(),
+                    // Google
+                    (async () => {
+                        try {
+                            const result = await GoogleController.fetchGoogleImgsFromBusinessPage({ body: { location_full_address } } as Request);
+                            if (result.error) errors.push(result.error);
+                            return result;
+                        } catch (error: any) {
+                            console.error(`Error fetching Google images: ${error.message}`);
+                            errors.push(`Error fetching Google images: ${error.message}`);
+                            return { urls: [] as string[], count: 0, error: `Error fetching Google images: ${error.message}` };
+                        }
+                    })(),
+                    // Instagram
+                    (async () => {
+                        if (instagram_username && instagram_username !== "") {
+                            try {
+                                const result = await InstagramController.fetchInstagramImages({ body: { username: instagram_username } } as Request);
+                                if (result.error) errors.push(result.error);
+                                return result;
+                            } catch (error: any) {
+                                console.error(`Error fetching Instagram images: ${error.message}`);
+                                errors.push(`Error fetching Instagram images: ${error.message}`);
+                                return { urls: [] as string[], count: 0, error: `Error fetching Instagram images: ${error.message}` };
+                            }
+                        }
+                        return { urls: [] as string[], count: 0 };
+                    })(),
+                    // Unsplash
+                    (async () => {
+                        if (famous === true) {
+                            try {
+                                const result = await UnsplashController.unsplashSearch({ body: { name: placeName } } as Request);
+                                if (result.error) errors.push(result.error);
+                                return result;
+                            } catch (error: any) {
+                                console.error(`Error fetching Unsplash images: ${error.message}`);
+                                errors.push(`Error fetching Unsplash images: ${error.message}`);
+                                return { urls: [] as [string, string, string][], count: 0, error: `Error fetching Unsplash images: ${error.message}`, link: '' };
+                            }
+                        }
+                        return { urls: [] as [string, string, string][], count: 0, link: '' };
+                    })()
+                ]);
+
+                wikiMediaResult = { ...wikimediaRaw, source: 'Wikimedia' };
+                wikipediaUrl = wikipediaRaw;
+                googleImages = { ...googleRaw, source: 'Google' };
+                instagramImages = { ...instagramRaw, source: 'Instagram' };
+                unsplashResult = { ...unsplashRaw, source: 'Unsplash' };
+
+                // Fallback additional searches in parallel if not enough images
                 if (wikiMediaResult.urls.length + unsplashResult.urls.length + instagramImages.urls.length < 10 && originalName) {
-                    const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request);
+                    const [additionalWikiResults, additionalUnsplashResults] = await Promise.all([
+                        WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request),
+                        famous
+                            ? UnsplashController.unsplashSearch({ body: { name: originalName, city: cityName } } as Request)
+                            : Promise.resolve({ urls: [] as [string, string, string][], count: 0, link: '' })
+                    ]);
                     wikiMediaResult.urls = wikiMediaResult.urls.concat(additionalWikiResults.urls);
-                    if (famous) {
-                        const additionalUnsplashResults = await UnsplashController.unsplashSearch({ body: { name: originalName, city: cityName } } as Request);
-                        unsplashResult.urls = unsplashResult.urls.concat(additionalUnsplashResults.urls);
-                    }
+                    unsplashResult.urls = unsplashResult.urls.concat(additionalUnsplashResults.urls);
                 }
 
                 // Check if all sources failed

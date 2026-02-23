@@ -5,7 +5,6 @@ import axios from 'axios';
 import sharp from 'sharp';
 import { Image } from '../../models';
 import { Place } from '../../models';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { promisify } from 'util';
 import * as ProxyController from './ProxyController';
 
@@ -130,23 +129,17 @@ interface ImageUrl {
 
 const sleep = promisify(setTimeout);
 
-function getProxyAgent(): HttpsProxyAgent<string> | undefined {
-    const proxy = ProxyController.getRandomProxy();
-    if (proxy.address) {
-        const proxyUrl = `http://${proxy.username}:${proxy.pw}@${proxy.address}`;
-        return new HttpsProxyAgent(proxyUrl);
-    }
-    return undefined;
-}
-
 async function fetchWithRetry(url: string, retries = 3, delay = 2000): Promise<Buffer | null> {
-    // Slightly more conservative for Wikimedia
+    // Slightly more conservative for Wikimedia (but reduced from 3000 — API has higher rate limits)
     const isWikimedia = url.includes('wikimedia.org') || url.includes('wikipedia.org');
     if (isWikimedia) {
-        delay = Math.max(delay, 3000);
+        delay = Math.max(delay, 2000);
     }
 
     for (let i = 0; i < retries; i++) {
+        const proxy = ProxyController.getNextProxy();
+        const startTime = Date.now();
+
         try {
             const headers: Record<string, string> = {
                 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
@@ -159,16 +152,20 @@ async function fetchWithRetry(url: string, retries = 3, delay = 2000): Promise<B
                 headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
             }
 
-            // Route ALL downloads through a random proxy
+            // Use cached proxy agent instead of creating a new one per request
             const axiosConfig: any = {
                 responseType: 'arraybuffer',
                 headers,
-                httpsAgent: getProxyAgent(),
+                httpsAgent: ProxyController.getCachedAgent(proxy.address || undefined),
             };
 
             const response = await axios.get(url, axiosConfig);
+            const latency = Date.now() - startTime;
+            if (proxy.address) ProxyController.reportSuccess(proxy.address, latency);
             return Buffer.from(response.data);
         } catch (error: any) {
+            if (proxy.address) ProxyController.reportFailure(proxy.address);
+
             if ((error.response?.status === 429 || error.response?.status === 403) && i < retries - 1) {
                 console.warn(`[RETRY ${i + 1}/${retries - 1}] ${error.response?.status} error for ${url.substring(0, 80)}..., waiting ${delay}ms`);
                 await sleep(delay);
@@ -244,10 +241,10 @@ export async function downloadPhotosTouristAttraction(
         ...googleImages.urls.map(url => ({ url, source: googleImages.source }))
     ];
 
-    console.log(`Starting download of ${allImageUrls.length} images (batches of 5, proxied, 500ms delay)...`);
+    console.log(`Starting download of ${allImageUrls.length} images (batches of 10, proxied, 200ms delay)...`);
 
-    // Download all images in batches of 5 — each request goes through a random proxy
-    const imageNames = await downloadWithConcurrency(allImageUrls, downloadDir, id_tomexplore, 5, 500);
+    // Download all images in batches of 10 — each request goes through a round-robin proxy
+    const imageNames = await downloadWithConcurrency(allImageUrls, downloadDir, id_tomexplore, 10, 200);
 
     console.log(`Download complete: ${imageNames.length}/${allImageUrls.length} successful`);
     console.log(`Download directory: ${downloadDir}`);
