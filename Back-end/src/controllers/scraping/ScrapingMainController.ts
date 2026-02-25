@@ -390,8 +390,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 }
 
                 // Check if all sources failed
-                if (wikiMediaResult.urls.length === 0 && unsplashResult.urls.length === 0 && instagramImages.urls.length === 0) {
-                    return { error: 'Failed to fetch images from both Wikimedia, Unsplash and Instagram', details: errors, placeData };
+                if (wikiMediaResult.urls.length === 0 && unsplashResult.urls.length === 0 && instagramImages.urls.length === 0 && googleImages.urls.length === 0) {
+                    return { error: 'Failed to fetch images from all sources (Wikimedia, Unsplash, Instagram, Google)', details: errors, placeData };
                 }
 
                 const result = await FileController.downloadPhotosTouristAttraction(
