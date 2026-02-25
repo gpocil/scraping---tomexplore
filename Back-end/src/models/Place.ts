@@ -82,16 +82,16 @@ Place.init({
         allowNull: false
     },
     wikipedia_link: {
-        type: DataTypes.STRING
+        type: DataTypes.TEXT
     },
     unsplash_link: {
-        type: DataTypes.STRING
+        type: DataTypes.TEXT
     },
     google_maps_link: {
-        type: DataTypes.STRING
+        type: DataTypes.TEXT
     },
     instagram_link: {
-        type: DataTypes.STRING
+        type: DataTypes.TEXT
     },
     details: {
         type: DataTypes.STRING

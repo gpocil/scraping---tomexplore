@@ -69,7 +69,7 @@ sequelize.authenticate()
     .then(() => {
         console.log('Connection has been established successfully.');
 
-        sequelize.sync()
+        sequelize.sync({ alter: true })
             .then(() => {
                 console.log('Database & tables created!');
 
