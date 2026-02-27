@@ -447,13 +447,28 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     })
                 );
 
-                // Build accessible image URLs
-                const imageUrls = result.imageNames.map(img => `/images/${id_tomexplore}/${img.filename}`);
+                // Build accessible image URLs with author/license when available
+                const images = result.imageNames.map((img, index) => {
+                    let author: string | null = null;
+                    let license: string | null = null;
+                    if (index < wikiMediaResult.urls.length && wikiMediaResult.source) {
+                        author = wikiMediaResult.urls[index][1] || null;
+                        license = wikiMediaResult.urls[index][2] || null;
+                    } else if (index < wikiMediaResult.urls.length + unsplashResult.urls.length && unsplashResult.source) {
+                        const unsplashIndex = index - wikiMediaResult.urls.length;
+                        author = unsplashResult.urls[unsplashIndex][1] || null;
+                        license = unsplashResult.urls[unsplashIndex][2] || null;
+                    }
+                    const image: any = { url: `/images/${id_tomexplore}/${img.filename}` };
+                    if (author) image.author = author;
+                    if (license) image.license = license;
+                    return image;
+                });
 
                 return {
                     downloadDir: result.downloadDir.replace(/\\/g, '/'),
                     imageCount: result.imageCount,
-                    imageUrls,
+                    images,
                     wikiMediaError: wikiMediaResult.error,
                     unsplashError: unsplashResult.error,
                     errors: errors.length > 0 ? errors : undefined,
