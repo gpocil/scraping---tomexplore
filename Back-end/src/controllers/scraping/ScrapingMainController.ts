@@ -294,39 +294,22 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     return { error: 'Field "famous" must be "true" or "false"', placeData };
                 }
 
-                // Step 1: Get original name (needed before wikimedia/wikipedia searches)
+                // Fetch Wikimedia Images
                 try {
                     originalName = await GoogleController.getOriginalName({ body: { location_full_address } } as Request);
+                    const searchName = originalName || placeName;
+                    wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: searchName, city: cityName } } as Request);
+                    wikiMediaResult.source = 'Wikimedia';
+                    wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: searchName, country: countryName, city: cityName } } as Request);
+                    if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
                 } catch (error: any) {
-                    console.error(`Error fetching original name: ${error.message}`);
+                    console.error(`Error fetching Wikimedia images: ${error.message}`);
+                    errors.push(`Error fetching Wikimedia images: ${error.message}`);
+                    wikiMediaResult.error = `Error fetching Wikimedia images: ${error.message}`;
                 }
 
-                const searchName = originalName || placeName;
-
-                // Step 2: Fetch ALL sources in parallel
-                const [wikimediaRaw, wikipediaRaw, googleRaw, instagramRaw, unsplashRaw] = await Promise.all([
-                    // Wikimedia
-                    (async () => {
-                        try {
-                            const result = await WikimediaController.wikiMediaSearch({ body: { name: searchName, city: cityName } } as Request);
-                            if (result.error) errors.push(result.error);
-                            return result;
-                        } catch (error: any) {
-                            console.error(`Error fetching Wikimedia images: ${error.message}`);
-                            errors.push(`Error fetching Wikimedia images: ${error.message}`);
-                            return { urls: [] as [string, string, string][], count: 0, error: `Error fetching Wikimedia images: ${error.message}` };
-                        }
-                    })(),
-                    // Wikipedia
-                    (async () => {
-                        try {
-                            return await WikipediaController.findWikipediaUrl({ body: { name: searchName, country: countryName, city: cityName } } as Request);
-                        } catch (error: any) {
-                            console.error(`Error fetching Wikipedia URL: ${error.message}`);
-                            errors.push(`Error fetching Wikipedia URL: ${error.message}`);
-                            return '';
-                        }
-                    })(),
+                // Fetch Google, Instagram, Unsplash in parallel
+                const [googleRaw, instagramRaw, unsplashRaw] = await Promise.all([
                     // Google
                     (async () => {
                         try {
@@ -371,22 +354,18 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     })()
                 ]);
 
-                wikiMediaResult = { ...wikimediaRaw, source: 'Wikimedia' };
-                wikipediaUrl = wikipediaRaw;
                 googleImages = { ...googleRaw, source: 'Google' };
                 instagramImages = { ...instagramRaw, source: 'Instagram' };
                 unsplashResult = { ...unsplashRaw, source: 'Unsplash' };
 
-                // Fallback additional searches in parallel if not enough images
+                // Fallback: additional searches if not enough images
                 if (wikiMediaResult.urls.length + unsplashResult.urls.length + instagramImages.urls.length < 10 && originalName) {
-                    const [additionalWikiResults, additionalUnsplashResults] = await Promise.all([
-                        WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request),
-                        famous
-                            ? UnsplashController.unsplashSearch({ body: { name: originalName, city: cityName } } as Request)
-                            : Promise.resolve({ urls: [] as [string, string, string][], count: 0, link: '' })
-                    ]);
+                    const additionalWikiResults = await WikimediaController.wikiMediaSearch({ body: { name: placeName, city: cityName } } as Request);
                     wikiMediaResult.urls = wikiMediaResult.urls.concat(additionalWikiResults.urls);
-                    unsplashResult.urls = unsplashResult.urls.concat(additionalUnsplashResults.urls);
+                    if (famous) {
+                        const additionalUnsplashResults = await UnsplashController.unsplashSearch({ body: { name: originalName, city: cityName } } as Request);
+                        unsplashResult.urls = unsplashResult.urls.concat(additionalUnsplashResults.urls);
+                    }
                 }
 
                 // Check if all sources failed
