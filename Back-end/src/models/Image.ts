@@ -23,7 +23,7 @@ Image.init({
         allowNull: false
     },
     original_url: {
-        type: DataTypes.STRING
+        type: DataTypes.TEXT
     },
     place_id: {
         type: DataTypes.INTEGER,
