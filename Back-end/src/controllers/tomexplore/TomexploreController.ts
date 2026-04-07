@@ -223,7 +223,7 @@ export const deleteCheckedPlacesByCity = async (req: Request, res: Response) => 
         for (const place of places) {
             console.log(`Processing place: ${place.name_eng} - ${place.id_tomexplore}`);
 
-            const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
+            const folderPath = path.join(__dirname, '../../../dist', 'temp', place.folder);
 
             try {
                 if (!fs.existsSync(folderPath)) {

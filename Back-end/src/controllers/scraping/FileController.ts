@@ -16,7 +16,7 @@ export function deleteFolderRecursive(req: Request, res: Response): void {
         return;
     }
 
-    const folderPath = path.join(__dirname, '..', 'temp', name);
+    const folderPath = path.join(__dirname, '../../../dist', 'temp', name);
 
     try {
         if (fs.existsSync(folderPath)) {
@@ -76,9 +76,10 @@ interface Url {
 }
 
 export async function downloadPhotosBusiness(id_tomexplore: number, instagramImages: { urls: string[], count: number }, googleImages: { urls: string[], count: number }): Promise<{ downloadDir: string, imageCount: number, imageNames: string[] }> {
+    let counter = 0;
     const imageUrls: Url[] = [
-        ...instagramImages.urls.map(url => ({ url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` })),
-        ...googleImages.urls.map(url => ({ url, generatedName: `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg` }))
+        ...instagramImages.urls.map(url => ({ url, generatedName: `${id_tomexplore}_${Date.now()}_${counter++}_${Math.floor(Math.random() * 100000)}.jpg` })),
+        ...googleImages.urls.map(url => ({ url, generatedName: `${id_tomexplore}_${Date.now()}_${counter++}_${Math.floor(Math.random() * 100000)}.jpg` }))
     ];
 
     if (imageUrls.length > 0) {
@@ -180,25 +181,26 @@ async function fetchWithRetry(url: string, retries = 3, delay = 2000): Promise<B
 }
 
 async function downloadWithConcurrency(
-    imageUrls: { url: string, source: string }[],
+    imageUrls: { url: string, source: string, author?: string | null, license?: string | null }[],
     downloadDir: string,
     id_tomexplore: number,
     concurrency: number = 5,
     delayBetweenBatches: number = 0
-): Promise<{ filename: string, source: string }[]> {
-    const results: { filename: string, source: string }[] = [];
+): Promise<{ filename: string, source: string, author: string | null, license: string | null }[]> {
+    const results: { filename: string, source: string, author: string | null, license: string | null }[] = [];
     let downloadedCount = 0;
     let failedCount = 0;
+    let counter = 0;
 
-    const downloadImage = async (item: { url: string, source: string }) => {
+    const downloadImage = async (item: { url: string, source: string, author?: string | null, license?: string | null }) => {
         const imageBuffer = await fetchWithRetry(item.url);
         if (imageBuffer) {
-            const filename = `${id_tomexplore}_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
+            const filename = `${id_tomexplore}_${Date.now()}_${counter++}_${Math.floor(Math.random() * 100000)}.jpg`;
             const outputPath = path.join(downloadDir, filename);
             await sharp(imageBuffer).toFile(outputPath);
             downloadedCount++;
             console.log(`[${downloadedCount + failedCount}/${imageUrls.length}] ✓ Downloaded from ${item.source}`);
-            return { filename, source: item.source };
+            return { filename, source: item.source, author: item.author || null, license: item.license || null };
         } else {
             failedCount++;
             console.log(`[${downloadedCount + failedCount}/${imageUrls.length}] ✗ Failed from ${item.source}`);
@@ -210,7 +212,7 @@ async function downloadWithConcurrency(
     for (let i = 0; i < imageUrls.length; i += concurrency) {
         const batch = imageUrls.slice(i, i + concurrency);
         const batchResults = await Promise.all(batch.map(downloadImage));
-        results.push(...batchResults.filter((r): r is { filename: string, source: string } => r !== null));
+        results.push(...batchResults.filter((r): r is { filename: string, source: string, author: string | null, license: string | null } => r !== null));
 
         // Add delay between batches to avoid rate limiting
         if (delayBetweenBatches > 0 && i + concurrency < imageUrls.length) {
@@ -229,16 +231,16 @@ export async function downloadPhotosTouristAttraction(
     instagramImages: { urls: string[], count: number, source: string } = { urls: [], count: 0, source: "Instagram" },
     googleImages: { urls: string[], count: number, source: string } = { urls: [], count: 0, source: "Google" }
 ): Promise<{
-    downloadDir: string, imageCount: number, imageNames: { filename: string, source: string }[]
+    downloadDir: string, imageCount: number, imageNames: { filename: string, source: string, author: string | null, license: string | null }[]
 }> {
     const downloadDir = path.join(__dirname, '../../../dist', 'temp', id_tomexplore.toString());
     fs.mkdirSync(downloadDir, { recursive: true });
 
     const allImageUrls = [
-        ...wikiMediaUrls.urls.map(([url]) => ({ url, source: wikiMediaUrls.source })),
-        ...unsplashUrls.urls.map(([url]) => ({ url, source: unsplashUrls.source })),
-        ...instagramImages.urls.map(url => ({ url, source: instagramImages.source })),
-        ...googleImages.urls.map(url => ({ url, source: googleImages.source }))
+        ...wikiMediaUrls.urls.map(([url, author, license]) => ({ url, source: wikiMediaUrls.source, author: author || null, license: license || null })),
+        ...unsplashUrls.urls.map(([url]) => ({ url, source: unsplashUrls.source, author: null, license: null })),
+        ...instagramImages.urls.map(url => ({ url, source: instagramImages.source, author: null, license: null })),
+        ...googleImages.urls.map(url => ({ url, source: googleImages.source, author: null, license: null }))
     ];
 
     console.log(`Starting download of ${allImageUrls.length} images (batches of 10, proxied, 200ms delay)...`);

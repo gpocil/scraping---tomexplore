@@ -168,19 +168,18 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 }, { transaction });
 
                 // Save images in the database with the generated names
-                const saveImage = async (url: string, source: string, generatedName: string) => {
+                const saveImage = async (originalUrl: string, generatedName: string) => {
                     return Image.create({
                         image_name: generatedName,
-                        original_url: source,
+                        original_url: originalUrl,
                         place_id: place.id_tomexplore
                     }, { transaction });
                 };
 
                 await Promise.all(
                     result.imageNames.map((generatedName, index) => {
-                        const source = index < instagramImages.urls.length ? 'Instagram' : 'Google';
                         const url = index < instagramImages.urls.length ? instagramImages.urls[index] : googleImages.urls[index - instagramImages.urls.length];
-                        return saveImage(url, source, generatedName);
+                        return saveImage(url, generatedName);
                     })
                 );
 
@@ -397,50 +396,24 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     wikipedia_link: wikipediaUrl,
                     last_modification: new Date()
                 }, { transaction });
-                // Save images in the database with the generated names
-                const saveImage = async (source: string, author: string | null, license: string | null, generatedName: string) => {
-                    return Image.create({
-                        image_name: generatedName,
-                        original_url: source,
-                        author: author || null,
-                        license: license || null,
-                        place_id: place.id_tomexplore
-                    }, { transaction });
-                };
-
+                // Save images in the database — author/license now comes from download metadata
                 await Promise.all(
-                    result.imageNames.map((generatedName, index) => {
-                        let author: string | null = null;
-                        let license: string | null = null;
-                        if (index < wikiMediaResult.urls.length && wikiMediaResult.source) {
-                            author = wikiMediaResult.urls[index][1];
-                            license = wikiMediaResult.urls[index][2];
-                        } 
-                        else if (index < wikiMediaResult.urls.length + unsplashResult.urls.length && unsplashResult.source) {
-                            const unsplashIndex = index - wikiMediaResult.urls.length;
-                            author = unsplashResult.urls[unsplashIndex][1];
-                            license = unsplashResult.urls[unsplashIndex][2];
-                        } 
-                        return saveImage(generatedName.source, author, license, generatedName.filename);
-
+                    result.imageNames.map((img) => {
+                        return Image.create({
+                            image_name: img.filename,
+                            original_url: img.source,
+                            author: img.author || null,
+                            license: img.license || null,
+                            place_id: place.id_tomexplore
+                        }, { transaction });
                     })
                 );
 
                 // Build accessible image URLs with author/license when available
-                const images = result.imageNames.map((img, index) => {
-                    let author: string | null = null;
-                    let license: string | null = null;
-                    if (index < wikiMediaResult.urls.length && wikiMediaResult.source) {
-                        author = wikiMediaResult.urls[index][1] || null;
-                        license = wikiMediaResult.urls[index][2] || null;
-                    } else if (index < wikiMediaResult.urls.length + unsplashResult.urls.length && unsplashResult.source) {
-                        const unsplashIndex = index - wikiMediaResult.urls.length;
-                        author = unsplashResult.urls[unsplashIndex][1] || null;
-                        license = unsplashResult.urls[unsplashIndex][2] || null;
-                    }
+                const images = result.imageNames.map((img) => {
                     const image: any = { url: `/images/${id_tomexplore}/${img.filename}` };
-                    if (author) image.author = author;
-                    if (license) image.license = license;
+                    if (img.author) image.author = img.author;
+                    if (img.license) image.license = img.license;
                     return image;
                 });
 
@@ -512,22 +485,19 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
             console.log(`Updated place with new Instagram link: ${place.id_tomexplore}`);
         }
 
-        const saveImage = async (url: string, generatedName: string, source: string) => {
+        const saveImage = async (originalUrl: string, generatedName: string) => {
             console.log(`Saving image: ${generatedName}`);
             return Image.create({
                 image_name: generatedName,
-                url,
-                original_url: source,
+                original_url: originalUrl,
                 place_id: place!.id_tomexplore,
-
             });
         };
 
         await Promise.all(
             result.imageNames.map((generatedName, index) => {
-                const source = 'Instagram';
                 const url = instagramImages.urls[index];
-                return saveImage(url, generatedName, source);
+                return saveImage(url, generatedName);
             })
         );
 
@@ -587,11 +557,11 @@ export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
             console.log(`Updated place with new Google Maps link: ${place.id_tomexplore}`);
         }
 
-        const saveImage = async (url: string, generatedName: string) => {
+        const saveImage = async (originalUrl: string, generatedName: string) => {
             console.log(`Saving image: ${generatedName}`);
             return Image.create({
                 image_name: generatedName,
-                url,
+                original_url: originalUrl,
                 place_id: place!.id_tomexplore
             });
         };

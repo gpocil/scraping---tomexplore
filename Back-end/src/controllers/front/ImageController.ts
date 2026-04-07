@@ -519,7 +519,7 @@ export const uploadPhotos = async (req: Request, res: Response) => {
         for (const file of files) {
             const image = await Image.create({
                 image_name: file.filename,
-                source: 'Upload',
+                original_url: 'Upload',
                 place_id: place_id
             });
             images.push(image);
@@ -564,7 +564,7 @@ export const setPlaceToBeDeleted = async (req: Request, res: Response) => {
 
             await deleteImages(imageIds);
 
-            const folderPath = path.join(__dirname, '../..', 'temp', place.folder);
+            const folderPath = path.join(__dirname, '../../../dist', 'temp', place.folder);
             if (fs.existsSync(folderPath)) {
                 deleteFolderRecursiveHelper(folderPath);
                 console.log('Dossier supprimé');

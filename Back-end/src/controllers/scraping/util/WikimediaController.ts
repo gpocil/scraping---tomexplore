@@ -211,7 +211,11 @@ export async function scrapeImages(page: Page): Promise<{ urls: [string, string,
 
                 console.log(`Image URL for image ${index + 1}: ${imageUrl}`);
 
-                results.push([imageUrl, authorText, licenseLink]);
+                if (imageUrl) {
+                    results.push([imageUrl, authorText, licenseLink]);
+                } else {
+                    console.log(`Skipping image ${index + 1} due to empty URL.`);
+                }
             } else {
                 console.log(`Skipping image ${index + 1} due to incompatible license.`);
             }
