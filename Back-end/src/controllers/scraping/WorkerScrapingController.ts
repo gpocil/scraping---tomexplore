@@ -293,8 +293,10 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 try {
                     originalName = await GoogleController.getOriginalName({ body: { location_full_address } } as Request);
                     const searchName = originalName || placeName;
-                    wikiMediaResult = await WikimediaController.wikiMediaSearch({ body: { name: searchName, city: cityName } } as Request);
-                    wikiMediaResult.source = 'Wikimedia';
+                    wikiMediaResult = {
+                        ...(await WikimediaController.wikiMediaSearch({ body: { name: searchName, city: cityName } } as Request)),
+                        source: 'Wikimedia'
+                    };
                     wikipediaUrl = await WikipediaController.findWikipediaUrl({ body: { name: searchName, country: countryName, city: cityName } } as Request);
                     if (wikiMediaResult.error) errors.push(wikiMediaResult.error);
                 } catch (error: any) {
