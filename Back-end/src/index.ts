@@ -15,6 +15,7 @@ import frontRoutes from './routes/front/frontRoutes';
 import texploreRoutes from './routes/tomexplore/tomexploreRoutes';
 import unsplashRoutes from './routes/scraping/UnsplashRoutes';
 import QueueRoutes from './routes/scraping/QueueRoutes';
+import workerScrapingRoutes from './routes/scraping/WorkerScrapingRoutes';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import { jwtMiddleware } from './controllers/security/JWTController';
@@ -64,6 +65,7 @@ app.use('/api', wikipediaRoutes);
 app.use('/api', wikimediaRoutes);
 app.use('/api', fileRoutes);
 app.use('/api', googleRoutes);
+app.use('/api/worker', workerScrapingRoutes);
 
 sequelize.authenticate()
     .then(() => {

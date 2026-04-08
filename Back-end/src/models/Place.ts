@@ -7,6 +7,7 @@ import Image from './Image';
 //place
 class Place extends Model {
     public id_tomexplore!: number;
+    public uuid?: string;
     public name_eng!: string;
     public name_original?: string;
     public type!: string;
@@ -34,6 +35,10 @@ Place.init({
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
+    },
+    uuid: {
+        type: DataTypes.TEXT,
+        allowNull: true,
     },
     name_eng: {
         type: DataTypes.STRING,
