@@ -3,9 +3,96 @@ import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import * as ProxyController from '../ProxyController';
+import axios from 'axios';
 import { config } from '../../../config';
 
 puppeteer.use(StealthPlugin());
+
+// --- Wikimedia Commons API (primary method) ---
+
+const WIKIMEDIA_USER_AGENT = 'TomExplore/1.0 (tomexplore.fr)';
+
+const LICENSE_MAP: Record<string, string> = {
+    'CC BY-SA 2.0': 'Creative Commons Attribution-Share Alike 2.0',
+    'CC BY-SA 3.0': 'Creative Commons Attribution-Share Alike 3.0',
+    'CC BY-SA 4.0': 'Creative Commons Attribution-Share Alike 4.0',
+    'CC BY 2.0': 'Creative Commons Attribution 2.0',
+    'CC BY 3.0': 'Creative Commons Attribution 3.0',
+    'CC BY 4.0': 'Creative Commons Attribution 4.0',
+};
+
+function stripHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, '').trim();
+}
+
+async function wikiMediaSearchAPI(name: string): Promise<{ urls: [string, string, string][], count: number }> {
+    const proxy = ProxyController.getNextProxy();
+    const startTime = Date.now();
+
+    try {
+        const response = await axios.get('https://commons.wikimedia.org/w/api.php', {
+            params: {
+                action: 'query',
+                generator: 'search',
+                gsrsearch: name,
+                gsrnamespace: 6,
+                gsrlimit: 50,
+                prop: 'imageinfo',
+                iiprop: 'extmetadata|url',
+                iiurlwidth: 1000,
+                format: 'json',
+            },
+            headers: {
+                'User-Agent': WIKIMEDIA_USER_AGENT,
+                'Accept': 'application/json',
+            },
+            httpsAgent: ProxyController.getCachedAgent(proxy.address || undefined),
+            timeout: 10000,
+        });
+
+        const latency = Date.now() - startTime;
+        if (proxy.address) ProxyController.reportSuccess(proxy.address, latency);
+
+        const pages = response.data?.query?.pages;
+        if (!pages) {
+            return { urls: [], count: 0 };
+        }
+
+        const results: [string, string, string][] = [];
+
+        for (const page of Object.values(pages) as any[]) {
+            const imageinfo = page.imageinfo?.[0];
+            if (!imageinfo) continue;
+
+            const extmetadata = imageinfo.extmetadata;
+            if (!extmetadata) continue;
+
+            const licenseShort = (extmetadata.LicenseShortName?.value || '').toUpperCase();
+
+            const matchedKey = Object.keys(LICENSE_MAP).find(key =>
+                licenseShort.includes(key)
+            );
+            if (!matchedKey) continue;
+
+            const imageUrl = imageinfo.thumburl || imageinfo.url || '';
+            const author = extmetadata.Artist?.value ? stripHtml(extmetadata.Artist.value) : 'Anonyme';
+            const licenseFull = LICENSE_MAP[matchedKey];
+
+            if (imageUrl) {
+                results.push([imageUrl, author, licenseFull]);
+            }
+        }
+
+        console.log(`[WikimediaAPI] Found ${results.length} CC-licensed images via API for "${name}"`);
+        return { urls: results, count: results.length };
+
+    } catch (error: any) {
+        if (proxy.address) ProxyController.reportFailure(proxy.address);
+        throw error;
+    }
+}
+
+// --- Main export (API first, scraping fallback) ---
 
 export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ urls: [string, string, string][], count: number, error?: string }> {
     const name = req ? req.body.name as string : '';
@@ -19,6 +106,21 @@ export async function wikiMediaSearch(req?: Request, res?: Response): Promise<{ 
         return { urls: [], count: 0, error };
     }
 
+    // --- Try API first ---
+    try {
+        const apiResult = await wikiMediaSearchAPI(name);
+        if (apiResult.urls.length > 0) {
+            const deduped = checkDuplicateURLs(apiResult.urls);
+            const result = { urls: deduped, count: deduped.length };
+            if (res) res.status(200).json(result);
+            return result;
+        }
+        console.log('[WikimediaAPI] No results from API, falling back to scraping...');
+    } catch (error: any) {
+        console.log(`[WikimediaAPI] API failed: ${error.message}, falling back to scraping...`);
+    }
+
+    // --- Fallback: Puppeteer scraping ---
     let searchTerm = encodeURIComponent(name);
 
     // Remplacer manuellement les apostrophes par %27

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import puppeteer, { Page } from 'puppeteer';
 import * as ProxyController from '../ProxyController';
+import axios from 'axios';
 import { config } from '../../../config';
 
 const wikiExtensions = [
@@ -59,6 +60,53 @@ const wikiExtensions = [
     ["Turkey", "tr"]
 ];
 
+// --- Wikipedia API (primary method) ---
+
+const WIKIPEDIA_USER_AGENT = 'TomExplore/1.0 (tomexplore.fr)';
+
+async function findWikipediaUrlAPI(name: string, country: string): Promise<string> {
+    const countryExtension = wikiExtensions.find(([c]) => c.toLowerCase() === country.toLowerCase())?.[1] || 'en';
+
+    const proxy = ProxyController.getNextProxy();
+    const startTime = Date.now();
+
+    try {
+        const response = await axios.get(`https://${countryExtension}.wikipedia.org/w/api.php`, {
+            params: {
+                action: 'query',
+                list: 'search',
+                srsearch: name,
+                srlimit: 1,
+                format: 'json',
+            },
+            headers: {
+                'User-Agent': WIKIPEDIA_USER_AGENT,
+                'Accept': 'application/json',
+            },
+            httpsAgent: ProxyController.getCachedAgent(proxy.address || undefined),
+            timeout: 10000,
+        });
+
+        const latency = Date.now() - startTime;
+        if (proxy.address) ProxyController.reportSuccess(proxy.address, latency);
+
+        const results = response.data?.query?.search;
+        if (results && results.length > 0) {
+            const title = results[0].title.replace(/ /g, '_');
+            const url = `https://${countryExtension}.wikipedia.org/wiki/${title}`;
+            console.log(`[WikipediaAPI] Found article URL: ${url}`);
+            return url;
+        }
+
+        return '';
+    } catch (error: any) {
+        if (proxy.address) ProxyController.reportFailure(proxy.address);
+        throw error;
+    }
+}
+
+// --- Main export (API first, scraping fallback) ---
+
 export async function findWikipediaUrl(req?: Request, res?: Response): Promise<string> {
     const name = req ? req.body.name as string : '';
     const country = req ? req.body.country as string : '';
@@ -73,6 +121,19 @@ export async function findWikipediaUrl(req?: Request, res?: Response): Promise<s
         return '';
     }
 
+    // --- Try API first ---
+    try {
+        const apiUrl = await findWikipediaUrlAPI(name, country);
+        if (apiUrl) {
+            if (res) res.json({ url: apiUrl });
+            return apiUrl;
+        }
+        console.log('[WikipediaAPI] No results from API, falling back to scraping...');
+    } catch (error: any) {
+        console.log(`[WikipediaAPI] API failed: ${error.message}, falling back to scraping...`);
+    }
+
+    // --- Fallback: Puppeteer scraping ---
     let browser;
     try {
         const proxy = ProxyController.getRandomProxy();
