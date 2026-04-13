@@ -142,7 +142,7 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
     const results = await sequelize.transaction(async (transaction) => {
         return Promise.all(places.map(async (placeData) => {
             const {
-                uuid,
+                uuid: rawUuid,
                 name_en, name_fr,
                 link_maps: google_maps_link,
                 instagram_username,
@@ -150,9 +150,10 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 city: cityName,
                 country: countryName
             } = placeData;
+            const uuid = String(rawUuid);
 
             const placeName = name_en || name_fr;
-            if (!uuid || !countryName || !cityName || !placeName) {
+            if (!rawUuid || !countryName || !cityName || !placeName) {
                 return { error: 'Missing required fields (uuid, name, city, country)', placeData };
             }
 
@@ -262,7 +263,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
     const results = await sequelize.transaction(async (transaction) => {
         return Promise.all(places.map(async (placeData) => {
             const {
-                uuid,
+                uuid: rawUuid,
                 famous,
                 name_en, name_fr,
                 address,
@@ -271,9 +272,10 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                 instagram_username,
                 country: countryName
             } = placeData;
+            const uuid = String(rawUuid);
 
             const placeName = name_en || name_fr;
-            if (!uuid || !placeName || !cityName || !countryName || famous === undefined) {
+            if (!rawUuid || !placeName || !cityName || !countryName || famous === undefined) {
                 return { error: 'Missing required fields (uuid, name, city, country, famous)', placeData };
             }
 
