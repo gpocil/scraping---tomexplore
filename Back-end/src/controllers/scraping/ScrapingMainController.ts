@@ -168,18 +168,14 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 }, { transaction });
 
                 // Save images in the database with the generated names
-                const saveImage = async (originalUrl: string, generatedName: string) => {
-                    return Image.create({
-                        image_name: generatedName,
-                        original_url: originalUrl,
-                        place_id: place.id_tomexplore
-                    }, { transaction });
-                };
-
                 await Promise.all(
                     result.imageNames.map((generatedName, index) => {
-                        const url = index < instagramImages.urls.length ? instagramImages.urls[index] : googleImages.urls[index - instagramImages.urls.length];
-                        return saveImage(url, generatedName);
+                        const source = index < instagramImages.urls.length ? 'Instagram' : 'Google';
+                        return Image.create({
+                            image_name: generatedName,
+                            original_url: source,
+                            place_id: place.id_tomexplore
+                        }, { transaction });
                     })
                 );
 
@@ -485,19 +481,14 @@ export async function scrapeInstagramAfterUpdate(req: Request, res: Response) {
             console.log(`Updated place with new Instagram link: ${place.id_tomexplore}`);
         }
 
-        const saveImage = async (originalUrl: string, generatedName: string) => {
-            console.log(`Saving image: ${generatedName}`);
-            return Image.create({
-                image_name: generatedName,
-                original_url: originalUrl,
-                place_id: place!.id_tomexplore,
-            });
-        };
-
         await Promise.all(
-            result.imageNames.map((generatedName, index) => {
-                const url = instagramImages.urls[index];
-                return saveImage(url, generatedName);
+            result.imageNames.map((generatedName) => {
+                console.log(`Saving image: ${generatedName}`);
+                return Image.create({
+                    image_name: generatedName,
+                    original_url: 'Instagram',
+                    place_id: place!.id_tomexplore,
+                });
             })
         );
 
@@ -557,19 +548,14 @@ export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
             console.log(`Updated place with new Google Maps link: ${place.id_tomexplore}`);
         }
 
-        const saveImage = async (originalUrl: string, generatedName: string) => {
-            console.log(`Saving image: ${generatedName}`);
-            return Image.create({
-                image_name: generatedName,
-                original_url: originalUrl,
-                place_id: place!.id_tomexplore
-            });
-        };
-
         await Promise.all(
-            result.imageNames.map((generatedName, index) => {
-                const url = googleMapsImages.urls[index];
-                return saveImage(url, generatedName);
+            result.imageNames.map((generatedName) => {
+                console.log(`Saving image: ${generatedName}`);
+                return Image.create({
+                    image_name: generatedName,
+                    original_url: 'Google',
+                    place_id: place!.id_tomexplore
+                });
             })
         );
 
