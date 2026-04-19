@@ -128,7 +128,7 @@ async function findOrCreateCity(cityName: string, countryId: number, transaction
 
 // ── Route handlers ──────────────────────────────────────────────────
 
-interface ImageResult { urls: string[]; count: number; error?: string; source?: string }
+interface ImageResult { urls: string[]; count: number; error?: string; source?: string; category?: string }
 
 export async function getPhotosBusiness(req?: Request, res?: Response): Promise<any> {
     const places = req ? req.body : [];
@@ -200,9 +200,10 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 }
 
                 // Download images using UUID as folder
+                const googleSourceLabel = googleImages.category ? `Google/${googleImages.category}` : 'Google';
                 const allUrls = [
                     ...instagramImages.urls.map(url => ({ url, source: 'Instagram', author: null, license: null })),
-                    ...googleImages.urls.map(url => ({ url, source: 'Google', author: null, license: null }))
+                    ...googleImages.urls.map(url => ({ url, source: googleSourceLabel, author: null, license: null }))
                 ];
                 const result = await downloadPhotos(uuid, allUrls, 5, 500);
 
@@ -336,7 +337,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     })()
                 ]);
 
-                const googleImages: ImageResult = { ...googleRaw, source: 'Google' };
+                const googleSourceLabel = googleRaw.category ? `Google/${googleRaw.category}` : 'Google';
+                const googleImages: ImageResult = { ...googleRaw, source: googleSourceLabel };
                 const instagramImages: ImageResult = { ...instagramRaw, source: 'Instagram' };
                 unsplashResult = { ...unsplashRaw, source: 'Unsplash' };
 
@@ -359,7 +361,7 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     ...wikiMediaResult.urls.map(([url, author, license]) => ({ url, source: 'Wikimedia', author: author || null, license: license || null })),
                     ...unsplashResult.urls.map(([url]) => ({ url, source: 'Unsplash', author: null, license: null })),
                     ...instagramImages.urls.map(url => ({ url, source: 'Instagram', author: null, license: null })),
-                    ...googleImages.urls.map(url => ({ url, source: 'Google', author: null, license: null }))
+                    ...googleImages.urls.map(url => ({ url, source: googleSourceLabel, author: null, license: null }))
                 ];
 
                 const result = await downloadPhotos(uuid, allUrls, 10, 200);

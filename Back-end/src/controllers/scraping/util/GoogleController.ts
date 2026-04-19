@@ -47,23 +47,30 @@ interface PhotosResponse {
 
 /**
  * Extract business_id from Google Maps URL
- * Format: 0x...:0x... found in the URL data parameter
+ * Supports legacy hex FID (0x...:0x...) and modern Place ID (ChIJ...)
  */
 function extractBusinessId(url: string): string | null {
-  // Pattern: !1s0x...:0x...
-  const match = url.match(/!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i);
-  if (match && match[1]) {
-    console.log('Extracted business_id:', match[1]);
-    return match[1];
+  // Pattern: !1s0x...:0x... (legacy hex FID in place URL)
+  const hexMatch = url.match(/!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i);
+  if (hexMatch && hexMatch[1]) {
+    console.log('Extracted business_id (hex FID):', hexMatch[1]);
+    return hexMatch[1];
   }
-  
-  // Alternative pattern in some URLs
-  const altMatch = url.match(/(0x[0-9a-f]+:0x[0-9a-f]+)/i);
-  if (altMatch && altMatch[1]) {
-    console.log('Extracted business_id (alt):', altMatch[1]);
-    return altMatch[1];
+
+  // Pattern: place_id:ChIJ... or ?q=place_id:ChIJ...
+  const placeIdMatch = url.match(/place_id[:=]([A-Za-z0-9_-]{20,})/);
+  if (placeIdMatch && placeIdMatch[1]) {
+    console.log('Extracted business_id (Place ID):', placeIdMatch[1]);
+    return placeIdMatch[1];
   }
-  
+
+  // Alternative hex pattern without !1s prefix
+  const altHexMatch = url.match(/(0x[0-9a-f]+:0x[0-9a-f]+)/i);
+  if (altHexMatch && altHexMatch[1]) {
+    console.log('Extracted business_id (hex alt):', altHexMatch[1]);
+    return altHexMatch[1];
+  }
+
   console.log('Could not extract business_id from URL:', url);
   return null;
 }
@@ -124,6 +131,9 @@ async function getPhotos(businessId: string, categoryHash: string, limit: number
   );
 
   if (response.data.status && response.data.data) {
+    if (response.data.data.length > 0) {
+      console.log(`[GoogleController] First raw URL from API: ${response.data.data[0].url}`);
+    }
     // Transform URLs to high resolution (replace thumbnail size with full size)
     const urls = response.data.data.map(photo => {
       // Get max resolution URL
@@ -141,7 +151,7 @@ async function getPhotos(businessId: string, categoryHash: string, limit: number
 /**
  * Main function to fetch Google Images from Business Page using RapidAPI
  */
-export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, error?: string }> {
+export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Response): Promise<{ urls: string[], count: number, category?: string, error?: string }> {
   const { location_full_address } = req ? req.body : { location_full_address: '' };
   console.log('=== FETCH GOOGLE IMAGES (RapidAPI) ===');
   console.log('Location full address:', location_full_address);
@@ -173,29 +183,48 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
 
     // Step 1: Get photo categories
     const categories = await getPhotoCategories(businessId);
-    
-    // Step 2: Find "By owner" category
-    const byOwnerCategory = categories.find(cat => 
-      cat.name.toLowerCase() === 'by owner' || 
-      cat.name.toLowerCase().includes('owner')
-    );
 
-    if (!byOwnerCategory) {
-      const error = 'No "By owner" category found for this business';
+    if (categories.length === 0) {
+      const error = 'No photo categories available for this business';
       console.log(error);
-      console.log('Available categories:', categories.map(c => c.name).join(', '));
       if (res) res.json({ urls: [], count: 0, error });
       return { urls: [], count: 0, error };
     }
 
-    console.log(`Found "By owner" category with hash: ${byOwnerCategory.hash}`);
+    // Step 2: Try "By owner" first
+    const byOwnerCategory = categories.find(cat =>
+      cat.name.toLowerCase() === 'by owner' ||
+      cat.name.toLowerCase().includes('owner')
+    );
 
-    // Step 3: Get photos from "By owner" category
-    const urls = await getPhotos(businessId, byOwnerCategory.hash);
+    let urls: string[] = [];
+    let usedCategoryName = '';
 
-    const result = { urls, count: urls.length };
-    console.log(`✓ Successfully fetched ${result.count} owner photos`);
-    
+    if (byOwnerCategory) {
+      console.log(`Found "By owner" category with hash: ${byOwnerCategory.hash}`);
+      urls = await getPhotos(businessId, byOwnerCategory.hash);
+      usedCategoryName = byOwnerCategory.name;
+    } else {
+      console.log('No "By owner" category found. Available categories:', categories.map(c => c.name).join(', '));
+    }
+
+    // Step 3: Fallback to "All" if By owner missing or returned nothing
+    if (urls.length === 0) {
+      const allCategory = categories.find(cat => {
+        const n = cat.name.toLowerCase();
+        return n === 'all' || n === 'tout' || n === 'todas' || n === 'alle';
+      }) || categories[0];
+
+      if (allCategory && allCategory.hash !== byOwnerCategory?.hash) {
+        console.log(`Falling back to category "${allCategory.name}" with hash: ${allCategory.hash}`);
+        urls = await getPhotos(businessId, allCategory.hash);
+        usedCategoryName = allCategory.name;
+      }
+    }
+
+    const result = { urls, count: urls.length, category: usedCategoryName };
+    console.log(`✓ Successfully fetched ${result.count} photos from category "${usedCategoryName}"`);
+
     if (res) res.json(result);
     return result;
 

@@ -18,6 +18,7 @@ interface ImageResultBusiness {
     count: number;
     error?: string;
     source?:string;
+    category?: string;
 }
 
 let cityCache: Record<string, any> = {};
@@ -168,9 +169,10 @@ export async function getPhotosBusiness(req?: Request, res?: Response): Promise<
                 }, { transaction });
 
                 // Save images in the database with the generated names
+                const googleSourceLabel = googleImages.category ? `Google/${googleImages.category}` : 'Google';
                 await Promise.all(
                     result.imageNames.map((generatedName, index) => {
-                        const source = index < instagramImages.urls.length ? 'Instagram' : 'Google';
+                        const source = index < instagramImages.urls.length ? 'Instagram' : googleSourceLabel;
                         return Image.create({
                             image_name: generatedName,
                             original_url: source,
@@ -349,7 +351,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     })()
                 ]);
 
-                googleImages = { ...googleRaw, source: 'Google' };
+                const googleSourceLabel = googleRaw.category ? `Google/${googleRaw.category}` : 'Google';
+                googleImages = { ...googleRaw, source: googleSourceLabel };
                 instagramImages = { ...instagramRaw, source: 'Instagram' };
                 unsplashResult = { ...unsplashRaw, source: 'Unsplash' };
 
@@ -548,12 +551,13 @@ export async function scrapeGoogleMapsAfterUpdate(req: Request, res: Response) {
             console.log(`Updated place with new Google Maps link: ${place.id_tomexplore}`);
         }
 
+        const googleSourceLabel = googleMapsImages.category ? `Google/${googleMapsImages.category}` : 'Google';
         await Promise.all(
             result.imageNames.map((generatedName) => {
                 console.log(`Saving image: ${generatedName}`);
                 return Image.create({
                     image_name: generatedName,
-                    original_url: 'Google',
+                    original_url: googleSourceLabel,
                     place_id: place!.id_tomexplore
                 });
             })
