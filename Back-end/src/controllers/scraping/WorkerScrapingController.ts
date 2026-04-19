@@ -411,6 +411,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     downloadDir: result.downloadDir.replace(/\\/g, '/'),
                     imageCount: result.imageCount,
                     images,
+                    wikipedia_link: wikipediaUrl || '',
+                    name_original: originalName || '',
                     errors: errors.length > 0 ? errors : undefined,
                     placeData
                 };

@@ -426,6 +426,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                     downloadDir: result.downloadDir.replace(/\\/g, '/'),
                     imageCount: result.imageCount,
                     images,
+                    wikipedia_link: wikipediaUrl || '',
+                    name_original: originalName || '',
                     wikiMediaError: wikiMediaResult.error,
                     unsplashError: unsplashResult.error,
                     errors: errors.length > 0 ? errors : undefined,
