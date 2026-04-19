@@ -13,6 +13,12 @@ import * as WikimediaController from './util/WikimediaController';
 import * as WikipediaController from './util/WikipediaController';
 import sequelize from '../../sequelize';
 
+/** Truncate a value to fit a VARCHAR(255) column, returning null for empty/nullish. */
+function truncateForVarchar(value: string | null | undefined, max = 255): string | null {
+    if (!value) return null;
+    return value.length > max ? value.slice(0, max) : value;
+}
+
 interface ImageResultBusiness {
     urls: string[];
     count: number;
@@ -401,8 +407,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                         return Image.create({
                             image_name: img.filename,
                             original_url: img.source,
-                            author: img.author || null,
-                            license: img.license || null,
+                            author: truncateForVarchar(img.author),
+                            license: truncateForVarchar(img.license),
                             place_id: place.id_tomexplore
                         }, { transaction });
                     })
@@ -628,8 +634,8 @@ export async function scrapeWikimediaAfterUpdate(req: Request, res: Response) {
             return Image.create({
                 image_name: generatedName,
                 original_url: source,
-                author: author || null,
-                license: license || null,
+                author: truncateForVarchar(author),
+                license: truncateForVarchar(license),
                 place_id: place!.id_tomexplore
             });
         };

@@ -18,6 +18,12 @@ import { promisify } from 'util';
 
 const sleep = promisify(setTimeout);
 
+/** Truncate a value to fit a VARCHAR(255) column, returning null for empty/nullish. */
+function truncateForVarchar(value: string | null | undefined, max = 255): string | null {
+    if (!value) return null;
+    return value.length > max ? value.slice(0, max) : value;
+}
+
 let cityCache: Record<string, any> = {};
 let countryCache: Record<string, any> = {};
 
@@ -387,8 +393,8 @@ export async function getPhotosTouristAttraction(req?: Request, res?: Response):
                         Image.create({
                             image_name: img.filename,
                             original_url: img.source,
-                            author: img.author || null,
-                            license: img.license || null,
+                            author: truncateForVarchar(img.author),
+                            license: truncateForVarchar(img.license),
                             place_id: place.id_tomexplore
                         }, { transaction })
                     )
