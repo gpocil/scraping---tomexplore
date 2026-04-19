@@ -163,7 +163,7 @@ export async function fetchGoogleImgsFromBusinessPage(req?: Request, res?: Respo
     const businessId = extractBusinessId(location_full_address);
     
     if (!businessId) {
-      const error = 'Could not extract business_id from URL. Make sure the URL contains a valid Google Maps place ID (format: 0x...:0x...)';
+      const error = `Could not extract business_id from URL: "${location_full_address}". Supported formats: legacy hex (!1s0x...:0x...) or modern Place ID (place_id:ChIJ...).`;
       console.error(error);
       if (res) res.status(400).json({ error });
       return { urls: [], count: 0, error };
